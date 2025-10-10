@@ -1,8 +1,0 @@
-Package: utfcpp
-Version: 4.0.6
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 9135ead509b645a219f951ddf679ba42fbcdf6481c75d9c0aa6f82cce374ad4a
-Description: UTF-8 with C++ in a Portable Way
-Status: install ok half-installed

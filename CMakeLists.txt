@@ -7,5 +7,5 @@ find_package(assimp CONFIG REQUIRED)
 
 add_executable(Engine src/Main.cpp)
 
-target_link_libraries(Engine PRIVATE SDL::SDL3)
+target_link_libraries(Engine PRIVATE SDL3::SDL3)
 target_link_libraries(Engine PRIVATE assimp::assimp)
