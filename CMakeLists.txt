@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.10)
 
 project(Motor)
 
+find_package(fmt CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
+find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
-add_executable(Engine src/Main.cpp)
+file(GLOB SOURCES "src/*.cpp" "src/*.h")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "Source" FILES ${SOURCES})
+add_executable(Motor ${SOURCES})
 
-target_link_libraries(Engine PRIVATE SDL3::SDL3)
-target_link_libraries(Engine PRIVATE assimp::assimp)
+target_link_libraries(Motor PRIVATE fmt::fmt)
+target_link_libraries(Motor PRIVATE SDL3::SDL3)
+target_link_libraries(Motor PRIVATE glad::glad)
+target_link_libraries(Motor PRIVATE assimp::assimp)
