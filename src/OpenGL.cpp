@@ -29,9 +29,12 @@ bool OpenGL::Start()
     // Vertex Shader
     const char* vertexShaderSource = "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
+        "layout (location = 1) in vec3 aCol;\n"
+        "out vec3 col;\n"
         "void main()\n"
         "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0f);\n"
+        "   col = aCol;\n"
         "}\0";
 
     unsigned int vertexShader;
@@ -51,10 +54,11 @@ bool OpenGL::Start()
 
     // Fragment Shader
     const char* fragmentShaderSource = "#version 330 core\n"
+        "in vec3 col;\n"
         "out vec4 FragColor;\n"
         "void main()\n"
         "{\n"
-        "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+        "   FragColor = vec4(col, 1.0f);\n"
         "}\0";
 
     unsigned int fragmentShader;
@@ -90,9 +94,9 @@ bool OpenGL::Start()
 
     // Vertex data
     float vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-         0.5f, -0.5f, 0.0f,
-         0.0f,  0.5f, 0.0f
+        -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+         0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
     };
 
     // Generate and bind VAO
@@ -105,8 +109,11 @@ bool OpenGL::Start()
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // Configure vertex attributes
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     std::cout << "OpenGL initialized successfully" << std::endl;
 
