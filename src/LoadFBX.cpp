@@ -41,7 +41,7 @@ struct MeshData {
     }
 };
 
-// Global instance of ourMesh
+
 MeshData ourMesh;
 
 bool LoadFile(const char* file_path) {
