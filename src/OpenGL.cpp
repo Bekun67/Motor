@@ -3,6 +3,8 @@
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 #include <iostream>
+#include "glm/glm.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0), VAO(0), VBO(0)
 {

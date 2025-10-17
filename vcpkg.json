@@ -3,6 +3,7 @@
     "fmt",
     "sdl3",
     "glad",
-    "assimp"
+    "assimp",
+    "glm"
   ]
 }
