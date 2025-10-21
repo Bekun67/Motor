@@ -90,6 +90,12 @@ bool LoadFile(const char* file_path) {
             }
         }
 
+        //for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
+        //    aiMaterial* material = scene->mMaterials[i];
+        //        
+        //    
+        //}
+
         aiReleaseImport(scene);
         return true; // Successfully loaded the file
     }

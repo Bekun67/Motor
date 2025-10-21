@@ -18,4 +18,5 @@ private:
 	bool Start() override;
 	bool CleanUp() override;
 	bool Update() override;
+	bool Draw();
 };

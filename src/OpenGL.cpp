@@ -146,3 +146,8 @@ bool OpenGL::CleanUp()
 
     return true;
 }
+
+bool OpenGL::Draw()
+{
+    return true;
+}
