@@ -1,107 +1,130 @@
+#include "LoadFBX.h"
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <assimp/cimport.h>
 #include <assimp/Logger.hpp>
 #include <assimp/DefaultLogger.hpp>
-#include "LoadFBX.h"
-#include <glad/glad.h>
+#include <cstdio>
+#include <vector>
+#include <cstring>
+#include <iostream>
 
 #define LOG(format, ...) printf(format "\n", __VA_ARGS__)
 
-struct VertexData {
-    // Index buffer data
-    uint32_t id_index = 0;   
-    uint32_t num_index = 0;  
-    uint32_t* index = nullptr; 
-
-    // Vertex buffer data
-    uint32_t id_vertex = 0;   
-    uint32_t num_vertex = 0;  
-    float* vertex = nullptr;  
-
-    // Destructor 
-    ~VertexData() {
-        delete[] index;
-        delete[] vertex;
-    }
-};
-
-// Define a structure for ourMesh
-struct MeshData {
-    unsigned int num_vertices = 0;
-    float* vertices = nullptr;
-    unsigned int num_indices = 0;
-    unsigned int* indices = nullptr;
-
-    // Destructor to clean up dynamically allocated memory
-    ~MeshData() {
-        delete[] vertices;
-        delete[] indices;
-    }
-};
-
-
-MeshData ourMesh;
+// Definición del vector global
+std::vector<MeshData> g_Meshes;
 
 bool LoadFile(const char* file_path) {
-    // Import the file with Assimp
-    const aiScene* scene = aiImportFile(file_path, aiProcessPreset_TargetRealtime_MaxQuality);
+    Assimp::Importer importer;
 
-    if (scene != nullptr && scene->HasMeshes()) {
-        // Iterate through the meshes
-        for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
-            aiMesh* mesh = scene->mMeshes[i];
+    // Postprocess flags: triangulate, generate normals if missing, join identical vertices, flip UVs if needed
+    unsigned int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality | aiProcess_FlipUVs;
 
-            // Crear un nuevo VertexData para esta malla
-            VertexData vertexData;
+    const aiScene* scene = importer.ReadFile(file_path, flags);
 
-            // Copiar vértices
-            vertexData.num_vertex = mesh->mNumVertices;
-            vertexData.vertex = new float[vertexData.num_vertex * 3];
-            memcpy(vertexData.vertex, mesh->mVertices, sizeof(float) * vertexData.num_vertex * 3);
+    if (!scene) {
+        LOG("Assimp error: %s", importer.GetErrorString());
+        return false;
+    }
 
-            // Crear un buffer de vértices en la VRAM
-            glGenBuffers(1, &vertexData.id_vertex);
-            glBindBuffer(GL_ARRAY_BUFFER, vertexData.id_vertex);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertexData.num_vertex * 3, vertexData.vertex, GL_STATIC_DRAW);
+    if (!scene->HasMeshes()) {
+        LOG("No meshes found in file: %s", file_path);
+        return false;
+    }
 
-            LOG("New vertex buffer created with ID %d and %d vertices", vertexData.id_vertex, vertexData.num_vertex);
+    // Para cada malla del scene, construimos buffers OpenGL
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
+        aiMesh* mesh = scene->mMeshes[m];
 
-            // Copiar índices si la malla tiene caras
-            if (mesh->HasFaces()) {
-                vertexData.num_index = mesh->mNumFaces * 3; // Asumimos que cada cara es un triángulo
-                vertexData.index = new uint32_t[vertexData.num_index];
-                for (unsigned int j = 0; j < mesh->mNumFaces; ++j) {
-                    if (mesh->mFaces[j].mNumIndices != 3) {
-                        LOG("WARNING, geometry face with != 3 indices!");
-                    }
-                    else {
-                        memcpy(&vertexData.index[j * 3], mesh->mFaces[j].mIndices, 3 * sizeof(uint32_t));
-                    }
-                }
+        // Arrays temporales en CPU
+        std::vector<float> vertexData;         // interleaved: pos.x,pos.y,pos.z, normal.x,normal.y,normal.z, tex.u,tex.v
+        std::vector<uint32_t> indices;
 
-                // Crear un buffer de índices en la VRAM
-                glGenBuffers(1, &vertexData.id_index);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexData.id_index);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * vertexData.num_index, vertexData.index, GL_STATIC_DRAW);
+        // Reserva aproximada
+        vertexData.reserve(mesh->mNumVertices * 8);
+        indices.reserve(mesh->mNumFaces * 3);
 
-                LOG("New index buffer created with ID %d and %d indices", vertexData.id_index, vertexData.num_index);
+        // Copia de vértices
+        for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
+            // Position
+            const aiVector3D& pos = mesh->mVertices[v];
+            vertexData.push_back(pos.x);
+            vertexData.push_back(pos.y);
+            vertexData.push_back(pos.z);
+
+            // Normal (si no hay, el postprocess aiProcess_GenSmoothNormals la habrá generado)
+            aiVector3D normal = mesh->HasNormals() ? mesh->mNormals[v] : aiVector3D(0.0f, 0.0f, 1.0f);
+            vertexData.push_back(normal.x);
+            vertexData.push_back(normal.y);
+            vertexData.push_back(normal.z);
+
+            // TexCoords (canal 0)
+            if (mesh->HasTextureCoords(0)) {
+                aiVector3D uv = mesh->mTextureCoords[0][v];
+                vertexData.push_back(uv.x);
+                vertexData.push_back(uv.y);
+            }
+            else {
+                // Si no hay UVs, añadir 0,0
+                vertexData.push_back(0.0f);
+                vertexData.push_back(0.0f);
             }
         }
 
-        //for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
-        //    aiMaterial* material = scene->mMaterials[i];
-        //        
-        //    
-        //}
+        // Copia de índices (asumimos triangulos porque usamos aiProcess_Triangulate)
+        for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
+            const aiFace& face = mesh->mFaces[f];
+            if (face.mNumIndices != 3) {
+                LOG("WARNING: face with != 3 indices detected (mesh %d face %d). Skipping.", m, f);
+                continue;
+            }
+            indices.push_back(face.mIndices[0]);
+            indices.push_back(face.mIndices[1]);
+            indices.push_back(face.mIndices[2]);
+        }
 
-        aiReleaseImport(scene);
-        return true; // Successfully loaded the file
+        // Crear VAO/VBO/EBO en GPU
+        MeshData md;
+        glGenVertexArrays(1, &md.VAO);
+        glBindVertexArray(md.VAO);
+
+        glGenBuffers(1, &md.VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, md.VBO);
+        glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(float), vertexData.data(), GL_STATIC_DRAW);
+
+        glGenBuffers(1, &md.EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, md.EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
+
+        // Formato interleaved: 3 pos, 3 normal, 2 uv = stride 8 floats
+        GLsizei stride = 8 * sizeof(float);
+
+        // position -> layout(location = 0)
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)(0));
+
+        // normal -> layout(location = 1)
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
+
+        // texcoord -> layout(location = 2)
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+
+        // Guardar número de índices
+        md.numIndices = static_cast<GLsizei>(indices.size());
+
+        // Unbind por higiene
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+        g_Meshes.push_back(md);
+
+        LOG("Loaded mesh %d -> VAO %u VBO %u EBO %u indices %d", m, md.VAO, md.VBO, md.EBO, md.numIndices);
     }
-    else {
-        // Log an error message
-        LOG("Error loading file: %s", file_path);
-        return false; // Failed to load the file
-    }
+
+    return true;
 }
