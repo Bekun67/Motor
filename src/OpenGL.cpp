@@ -18,6 +18,10 @@ OpenGL::~OpenGL()
 {
 }
 
+
+Camera OpenGL::camera;
+uint64_t OpenGL::lastTicks = 0;
+
 static GLuint CompileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
@@ -49,6 +53,7 @@ bool OpenGL::Start()
     // Habilitar depth test
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
+
 
     // Shader simple que usa position, normal, texcoord y matrices
     const char* vertexShaderSource = "#version 330 core\n"
@@ -98,6 +103,8 @@ bool OpenGL::Start()
     glDeleteShader(vs);
     glDeleteShader(fs);
 
+    lastTicks = SDL_GetTicks();
+
     // -- Cargar FBX (cambia la ruta al fichero deseado) --
     // Nota: LoadFile creará VAO/VBO/EBO y rellenará g_Meshes
     const char* fbxPath = "assets/models/warrior.FBX"; // <- cambia aquí
@@ -116,50 +123,38 @@ bool OpenGL::Start()
 
 bool OpenGL::Update()
 {
-    // Clean screen
+    // Calcular deltaTime
+    uint64_t currentTicks = SDL_GetTicks();
+    float deltaTime = (currentTicks - lastTicks) / 1000.0f;
+    lastTicks = currentTicks;
+
+    // Manejar entrada de cámara
+    camera.HandleInput(deltaTime);
+
     glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // Usar shader
     glUseProgram(shaderProgram);
 
-    // Aquí deberías calcular tus matrices y enviarlas como uniformes (glm recomendado)
-    // Para ejemplo rápido envío identidad (cámbialo por tu cámara)
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
-    // Matrices identidad (4x4 columna mayor)
+
     glm::mat4 model = glm::mat4(1.0f);
+    model = glm::scale(model, glm::vec3(0.01f));
+    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1, 0, 0));
 
-    // Escala el modelo un poco (por si es muy grande o pequeño)
-    model = glm::scale(model, glm::vec3(0.01f, 0.01f, 0.01f));
-    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-    // Cámara tipo lookAt
-    glm::mat4 view = glm::lookAt(
-        glm::vec3(0.0f, 1.0f, 3.0f),  // posición de la cámara
-        glm::vec3(0.0f, 0.0f, 0.0f),  // mira al origen
-        glm::vec3(0.0f, 1.0f, 0.0f)   // up vector
-    );
-
-    // Proyección perspectiva
-    glm::mat4 projection = glm::perspective(
-        glm::radians(60.0f),          // FOV
-        16.0f / 9.0f,                 // aspect ratio (cambia según tu ventana)
-        0.1f, 100.0f                  // near / far plane
-    );
+    glm::mat4 view = camera.GetViewMatrix();
+    glm::mat4 projection = camera.GetProjectionMatrix();
 
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    // Dibujar todas las mallas cargadas
     for (const MeshData& md : g_Meshes) {
         if (md.VAO == 0 || md.numIndices == 0) continue;
         glBindVertexArray(md.VAO);
         glDrawElements(GL_TRIANGLES, md.numIndices, GL_UNSIGNED_INT, 0);
     }
-
     // Si no hay mallas, puedes seguir dibujando tu triángulo de prueba (opcional)
     // glBindVertexArray(VAO); glDrawArrays(GL_TRIANGLES, 0, 3);
 
