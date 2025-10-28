@@ -24,6 +24,8 @@ class Input : public Module
 
 public:
 
+
+
 	Input();
 
 	// Destructor
@@ -55,9 +57,9 @@ public:
 	// Check if a certain window event happened
 	bool GetWindowEvent(EventWindow ev);
 
-	// Get mouse / axis position
-	//Vector2D GetMousePosition();
-	//Vector2D GetMouseMotion();
+	// Get mouse wheel motion
+	int GetMouseWheelX() const { return mouseWheelX; }
+	int GetMouseWheelY() const { return mouseWheelY; }
 
 private:
 	bool windowEvents[WE_COUNT];
@@ -67,5 +69,8 @@ private:
 	int mouseMotionY;
 	int mouseX;
 	int mouseY;
+	int mouseWheelX = 0;
+	int mouseWheelY = 0;
+	
 
 };

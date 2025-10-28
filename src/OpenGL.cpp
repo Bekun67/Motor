@@ -3,16 +3,35 @@
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 #include <iostream>
-#include "glm/glm.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include <vector>
+#include "LoadFBX.h" 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0), VAO(0), VBO(0)
+OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
 {
     std::cout << "OpenGL Constructor" << std::endl;
 }
 
 OpenGL::~OpenGL()
 {
+}
+
+static GLuint CompileShader(GLenum type, const char* source) {
+    GLuint shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
+
+    int success;
+    char infoLog[1024];
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+        std::cerr << "Shader compile error: " << infoLog << std::endl;
+    }
+    return shader;
 }
 
 bool OpenGL::Start()
@@ -28,94 +47,71 @@ bool OpenGL::Start()
         return false;
     }
 
-    // Vertex Shader
+    // Habilitar depth test
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+
+    // Shader simple que usa position, normal, texcoord y matrices
     const char* vertexShaderSource = "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "layout (location = 1) in vec3 aCol;\n"
-        "out vec3 col;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0f);\n"
-        "   col = aCol;\n"
-        "}\0";
+        "layout(location = 0) in vec3 position;\n"
+        "layout(location = 1) in vec3 normal;\n"
+        "layout(location = 2) in vec2 texcoord;\n"
+        "out vec3 fragNormal;\n"
+        "out vec2 fragUV;\n"
+        "uniform mat4 model_matrix;\n"
+        "uniform mat4 view;\n"
+        "uniform mat4 projection;\n"
+        "void main() {\n"
+        "    fragNormal = mat3(transpose(inverse(model_matrix))) * normal;\n"
+        "    fragUV = texcoord;\n"
+        "    gl_Position = projection * view * model_matrix * vec4(position, 1.0);\n"
+        "}\n";
 
-    unsigned int vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    // Check vertex shader compilation
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cerr << "ERROR: Vertex Shader Compilation Failed\n" << infoLog << std::endl;
-    }
-
-    // Fragment Shader
     const char* fragmentShaderSource = "#version 330 core\n"
-        "in vec3 col;\n"
+        "in vec3 fragNormal;\n"
+        "in vec2 fragUV;\n"
         "out vec4 FragColor;\n"
-        "void main()\n"
-        "{\n"
-        "   FragColor = vec4(col, 1.0f);\n"
-        "}\0";
+        "void main() {\n"
+        "    vec3 n = normalize(fragNormal);\n"
+        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "    vec3 base = vec3(0.6, 0.6, 0.6);\n        // color de prueba, eventualmente mu�velo a material/texture\n"
+        "    FragColor = vec4(base * lambert, 1.0);\n"
+        "}\n";
 
-    unsigned int fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
+    GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
 
-    // Check fragment shader compilation
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cerr << "ERROR: Fragment Shader Compilation Failed\n" << infoLog << std::endl;
-    }
-
-    // Shader Program
     shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
+    glAttachShader(shaderProgram, vs);
+    glAttachShader(shaderProgram, fs);
     glLinkProgram(shaderProgram);
 
     // Check linking
+    int success;
+    char infoLog[1024];
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, 1024, NULL, infoLog);
         std::cerr << "ERROR: Shader Program Linking Failed\n" << infoLog << std::endl;
     }
 
-    // Delete shaders after linking
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    // we can delete the shader objects after linking
+    glDeleteShader(vs);
+    glDeleteShader(fs);
 
-    // Vertex data
-    float vertices[] = {
-        -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-         0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
-    };
+    lastTicks = SDL_GetTicks();
 
-    // Generate and bind VAO
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    // Generate and bind VBO
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Configure vertex attributes
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    // -- Cargar FBX (cambia la ruta al fichero deseado) --
+    // Nota: LoadFile crear� VAO/VBO/EBO y rellenar� g_Meshes
+    const char* fbxPath = "Assets/Models/BakerHouse.fbx"; // <- cambia aqu�
+    if (!LoadFile(fbxPath)) {
+        std::cerr << "Failed to load model: " << fbxPath << std::endl;
+        // no return false; -> permitimos dibujar el tri�ngulo de prueba si quieres
+    }
+    else {
+        std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
+    }
 
     std::cout << "OpenGL initialized successfully" << std::endl;
 
@@ -124,8 +120,40 @@ bool OpenGL::Start()
 
 bool OpenGL::Update()
 {
+    // Calculate deltatime
+    uint64_t currentTicks = SDL_GetTicks();
+    float deltaTime = (currentTicks - lastTicks) / 1000.0f;
+    lastTicks = currentTicks;
+
+    // Camera input
+    camera.HandleInput(deltaTime);
+
+    glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shaderProgram);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
+    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
+    GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::scale(model, glm::vec3(0.01f));
+    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1, 0, 0));
+
+    glm::mat4 view = camera.GetViewMatrix();
+    glm::mat4 projection = camera.GetProjectionMatrix();
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    for (const MeshData& md : g_Meshes) {
+        if (md.VAO == 0 || md.numIndices == 0) continue;
+        glBindVertexArray(md.VAO);
+        glDrawElements(GL_TRIANGLES, md.numIndices, GL_UNSIGNED_INT, 0);
+    }
+    // Si no hay mallas, puedes seguir dibujando tu tri�ngulo de prueba (opcional)
+    // glBindVertexArray(VAO); glDrawArrays(GL_TRIANGLES, 0, 3);
 
     return true;
 }
@@ -134,10 +162,20 @@ bool OpenGL::CleanUp()
 {
     std::cout << "Destroying OpenGL Context" << std::endl;
 
-    // Delete OpenGL resources
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
+    // Borrar resources cargadas por LoadFBX
+    for (MeshData& md : g_Meshes) {
+        if (md.EBO) glDeleteBuffers(1, &md.EBO);
+        if (md.VBO) glDeleteBuffers(1, &md.VBO);
+        if (md.VAO) glDeleteVertexArrays(1, &md.VAO);
+        md = MeshData(); // reset
+    }
+    g_Meshes.clear();
+
+    // Borrar el shader program
+    if (shaderProgram) {
+        glDeleteProgram(shaderProgram);
+        shaderProgram = 0;
+    }
 
     // Destroy context
     if (glContext != nullptr)
@@ -146,5 +184,11 @@ bool OpenGL::CleanUp()
         glContext = nullptr;
     }
 
+    return true;
+}
+
+bool OpenGL::Draw()
+{
+    // El dibujo principal ocurre en Update() en este ejemplo
     return true;
 }

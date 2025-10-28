@@ -6,6 +6,8 @@
 #include "Module.h"
 #include "Input.h"
 #include "OpenGL.h"
+#include "Render.h"
+#include "Camera.h"
 
 class Module;
 
@@ -31,6 +33,8 @@ public:
     std::shared_ptr<Window> window;
     std::shared_ptr<Input> input;
     std::shared_ptr<OpenGL> opengl;
+    //std::shared_ptr<Render> render;
+    std::shared_ptr<Camera> camera;
 
 private:
     // Private constructor for singleton

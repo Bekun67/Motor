@@ -1,5 +1,6 @@
 #pragma once
 #include "Module.h"
+#include "Camera.h"
 #include <SDL3/SDL.h>
 struct SDL_Window;
 
@@ -18,4 +19,9 @@ private:
 	bool Start() override;
 	bool CleanUp() override;
 	bool Update() override;
+	bool Draw();
+
+	Camera camera;
+	uint64_t lastTicks;
+
 };
