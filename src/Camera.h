@@ -10,7 +10,7 @@ public:
     Camera(float fov = 60.0f, float aspect = 16.0f / 9.0f, float nearClip = 0.1f, float farClip = 100.0f);
 
     void HandleInput(float deltaTime);  // Movement
-    void Zoom(float deltaTime); // Zoom input
+   void Zoom(float scrollY, float deltaTime); // Zoom input
     void FrameSelected(const glm::vec3& target, float distance = 5.0f); // Select focus point of an object with F
     glm::mat4 GetViewMatrix() const;
     glm::mat4 GetProjectionMatrix() const;

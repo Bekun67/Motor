@@ -43,6 +43,10 @@ bool Input::Start()
 bool Input::PreUpdate()
 {
 	static SDL_Event event;
+
+	mouseWheelX = 0;
+	mouseWheelY = 0;
+
 	const bool* keys = SDL_GetKeyboardState(NULL);
 	for (int i = 0; i < MAX_KEYS; ++i)
 	{
@@ -99,6 +103,11 @@ bool Input::PreUpdate()
 			mouseMotionY = event.motion.yrel / scale;
 			mouseX = event.motion.x / scale;
 			mouseY = event.motion.y / scale;
+		}
+		case SDL_EVENT_MOUSE_WHEEL:
+		{
+			mouseWheelX = event.wheel.x;
+			mouseWheelY = event.wheel.y;
 		}
 		break;
 		}

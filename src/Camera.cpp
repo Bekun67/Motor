@@ -53,9 +53,6 @@ void Camera::HandleInput(float deltaTime)
         yaw += xoffset;
         pitch += yoffset;
 
-        if (pitch > 89.0f) pitch = 89.0f;
-        if (pitch < -89.0f) pitch = -89.0f;
-
         glm::vec3 front;
         front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         front.y = sin(glm::radians(pitch));
@@ -70,10 +67,10 @@ void Camera::HandleInput(float deltaTime)
         if (state[SDL_SCANCODE_Q]) position.y -= moveSpeed * deltaTime;
         if (state[SDL_SCANCODE_E]) position.y += moveSpeed * deltaTime;
 
-        // Actualizar el punto de enfoque (a donde está mirando)
+		// update focus point based on new position and front vector
         focusPoint = position + front * distanceToFocus;
     }
-    // O rbital (Alt + Click derecho)
+    // Orbital (Alt + Click derecho)
     else if (orbitMode && (buttons & SDL_BUTTON_RMASK))
     {
         if (firstMouse)
@@ -93,8 +90,6 @@ void Camera::HandleInput(float deltaTime)
 
         yaw += xoffset;
         pitch += yoffset;
-        if (pitch > 89.0f) pitch = 89.0f;
-        if (pitch < -89.0f) pitch = -89.0f;
 
         glm::vec3 direction;
         direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -107,53 +102,49 @@ void Camera::HandleInput(float deltaTime)
     {
         firstMouse = true;
     }
+  
+	// Get delta of mouse wheel and call Zoom
+    int scroll = Application::GetInstance().input.get()->GetMouseWheelY();
+    Zoom((float)scroll, deltaTime);
 
-    // Zoom with mouse Wheel input
-    Zoom(deltaTime);
-
-    // Frame selected ( F)
+    // Frame selected
     if (state[SDL_SCANCODE_F])
     {
         FrameSelected(glm::vec3(0.0f, 0.0f, 0.0f)); // TODO: Use model position 
     }
 }
 
-void Camera::Zoom(float deltaTime)
+void Camera::Zoom(float scroll, float deltaTime)
 {
-    SDL_Event event;
-    while (SDL_PollEvent(&event))
+	// Stop if no scroll or no deltaTime
+    if (scroll == 0.0f || deltaTime == 0.0f)
+        return;
+
+	// Calculate front vector
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front = glm::normalize(front);
+
+    float scrollFactor = 5.0f;
+
+    glm::vec3 movement = front * moveSpeed * deltaTime * scrollFactor;
+
+    // scrol == 1 is zoom in
+    if (scroll == 1.0f)
     {
-        if (event.type == SDL_EVENT_MOUSE_WHEEL)
-        {
-            // event.wheel.y -> positiva si la rueda se mueve hacia arriba / adelante
-             // event.wheel.y -> negativa si se mueve hacia abajo / atrás
-            float zoomSpeed = moveSpeed * deltaTime * 10.0f;
-
-            glm::vec3 front;
-            front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-            front.y = sin(glm::radians(pitch));
-            front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-            front = glm::normalize(front);
-
-            if (orbitMode)
-            {
-                // --- Zoom orbital (con Alt presionado)
-                distanceToFocus -= event.wheel.y * zoomSpeed;
-                if (distanceToFocus < minZoomDistance) distanceToFocus = minZoomDistance;
-                if (distanceToFocus > maxZoomDistance) distanceToFocus = maxZoomDistance;
-
-                position = focusPoint - front * distanceToFocus;
-            }
-            else
-            {
-                // --- Movimiento libre tipo Unity (sin Alt)
-                if (event.wheel.y > 0)   // rueda hacia adelante
-                    position += front * zoomSpeed;
-                else if (event.wheel.y < 0) // rueda hacia atrás
-                    position -= front * zoomSpeed;
-            }
-        }
+        position += movement;
     }
+	// scroll == -1 is zoom out
+    else if (scroll == -1.0f)
+    {
+        position -= movement;
+    }
+
+	// Update distance to focus so we can keep the same distance
+    focusPoint = position + front * distanceToFocus;
+
 }
 
 void Camera::FrameSelected(const glm::vec3& target, float distance)
