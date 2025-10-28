@@ -9,95 +9,108 @@
 
 #define LOG(format, ...) printf(format "\n", __VA_ARGS__)
 
-struct VertexData {
-    // Index buffer data
-    uint32_t id_index = 0;   
-    uint32_t num_index = 0;  
-    uint32_t* index = nullptr; 
-
-    // Vertex buffer data
-    uint32_t id_vertex = 0;   
-    uint32_t num_vertex = 0;  
-    float* vertex = nullptr;  
-
-    // Destructor 
-    ~VertexData() {
-        delete[] index;
-        delete[] vertex;
-    }
-};
-
-// Define a structure for ourMesh
-struct MeshData {
-    unsigned int num_vertices = 0;
-    float* vertices = nullptr;
-    unsigned int num_indices = 0;
-    unsigned int* indices = nullptr;
-
-    // Destructor to clean up dynamically allocated memory
-    ~MeshData() {
-        delete[] vertices;
-        delete[] indices;
-    }
-};
-
-
-MeshData ourMesh;
+std::vector<MeshData> g_Meshes;
 
 bool LoadFile(const char* file_path) {
     // Import the file with Assimp
     const aiScene* scene = aiImportFile(file_path, aiProcessPreset_TargetRealtime_MaxQuality);
 
-    if (scene != nullptr && scene->HasMeshes()) {
-        // Iterate through the meshes
-        for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
-            aiMesh* mesh = scene->mMeshes[i];
+    unsigned int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality | aiProcess_FlipUVs;
+    const aiScene* scene = importer.ReadFile(file_path, flags);
 
-            // Crear un nuevo VertexData para esta malla
-            VertexData vertexData;
-
-            // Copiar vértices
+            // Copiar vï¿½rtices
             vertexData.num_vertex = mesh->mNumVertices;
             vertexData.vertex = new float[vertexData.num_vertex * 3];
             memcpy(vertexData.vertex, mesh->mVertices, sizeof(float) * vertexData.num_vertex * 3);
 
-            // Crear un buffer de vértices en la VRAM
+            // Crear un buffer de vï¿½rtices en la VRAM
             glGenBuffers(1, &vertexData.id_vertex);
             glBindBuffer(GL_ARRAY_BUFFER, vertexData.id_vertex);
             glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertexData.num_vertex * 3, vertexData.vertex, GL_STATIC_DRAW);
 
-            LOG("New vertex buffer created with ID %d and %d vertices", vertexData.id_vertex, vertexData.num_vertex);
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
+        aiMesh* mesh = scene->mMeshes[m];
 
-            // Copiar índices si la malla tiene caras
-            if (mesh->HasFaces()) {
-                vertexData.num_index = mesh->mNumFaces * 3; // Asumimos que cada cara es un triángulo
-                vertexData.index = new uint32_t[vertexData.num_index];
-                for (unsigned int j = 0; j < mesh->mNumFaces; ++j) {
-                    if (mesh->mFaces[j].mNumIndices != 3) {
-                        LOG("WARNING, geometry face with != 3 indices!");
-                    }
-                    else {
-                        memcpy(&vertexData.index[j * 3], mesh->mFaces[j].mIndices, 3 * sizeof(uint32_t));
-                    }
-                }
+        std::vector<float> vertexData;         
+        std::vector<uint32_t> indices;
 
-                // Crear un buffer de índices en la VRAM
-                glGenBuffers(1, &vertexData.id_index);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexData.id_index);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * vertexData.num_index, vertexData.index, GL_STATIC_DRAW);
+        vertexData.reserve(mesh->mNumVertices * 8); //vertexs
+        indices.reserve(mesh->mNumFaces * 3); //faces
 
-                LOG("New index buffer created with ID %d and %d indices", vertexData.id_index, vertexData.num_index);
+        for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
+            const aiVector3D& pos = mesh->mVertices[v];
+            vertexData.push_back(pos.x);
+            vertexData.push_back(pos.y);
+            vertexData.push_back(pos.z);
+
+            aiVector3D normal = mesh->HasNormals() ? mesh->mNormals[v] : aiVector3D(0.0f, 0.0f, 1.0f);
+            vertexData.push_back(normal.x);
+            vertexData.push_back(normal.y);
+            vertexData.push_back(normal.z);
+
+            if (mesh->HasTextureCoords(0)) {
+                //cargar uvs
+                aiVector3D uv = mesh->mTextureCoords[0][v];
+                vertexData.push_back(uv.x);
+                vertexData.push_back(uv.y);
+            }
+            else {
+                //si no tiene uvs
+                vertexData.push_back(0.0f);
+                vertexData.push_back(0.0f);
             }
         }
 
-        //for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
-        //    aiMaterial* material = scene->mMaterials[i];
-        //        
-        //    
-        //}
+        for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
+            const aiFace& face = mesh->mFaces[f];
+            if (face.mNumIndices != 3) {
+                LOG("ERROR: face with not 3 indices (mesh %i with %i faces). Skipping this face.", m, f);
+            }
+            else {
+                indices.push_back(face.mIndices[0]);
+                indices.push_back(face.mIndices[1]);
+                indices.push_back(face.mIndices[2]);
+            }
+        }
 
-        aiReleaseImport(scene);
-        return true; // Successfully loaded the file
+        MeshData md;
+
+        //hacer vao y vbo para asociarlos
+        glGenVertexArrays(1, &md.VAO);
+        glBindVertexArray(md.VAO);
+
+        glGenBuffers(1, &md.VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, md.VBO);
+        glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(float), vertexData.data(), GL_STATIC_DRAW);
+
+        //cargar faces
+        glGenBuffers(1, &md.EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, md.EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
+
+        GLsizei vertexSize = 8 * sizeof(float); //8 variables por vï¿½rtice, 3 de pos, 3 de normales y dos de uvs
+
+        //posicion
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(0));
+
+        //normales
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(3 * sizeof(float)));
+
+        //uvs
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)(6 * sizeof(float)));
+
+        md.numIndices = static_cast<GLsizei>(indices.size());
+
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+        //metemos el mesh nuevo en todos los meshes que hay y iteramos al siguiente
+        g_Meshes.push_back(md);
+        LOG("Loaded mesh %i -> VAO %u VBO %u EBO %u indices %d", m, md.VAO, md.VBO, md.EBO, md.numIndices);
     }
     else {
         // Log an error message

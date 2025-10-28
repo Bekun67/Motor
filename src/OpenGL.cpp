@@ -26,7 +26,9 @@ bool OpenGL::Start()
         return false;
     }
 
-    // Vertex Shader
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
     const char* vertexShaderSource = "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
         "layout (location = 1) in vec3 aCol;\n"
@@ -80,7 +82,8 @@ bool OpenGL::Start()
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
 
-    // Check linking
+    int success;
+    char infoLog[1024];
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success)
     {
@@ -88,42 +91,58 @@ bool OpenGL::Start()
         std::cerr << "ERROR: Shader Program Linking Failed\n" << infoLog << std::endl;
     }
 
-    // Delete shaders after linking
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
 
-    // Vertex data
-    float vertices[] = {
-        -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-         0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
-    };
+    const char* fbxPath = "assets/models/warrior.FBX"; 
+    if (!LoadFile(fbxPath)) {
+        std::cout << "Failed to load model: " << fbxPath << std::endl;
+    }
+    else {
+        std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
+    }
 
-    // Generate and bind VAO
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    // Generate and bind VBO
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Configure vertex attributes
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    std::cout << "OpenGL initialized successfully" << std::endl;
+    std::cout << "OpenGL initialized successfully!" << std::endl;
 
     return true;
 }
 
 bool OpenGL::Update()
 {
+    glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     glUseProgram(shaderProgram);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
+    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
+    GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+    glm::mat4 model = glm::mat4(1.0f);
+
+    model = glm::scale(model, glm::vec3(0.01f, 0.01f, 0.01f));
+    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+    glm::mat4 view = glm::lookAt(
+        glm::vec3(0.0f, 1.0f, 3.0f), 
+        glm::vec3(0.0f, 0.0f, 0.0f), 
+        glm::vec3(0.0f, 1.0f, 0.0f)  
+    );
+
+    glm::mat4 projection = glm::perspective(
+        glm::radians(60.0f),      
+        16.0f / 9.0f,            
+        0.1f, 100.0f                  
+    );
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    for (const MeshData& md : g_Meshes) {
+        if (md.VAO == 0 || md.numIndices == 0) continue;
+        glBindVertexArray(md.VAO);
+        glDrawElements(GL_TRIANGLES, md.numIndices, GL_UNSIGNED_INT, 0);
+    }
 
     return true;
 }
@@ -132,12 +151,19 @@ bool OpenGL::CleanUp()
 {
     std::cout << "Destroying OpenGL Context" << std::endl;
 
-    // Delete OpenGL resources
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
+    for (MeshData& md : g_Meshes) {
+        if (md.EBO) glDeleteBuffers(1, &md.EBO);
+        if (md.VBO) glDeleteBuffers(1, &md.VBO);
+        if (md.VAO) glDeleteVertexArrays(1, &md.VAO);
+        md = MeshData(); 
+    }
+    g_Meshes.clear();
 
-    // Destroy context
+    if (shaderProgram) {
+        glDeleteProgram(shaderProgram);
+        shaderProgram = 0;
+    }
+
     if (glContext != nullptr)
     {
         SDL_GL_DestroyContext(glContext);
