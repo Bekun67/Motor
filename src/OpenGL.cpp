@@ -1,4 +1,4 @@
-#include "OpenGL.h"
+ï»¿#include "OpenGL.h"
 #include "Application.h"
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
@@ -73,7 +73,7 @@ bool OpenGL::Start()
         "void main() {\n"
         "    vec3 n = normalize(fragNormal);\n"
         "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
-        "    vec3 base = vec3(0.6, 0.6, 0.6);\n        // color de prueba, eventualmente muévelo a material/texture\n"
+        "    vec3 base = vec3(0.6, 0.6, 0.6);\n        // color de prueba, eventualmente muï¿½velo a material/texture\n"
         "    FragColor = vec4(base * lambert, 1.0);\n"
         "}\n";
 
@@ -99,11 +99,11 @@ bool OpenGL::Start()
     glDeleteShader(fs);
 
     // -- Cargar FBX (cambia la ruta al fichero deseado) --
-    // Nota: LoadFile creará VAO/VBO/EBO y rellenará g_Meshes
-    const char* fbxPath = "assets/models/warrior.FBX"; // <- cambia aquí
+    // Nota: LoadFile crearï¿½ VAO/VBO/EBO y rellenarï¿½ g_Meshes
+    const char* fbxPath = "assets/models/warrior.FBX"; // <- cambia aquï¿½
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
-        // no return false; -> permitimos dibujar el triángulo de prueba si quieres
+        // no return false; -> permitimos dibujar el triï¿½ngulo de prueba si quieres
     }
     else {
         std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
@@ -123,29 +123,29 @@ bool OpenGL::Update()
     // Usar shader
     glUseProgram(shaderProgram);
 
-    // Aquí deberías calcular tus matrices y enviarlas como uniformes (glm recomendado)
-    // Para ejemplo rápido envío identidad (cámbialo por tu cámara)
+    // Aquï¿½ deberï¿½as calcular tus matrices y enviarlas como uniformes (glm recomendado)
+    // Para ejemplo rï¿½pido envï¿½o identidad (cï¿½mbialo por tu cï¿½mara)
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
     // Matrices identidad (4x4 columna mayor)
     glm::mat4 model = glm::mat4(1.0f);
 
-    // Escala el modelo un poco (por si es muy grande o pequeño)
+    // Escala el modelo un poco (por si es muy grande o pequeï¿½o)
     model = glm::scale(model, glm::vec3(0.01f, 0.01f, 0.01f));
     model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-    // Cámara tipo lookAt
+    // Cï¿½mara tipo lookAt
     glm::mat4 view = glm::lookAt(
-        glm::vec3(0.0f, 1.0f, 3.0f),  // posición de la cámara
+        glm::vec3(0.0f, 1.0f, 3.0f),  // posiciï¿½n de la cï¿½mara
         glm::vec3(0.0f, 0.0f, 0.0f),  // mira al origen
         glm::vec3(0.0f, 1.0f, 0.0f)   // up vector
     );
 
-    // Proyección perspectiva
+    // Proyecciï¿½n perspectiva
     glm::mat4 projection = glm::perspective(
         glm::radians(60.0f),          // FOV
-        16.0f / 9.0f,                 // aspect ratio (cambia según tu ventana)
+        16.0f / 9.0f,                 // aspect ratio (cambia segï¿½n tu ventana)
         0.1f, 100.0f                  // near / far plane
     );
 
@@ -160,7 +160,7 @@ bool OpenGL::Update()
         glDrawElements(GL_TRIANGLES, md.numIndices, GL_UNSIGNED_INT, 0);
     }
 
-    // Si no hay mallas, puedes seguir dibujando tu triángulo de prueba (opcional)
+    // Si no hay mallas, puedes seguir dibujando tu triï¿½ngulo de prueba (opcional)
     // glBindVertexArray(VAO); glDrawArrays(GL_TRIANGLES, 0, 3);
 
     return true;

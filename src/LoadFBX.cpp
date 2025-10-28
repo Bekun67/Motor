@@ -13,7 +13,7 @@
 
 #define LOG(format, ...) printf(format "\n", __VA_ARGS__)
 
-// Definición del vector global
+// Definici?n del vector global
 std::vector<MeshData> g_Meshes;
 
 bool LoadFile(const char* file_path) {
@@ -46,7 +46,7 @@ bool LoadFile(const char* file_path) {
         vertexData.reserve(mesh->mNumVertices * 8);
         indices.reserve(mesh->mNumFaces * 3);
 
-        // Copia de vértices
+        // Copia de v?rtices
         for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
             // Position
             const aiVector3D& pos = mesh->mVertices[v];
@@ -54,7 +54,7 @@ bool LoadFile(const char* file_path) {
             vertexData.push_back(pos.y);
             vertexData.push_back(pos.z);
 
-            // Normal (si no hay, el postprocess aiProcess_GenSmoothNormals la habrá generado)
+            // Normal (si no hay, el postprocess aiProcess_GenSmoothNormals la habr? generado)
             aiVector3D normal = mesh->HasNormals() ? mesh->mNormals[v] : aiVector3D(0.0f, 0.0f, 1.0f);
             vertexData.push_back(normal.x);
             vertexData.push_back(normal.y);
@@ -67,13 +67,13 @@ bool LoadFile(const char* file_path) {
                 vertexData.push_back(uv.y);
             }
             else {
-                // Si no hay UVs, añadir 0,0
+                // Si no hay UVs, a?adir 0,0
                 vertexData.push_back(0.0f);
                 vertexData.push_back(0.0f);
             }
         }
 
-        // Copia de índices (asumimos triangulos porque usamos aiProcess_Triangulate)
+        // Copia de ?ndices (asumimos triangulos porque usamos aiProcess_Triangulate)
         for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
             const aiFace& face = mesh->mFaces[f];
             if (face.mNumIndices != 3) {
@@ -113,7 +113,7 @@ bool LoadFile(const char* file_path) {
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
 
-        // Guardar número de índices
+        // Guardar n?mero de ?ndices
         md.numIndices = static_cast<GLsizei>(indices.size());
 
         // Unbind por higiene
