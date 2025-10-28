@@ -1,12 +1,22 @@
 #pragma once
+#include <glad/glad.h>
+#include <vector>
+#include <string>
 
-#ifndef LOADFBX_H
-#define LOADFBX_H
+struct TextureData {
+    GLuint id = 0;
+    std::string type;
+    std::string path;
+};
 
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+struct MeshData {
+    GLuint VAO = 0;
+    GLuint VBO = 0;
+    GLuint EBO = 0;
+    GLsizei numIndices = 0;
+    std::vector<TextureData> textures;
+};
 
-// Function to clean up Assimp log streams
-void CleanUp();
+extern std::vector<MeshData> g_Meshes;
 
-#endif // LOADFBX_H
+bool LoadFile(const char* file_path);
