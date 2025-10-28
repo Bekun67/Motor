@@ -21,7 +21,7 @@ private:
 	bool Update() override;
 	bool Draw();
 
-	static Camera camera;
-	static uint64_t lastTicks;
+	Camera camera;
+	uint64_t lastTicks;
 
 };

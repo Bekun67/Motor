@@ -18,10 +18,6 @@ OpenGL::~OpenGL()
 {
 }
 
-
-Camera OpenGL::camera;
-uint64_t OpenGL::lastTicks = 0;
-
 static GLuint CompileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
@@ -107,7 +103,7 @@ bool OpenGL::Start()
 
     // -- Cargar FBX (cambia la ruta al fichero deseado) --
     // Nota: LoadFile creará VAO/VBO/EBO y rellenará g_Meshes
-    const char* fbxPath = "assets/models/warrior.FBX"; // <- cambia aquí
+    const char* fbxPath = "Assets/Models/BakerHouse.fbx"; // <- cambia aquí
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
         // no return false; -> permitimos dibujar el triángulo de prueba si quieres
@@ -123,12 +119,12 @@ bool OpenGL::Start()
 
 bool OpenGL::Update()
 {
-    // Calcular deltaTime
+    // Calculate deltatime
     uint64_t currentTicks = SDL_GetTicks();
     float deltaTime = (currentTicks - lastTicks) / 1000.0f;
     lastTicks = currentTicks;
 
-    // Manejar entrada de cámara
+    // Camera input
     camera.HandleInput(deltaTime);
 
     glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
