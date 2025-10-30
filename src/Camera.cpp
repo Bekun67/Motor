@@ -29,7 +29,7 @@ void Camera::HandleInput(float deltaTime)
 
     glm::vec3 right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
 
-    // Movimiento estilo Unity / FPS
+	// Movement keyboard (Unity style)
     if (state[SDL_SCANCODE_W])
         position += front * moveSpeed * deltaTime;
     if (state[SDL_SCANCODE_S])
@@ -43,12 +43,12 @@ void Camera::HandleInput(float deltaTime)
     if (state[SDL_SCANCODE_E])
         position.y += moveSpeed * deltaTime;
 
-    // Movimiento de ratón (rotación)
+    // Mouse rotation movement
     float mouseX, mouseY;
     Uint32 buttons = SDL_GetMouseState(&mouseX, &mouseY);
 
 
-    if (buttons & SDL_BUTTON_RMASK) // Rotar solo al mantener click derecho
+	if (buttons & SDL_BUTTON_RMASK) // Rotate only if right mouse button is held
     {
         if (firstMouse)
         {
@@ -58,7 +58,7 @@ void Camera::HandleInput(float deltaTime)
         }
 
         float xoffset = mouseX - lastX;
-        float yoffset = lastY - mouseY; // invertido
+        float yoffset = lastY - mouseY; 
         lastX = mouseX;
         lastY = mouseY;
 
