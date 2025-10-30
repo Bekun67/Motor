@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "Texture.h"
 
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
 {
@@ -47,12 +48,12 @@ bool OpenGL::Start()
         return false;
     }
 
-    // Habilitar depth test
+    // Do a depth test
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
 
 
-    // Shader simple que usa position, normal, texcoord y matrices
+    // Shader using position normal texcoord and matrix
     const char* vertexShaderSource = "#version 330 core\n"
         "layout(location = 0) in vec3 position;\n"
         "layout(location = 1) in vec3 normal;\n"
@@ -72,11 +73,12 @@ bool OpenGL::Start()
         "in vec3 fragNormal;\n"
         "in vec2 fragUV;\n"
         "out vec4 FragColor;\n"
+        "uniform sampler2D uTexture;\n"
         "void main() {\n"
-        "    vec3 n = normalize(fragNormal);\n"
-        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
-        "    vec3 base = vec3(0.6, 0.6, 0.6);\n        // color de prueba, eventualmente mu�velo a material/texture\n"
-        "    FragColor = vec4(base * lambert, 1.0);\n"
+        "vec3 n = normalize(fragNormal);\n"
+        "float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "vec3 texColor = texture(uTexture, fragUV).rgb;\n"
+        "FragColor = vec4(texColor * lambert, 1.0);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -102,15 +104,30 @@ bool OpenGL::Start()
 
     lastTicks = SDL_GetTicks();
 
-    // -- Cargar FBX (cambia la ruta al fichero deseado) --
-    // Nota: LoadFile crear� VAO/VBO/EBO y rellenar� g_Meshes
-    const char* fbxPath = "Assets/Models/BakerHouse.fbx"; // <- cambia aqu�
+    // Load manually FBX
+    const char* fbxPath = "Assets/Models/BakerHouse.fbx"; 
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
-        // no return false; -> permitimos dibujar el tri�ngulo de prueba si quieres
     }
     else {
         std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
+    }
+
+    Texture* modelTexture = new Texture();
+    if (!modelTexture->LoadFromFile("Assets/Textures/Baker_house.png")) {
+        std::cerr << "Failed to load texture!" << std::endl;
+    }
+    else {
+        std::cout << "Texture loaded successfully!" << std::endl;
+    }
+
+	// Save texture info in the first mesh (for simplicity)
+    if (!g_Meshes.empty()) {
+        TextureData texData;
+        texData.id = modelTexture->GetID();
+        texData.type = "diffuse";
+        texData.path = "Assets/Textures/Baker_house.png";
+        g_Meshes[0].textures.push_back(texData);
     }
 
     std::cout << "OpenGL initialized successfully" << std::endl;
@@ -125,7 +142,7 @@ bool OpenGL::Update()
     float deltaTime = (currentTicks - lastTicks) / 1000.0f;
     lastTicks = currentTicks;
 
-    // Camera input
+	// Use camera input handling
     camera.HandleInput(deltaTime);
 
     glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
@@ -149,10 +166,19 @@ bool OpenGL::Update()
 
     for (const MeshData& md : g_Meshes) {
         if (md.VAO == 0 || md.numIndices == 0) continue;
+
+        // Activate existing texture
+        if (!md.textures.empty()) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, md.textures[0].id);
+
+            GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
+            glUniform1i(texLoc, 0); 
+        }
+
         glBindVertexArray(md.VAO);
         glDrawElements(GL_TRIANGLES, md.numIndices, GL_UNSIGNED_INT, 0);
     }
-    // Si no hay mallas, puedes seguir dibujando tu tri�ngulo de prueba (opcional)
     // glBindVertexArray(VAO); glDrawArrays(GL_TRIANGLES, 0, 3);
 
     return true;
@@ -162,8 +188,15 @@ bool OpenGL::CleanUp()
 {
     std::cout << "Destroying OpenGL Context" << std::endl;
 
-    // Borrar resources cargadas por LoadFBX
+    // Delete loaded resources by LoadFBX
     for (MeshData& md : g_Meshes) {
+
+        for (TextureData& tex : md.textures) {
+            if (tex.id != 0)
+                glDeleteTextures(1, &tex.id);
+        }
+        md.textures.clear();
+
         if (md.EBO) glDeleteBuffers(1, &md.EBO);
         if (md.VBO) glDeleteBuffers(1, &md.VBO);
         if (md.VAO) glDeleteVertexArrays(1, &md.VAO);
@@ -171,7 +204,7 @@ bool OpenGL::CleanUp()
     }
     g_Meshes.clear();
 
-    // Borrar el shader program
+    // Delete shader program
     if (shaderProgram) {
         glDeleteProgram(shaderProgram);
         shaderProgram = 0;
@@ -189,6 +222,5 @@ bool OpenGL::CleanUp()
 
 bool OpenGL::Draw()
 {
-    // El dibujo principal ocurre en Update() en este ejemplo
     return true;
 }

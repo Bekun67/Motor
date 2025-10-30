@@ -20,5 +20,5 @@ target_link_libraries(Motor PRIVATE glad::glad)
 target_link_libraries(Motor PRIVATE assimp::assimp)
 target_link_libraries(Motor PRIVATE glm::glm)
 target_link_libraries(Motor PRIVATE DevIL::IL)
+target_link_libraries(Motor PRIVATE DevIL::ILU)
 target_link_libraries(Motor PRIVATE imgui::imgui)
-
