@@ -73,3 +73,5 @@ public:
     };
 
 };
+
+extern Application* app;

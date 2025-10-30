@@ -1,8 +1,11 @@
 #include "Application.h"
 #include <iostream>
 
+Application* app = nullptr;
+
 Application::Application() : isRunning(true)
 {
+    app = this;
     std::cout << "Application Constructor" << std::endl;
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();

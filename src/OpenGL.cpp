@@ -104,7 +104,7 @@ bool OpenGL::Start()
 
     // -- Cargar FBX (cambia la ruta al fichero deseado) --
     // Nota: LoadFile crear� VAO/VBO/EBO y rellenar� g_Meshes
-    const char* fbxPath = "Assets/Models/BakerHouse.fbx"; // <- cambia aqu�
+    const char* fbxPath = "Assets/Models/warrior.FBX"; // <- cambia aqu�
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
         // no return false; -> permitimos dibujar el tri�ngulo de prueba si quieres
