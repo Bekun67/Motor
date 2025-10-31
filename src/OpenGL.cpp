@@ -177,7 +177,7 @@ bool OpenGL::Start()
     GameObject* house = new GameObject();
     house->name = "BakerHouse";
 
-    // Cargar modelo FBX
+
     const char* fbxPath = "Assets/Models/BakerHouse.fbx";
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
@@ -186,7 +186,6 @@ bool OpenGL::Start()
         std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
     }
 
-    // Cargar textura
     Texture* modelTexture = new Texture();
     if (!modelTexture->LoadFromFile("Assets/Textures/Baker_house.png")) {
         std::cerr << "Failed to load texture!" << std::endl;
@@ -195,7 +194,7 @@ bool OpenGL::Start()
         std::cout << "Texture loaded successfully!" << std::endl;
     }
 
-    // Asignar textura al primer mesh del GameObject
+    // Assign texture to first mesh on GameObject
     if (!g_Meshes.empty()) {
         TextureData texData;
         texData.id = modelTexture->GetID();
@@ -203,10 +202,9 @@ bool OpenGL::Start()
         texData.path = "Assets/Textures/Baker_house.png";
         g_Meshes[0].textures.push_back(texData);
 
-        // Asignar el mesh y la textura al GameObject
-        house->mesh->mesh = &g_Meshes[0];
-        // Si tienes un campo para la textura, puedes asignarla también
-        // house->texture->... (según tu implementación)
+        
+        house->mesh->meshdata = &g_Meshes[0];
+        house->texture->texturedata = &texData;
     }
 
     CreateGrid(50);

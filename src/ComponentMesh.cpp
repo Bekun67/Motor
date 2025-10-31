@@ -1,13 +1,13 @@
 #include "ComponentMesh.h"
 #include "Application.h"
 
-ComponentMesh::ComponentMesh(GameObject* gameObject) : Component(gameObject, ComponentType::MESH), mesh(nullptr)
+ComponentMesh::ComponentMesh(GameObject* gameObject) : Component(gameObject, ComponentType::MESH), meshdata(nullptr)
 {
 }
 
 ComponentMesh::~ComponentMesh()
 { 
-    mesh = nullptr;
+    meshdata = nullptr;
 }
 
 void ComponentMesh::Update()

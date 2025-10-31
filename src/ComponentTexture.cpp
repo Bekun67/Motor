@@ -1,7 +1,7 @@
 #include "ComponentTexture.h"
 #include "GameObject.h"
 
-ComponentTexture::ComponentTexture(GameObject* gameObject) : Component(gameObject, ComponentType::TEXTURE)
+ComponentTexture::ComponentTexture(GameObject* gameObject) : Component(gameObject, ComponentType::TEXTURE), texturedata(nullptr)
 {
 }
 

@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include <assimp/scene.h>
+#include "LoadFBX.h"
 
 class ComponentTexture : public Component
 {
@@ -14,11 +15,10 @@ public:
 	void LoadTexture(const aiScene* scene, const aiNode* node, unsigned int i);
 
 
-	//void AddTexture(Texture* texture);
+	
 
 public:
-	//Texture* materialTexture;
-	//GLuint textureId;
 
+	TextureData* texturedata;
 
 };
