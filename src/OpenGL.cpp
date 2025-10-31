@@ -39,9 +39,9 @@ void OpenGL::CreateGrid(int size)
 {
     std::vector<float> gridVertices;
 
-    // Crear líneas paralelas al eje X (van en dirección X)
+    // Create lines (X)
     for (int z = -size; z <= size; ++z) {
-        // Línea desde (-size, 0, z) hasta (size, 0, z)
+        
         gridVertices.push_back(-size); // x1
         gridVertices.push_back(0.0f);   // y1
         gridVertices.push_back(z);      // z1
@@ -51,9 +51,9 @@ void OpenGL::CreateGrid(int size)
         gridVertices.push_back(z);      // z2
     }
 
-    // Crear líneas paralelas al eje Z (van en dirección Z)
+    //Create lines (Z)
     for (int x = -size; x <= size; ++x) {
-        // Línea desde (x, 0, -size) hasta (x, 0, size)
+        
         gridVertices.push_back(x);      // x1
         gridVertices.push_back(0.0f);   // y1
         gridVertices.push_back(-size);  // z1
@@ -72,7 +72,7 @@ void OpenGL::CreateGrid(int size)
     glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
     glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
 
-    // Solo necesitamos posición para el grid
+    // Position for grid
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
@@ -91,7 +91,7 @@ void OpenGL::DrawGrid()
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
 
-    // Matriz identidad para el grid (sin transformaciones)
+    // Identiti matrix for grid
     glm::mat4 model = glm::mat4(1.0f);
     glm::mat4 view = camera.GetViewMatrix();
     glm::mat4 projection = camera.GetProjectionMatrix();
