@@ -24,4 +24,5 @@ private:
 	Camera camera;
 	uint64_t lastTicks;
 
+	float scaleFactor = 1.0f;
 };
