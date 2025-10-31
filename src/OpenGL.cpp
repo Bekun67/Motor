@@ -227,8 +227,12 @@ bool OpenGL::Update()
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(0.01f));
-    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1, 0, 0));
+
+    model = glm::translate(model, -g_ModelCenter);
+
+    model = glm::scale(model, glm::vec3(scaleFactor));
+
+    model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1, 0, 0));
 
     glm::mat4 view = camera.GetViewMatrix();
     glm::mat4 projection = camera.GetProjectionMatrix();

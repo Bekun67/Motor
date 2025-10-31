@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <vector>
 #include <string>
+#include <glm/glm.hpp>
 
 struct TextureData {
     GLuint id = 0;
@@ -17,6 +18,8 @@ struct MeshData {
     std::vector<TextureData> textures;
 };
 
-extern std::vector<MeshData> g_Meshes;
-
 bool LoadFile(const char* file_path);
+
+extern glm::vec3 g_ModelCenter;
+extern float g_ModelRadius;
+extern std::vector<MeshData> g_Meshes;
