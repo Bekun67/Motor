@@ -1,4 +1,4 @@
-#include "OpenGL.h"
+﻿#include "OpenGL.h"
 #include "Application.h"
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
@@ -89,7 +89,6 @@ bool OpenGL::Start()
     glAttachShader(shaderProgram, fs);
     glLinkProgram(shaderProgram);
 
-    // Check linking
     int success;
     char infoLog[1024];
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
@@ -98,7 +97,6 @@ bool OpenGL::Start()
         std::cerr << "ERROR: Shader Program Linking Failed\n" << infoLog << std::endl;
     }
 
-    // we can delete the shader objects after linking
     glDeleteShader(vs);
     glDeleteShader(fs);
 
@@ -200,7 +198,7 @@ bool OpenGL::CleanUp()
         if (md.EBO) glDeleteBuffers(1, &md.EBO);
         if (md.VBO) glDeleteBuffers(1, &md.VBO);
         if (md.VAO) glDeleteVertexArrays(1, &md.VAO);
-        md = MeshData(); // reset
+        md = MeshData(); 
     }
     g_Meshes.clear();
 
@@ -210,7 +208,6 @@ bool OpenGL::CleanUp()
         shaderProgram = 0;
     }
 
-    // Destroy context
     if (glContext != nullptr)
     {
         SDL_GL_DestroyContext(glContext);
