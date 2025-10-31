@@ -35,6 +35,77 @@ static GLuint CompileShader(GLenum type, const char* source) {
     return shader;
 }
 
+void OpenGL::CreateGrid(int size)
+{
+    std::vector<float> gridVertices;
+
+    // Create lines (X)
+    for (int z = -size; z <= size; ++z) {
+        
+        gridVertices.push_back(-size); // x1
+        gridVertices.push_back(0.0f);   // y1
+        gridVertices.push_back(z);      // z1
+
+        gridVertices.push_back(size);   // x2
+        gridVertices.push_back(0.0f);   // y2
+        gridVertices.push_back(z);      // z2
+    }
+
+    //Create lines (Z)
+    for (int x = -size; x <= size; ++x) {
+        
+        gridVertices.push_back(x);      // x1
+        gridVertices.push_back(0.0f);   // y1
+        gridVertices.push_back(-size);  // z1
+
+        gridVertices.push_back(x);      // x2
+        gridVertices.push_back(0.0f);   // y2
+        gridVertices.push_back(size);   // z2
+    }
+
+    gridLineCount = gridVertices.size() / 3;
+
+    glGenVertexArrays(1, &gridVAO);
+    glGenBuffers(1, &gridVBO);
+
+    glBindVertexArray(gridVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
+    glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
+
+    // Position for grid
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+
+    std::cout << "Grid created with " << (size * 2 + 1) * 2 << " lines" << std::endl;
+}
+
+void OpenGL::DrawGrid()
+{
+    if (!showGrid || gridVAO == 0) return;
+
+    glUseProgram(shaderProgram);
+
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
+    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
+    GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+
+    // Identiti matrix for grid
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = camera.GetViewMatrix();
+    glm::mat4 projection = camera.GetProjectionMatrix();
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    glBindVertexArray(gridVAO);
+    glDrawArrays(GL_LINES, 0, gridLineCount);
+    glBindVertexArray(0);
+}
+
+
 bool OpenGL::Start()
 {
     std::cout << "Init OpenGL Context & GLAD" << std::endl;
@@ -128,6 +199,8 @@ bool OpenGL::Start()
         g_Meshes[0].textures.push_back(texData);
     }
 
+    CreateGrid(50);
+
     std::cout << "OpenGL initialized successfully" << std::endl;
 
     return true;
@@ -147,13 +220,19 @@ bool OpenGL::Update()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shaderProgram);
 
+    DrawGrid();
+
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(0.01f));
-    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1, 0, 0));
+
+    model = glm::translate(model, -g_ModelCenter);
+
+    model = glm::scale(model, glm::vec3(scaleFactor));
+
+    model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1, 0, 0));
 
     glm::mat4 view = camera.GetViewMatrix();
     glm::mat4 projection = camera.GetProjectionMatrix();

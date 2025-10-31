@@ -18,6 +18,11 @@ public:
 	unsigned int VBO;
 
 	Model* fbxModel = nullptr;
+	bool showGrid = true;
+	unsigned int gridVAO = 0;
+	unsigned int gridVBO = 0;
+	int gridLineCount = 0;
+
 
 private:
 	bool Start() override;
@@ -25,7 +30,12 @@ private:
 	bool Update() override;
 	bool Draw();
 
+	void CreateGrid(int size);
+	void DrawGrid();
+
+
 	Camera camera;
 	uint64_t lastTicks;
 
+	float scaleFactor = 1.0f;
 };

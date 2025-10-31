@@ -10,15 +10,26 @@
 #include <cstring>
 #include <iostream>
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 
 #define LOG(format, ...) printf(format "\n", __VA_ARGS__)
 
 std::vector<MeshData> g_Meshes;
+glm::vec3 g_ModelCenter(0.0f);
+float g_ModelRadius = 1.0f;
 
 bool LoadFile(const char* file_path) {
     Assimp::Importer importer;
 
-    unsigned int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality | aiProcess_FlipUVs;
+    unsigned int flags = 
+        aiProcess_Triangulate |
+        aiProcess_GenSmoothNormals |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_ImproveCacheLocality |
+        aiProcess_FlipUVs |
+        aiProcess_GlobalScale |
+        aiProcess_PreTransformVertices;
+
     const aiScene* scene = importer.ReadFile(file_path, flags);
 
     if (!scene) {
@@ -31,6 +42,9 @@ bool LoadFile(const char* file_path) {
         return false;
     }
 
+    glm::vec3 minBound(FLT_MAX);
+    glm::vec3 maxBound(-FLT_MAX);
+
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
         aiMesh* mesh = scene->mMeshes[m];
 
@@ -42,6 +56,13 @@ bool LoadFile(const char* file_path) {
 
         for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
             const aiVector3D& pos = mesh->mVertices[v];
+            minBound.x = std::min(minBound.x, pos.x);
+            minBound.y = std::min(minBound.y, pos.y);
+            minBound.z = std::min(minBound.z, pos.z);
+            maxBound.x = std::max(maxBound.x, pos.x);
+            maxBound.y = std::max(maxBound.y, pos.y);
+            maxBound.z = std::max(maxBound.z, pos.z);
+
             vertexData.push_back(pos.x);
             vertexData.push_back(pos.y);
             vertexData.push_back(pos.z);
@@ -64,7 +85,6 @@ bool LoadFile(const char* file_path) {
             }
         }
 
-        // Copia de ?ndices (asumimos triangulos porque usamos aiProcess_Triangulate)
         for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
             const aiFace& face = mesh->mFaces[f];
             if (face.mNumIndices != 3) {
@@ -117,6 +137,9 @@ bool LoadFile(const char* file_path) {
         g_Meshes.push_back(md);
         LOG("Loaded mesh %i -> VAO %u VBO %u EBO %u indices %i", m, md.VAO, md.VBO, md.EBO, md.numIndices);
     }
+
+    g_ModelCenter = (minBound + maxBound) * 0.5f;
+    g_ModelRadius = glm::length(maxBound - g_ModelCenter);
 
     return true;
 }
