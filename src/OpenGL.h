@@ -4,6 +4,8 @@
 #include <SDL3/SDL.h>
 struct SDL_Window;
 
+class Model;
+
 class OpenGL : public Module
 {
 public:
@@ -14,6 +16,8 @@ public:
 	unsigned int shaderProgram;
 	unsigned int VAO;
 	unsigned int VBO;
+
+	Model* fbxModel = nullptr;
 
 private:
 	bool Start() override;
