@@ -9,6 +9,7 @@
 #include "Render.h"
 #include "Camera.h"
 #include "Texture.h"
+#include "EditorWindows.h"
 
 class Module;
 
@@ -37,6 +38,7 @@ public:
     //std::shared_ptr<Render> render;
     std::shared_ptr<Camera> camera;
 	std::shared_ptr<Texture> texture;
+    std::shared_ptr<ModuleEditor> editor;
 
 private:
     // Private constructor for singleton
