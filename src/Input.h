@@ -1,5 +1,7 @@
 #pragma once
 #include "Module.h"
+#include "LoadFBX.h"
+#include <iostream>
 
 #define NUM_MOUSE_BUTTONS 5
 
