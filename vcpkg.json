@@ -3,6 +3,7 @@
     "assimp",
     "devil",
     "glad",
+    "assimp",
     "glm",
     {
       "name": "imgui",
