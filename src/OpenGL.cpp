@@ -46,11 +46,9 @@ bool OpenGL::Start()
         return false;
     }
 
-    // Habilitar depth test
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
 
-    // Shader simple que usa position, normal, texcoord y matrices
     const char* vertexShaderSource = "#version 330 core\n"
         "layout(location = 0) in vec3 position;\n"
         "layout(location = 1) in vec3 normal;\n"
@@ -85,7 +83,6 @@ bool OpenGL::Start()
     glAttachShader(shaderProgram, fs);
     glLinkProgram(shaderProgram);
 
-    // Check linking
     int success;
     char infoLog[1024];
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
@@ -94,16 +91,12 @@ bool OpenGL::Start()
         std::cerr << "ERROR: Shader Program Linking Failed\n" << infoLog << std::endl;
     }
 
-    // we can delete the shader objects after linking
     glDeleteShader(vs);
     glDeleteShader(fs);
-
-    // -- Cargar FBX (cambia la ruta al fichero deseado) --
-    // Nota: LoadFile crear� VAO/VBO/EBO y rellenar� g_Meshes
-    const char* fbxPath = "assets/models/warrior.FBX"; // <- cambia aqu�
+   
+    const char* fbxPath = "Assets/Models/BakerHouse.FBX"; 
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
-        // no return false; -> permitimos dibujar el tri�ngulo de prueba si quieres
     }
     else {
         std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
@@ -116,52 +109,41 @@ bool OpenGL::Start()
 
 bool OpenGL::Update()
 {
-    // Clean screen
     glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Usar shader
     glUseProgram(shaderProgram);
 
-    // Aqu� deber�as calcular tus matrices y enviarlas como uniformes (glm recomendado)
-    // Para ejemplo r�pido env�o identidad (c�mbialo por tu c�mara)
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
-    // Matrices identidad (4x4 columna mayor)
+
     glm::mat4 model = glm::mat4(1.0f);
 
-    // Escala el modelo un poco (por si es muy grande o peque�o)
     model = glm::scale(model, glm::vec3(0.01f, 0.01f, 0.01f));
     model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-    // C�mara tipo lookAt
     glm::mat4 view = glm::lookAt(
-        glm::vec3(0.0f, 1.0f, 3.0f),  // posici�n de la c�mara
-        glm::vec3(0.0f, 0.0f, 0.0f),  // mira al origen
-        glm::vec3(0.0f, 1.0f, 0.0f)   // up vector
+        glm::vec3(0.0f, 1.0f, 3.0f),  
+        glm::vec3(0.0f, 0.0f, 0.0f),  
+        glm::vec3(0.0f, 1.0f, 0.0f)  
     );
 
-    // Proyecci�n perspectiva
     glm::mat4 projection = glm::perspective(
-        glm::radians(60.0f),          // FOV
-        16.0f / 9.0f,                 // aspect ratio (cambia seg�n tu ventana)
-        0.1f, 100.0f                  // near / far plane
+        glm::radians(60.0f),          
+        16.0f / 9.0f,                 
+        0.1f, 100.0f                  
     );
 
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    // Dibujar todas las mallas cargadas
     for (const MeshData& md : g_Meshes) {
         if (md.VAO == 0 || md.numIndices == 0) continue;
         glBindVertexArray(md.VAO);
         glDrawElements(GL_TRIANGLES, md.numIndices, GL_UNSIGNED_INT, 0);
     }
-
-    // Si no hay mallas, puedes seguir dibujando tu tri�ngulo de prueba (opcional)
-    // glBindVertexArray(VAO); glDrawArrays(GL_TRIANGLES, 0, 3);
 
     return true;
 }
@@ -170,22 +152,19 @@ bool OpenGL::CleanUp()
 {
     std::cout << "Destroying OpenGL Context" << std::endl;
 
-    // Borrar resources cargadas por LoadFBX
     for (MeshData& md : g_Meshes) {
         if (md.EBO) glDeleteBuffers(1, &md.EBO);
         if (md.VBO) glDeleteBuffers(1, &md.VBO);
         if (md.VAO) glDeleteVertexArrays(1, &md.VAO);
-        md = MeshData(); // reset
+        md = MeshData(); 
     }
     g_Meshes.clear();
 
-    // Borrar el shader program
     if (shaderProgram) {
         glDeleteProgram(shaderProgram);
         shaderProgram = 0;
     }
 
-    // Destroy context
     if (glContext != nullptr)
     {
         SDL_GL_DestroyContext(glContext);
@@ -197,6 +176,5 @@ bool OpenGL::CleanUp()
 
 bool OpenGL::Draw()
 {
-    // El dibujo principal ocurre en Update() en este ejemplo
     return true;
 }
