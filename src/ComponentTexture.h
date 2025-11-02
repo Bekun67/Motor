@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include "LoadFBX.h"
+#include "GameObject.h"
 #include <string>
 
 class ComponentTexture : public Component

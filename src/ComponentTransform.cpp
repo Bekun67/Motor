@@ -6,9 +6,9 @@
 #include <assimp/scene.h>
 
 ComponentTransform::ComponentTransform(GameObject* gameObject)
-    : Component(gameObject, ComponentType::TRANSFORM) // Llama al constructor base
+    : Component(gameObject, ComponentType::TRANSFORM) 
 {
-    // Inicializa los valores predeterminados
+    //predeterminated values
     scaling = aiVector3D(1.0f, 1.0f, 1.0f);
     translation = aiVector3D(0.0f, 0.0f, 0.0f);
     rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);

@@ -1,4 +1,4 @@
-#include "Input.h"
+ï»¿#include "Input.h"
 #include "Window.h"
 #include "Application.h"
 #include <assimp/Importer.hpp>
@@ -108,126 +108,246 @@ bool Input::PreUpdate()
 			mouseWheelY = event.wheel.y;
 			break;
 		}
-		case SDL_EVENT_DROP_FILE:
-		{
-			SDL_DropEvent drop = event.drop;
-			const char* droppedFile = drop.data;
+        case SDL_EVENT_DROP_FILE:
+        {
+            SDL_DropEvent drop = event.drop;
+            const char* droppedFile = drop.data;
 
-			if (droppedFile) {
-				std::string path(droppedFile);
-				std::cout << "Dropped file: " << path << std::endl;
+            if (droppedFile) {
+                std::string path(droppedFile);
 
-				//check for extension
-				std::string extension = "";
-				if (path.size() >= 4) extension = path.substr(path.size() - 4);
-				for (size_t i = 0; i < extension.size(); ++i) extension[i] = (char)tolower(extension[i]);
+                //normalize route just in case
+                for (size_t i = 0; i < path.size(); ++i) {
+                    if (path[i] == '\\') path[i] = '/';
+                }
 
-				if (extension == ".fbx") {
-					size_t meshCountBefore = g_Meshes.size();
+                std::cout << "========================" << std::endl;
+                std::cout << "Dropped file: " << path << std::endl;
 
-					if (LoadFile(path.c_str())) {
-						std::cout << "FBX loaded" << std::endl;
+                //get extension
+                std::string extension = "";
+                size_t dotPos = path.find_last_of('.');
+                if (dotPos != std::string::npos && dotPos < path.length() - 1) {
+                    extension = path.substr(dotPos);
+                    //convert it to lower case
+                    for (size_t i = 0; i < extension.size(); ++i) {
+                        extension[i] = (char)tolower(extension[i]);
+                    }
+                }
 
-						float desiredSize = 5.0f;
-						float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
+                if (extension == ".fbx") {
+                    //if fbx we load its mesh
+                    size_t meshCountBefore = g_Meshes.size();
+                    std::cout << "=========MESH===========" << std::endl;
 
-						// Obtener posición del ratón
-						float  mouseX, mouseY;
-						SDL_GetMouseState(&mouseX, &mouseY);
+                    if (LoadFile(path.c_str())) {
+                        std::cout << "FBX loaded" << std::endl;
 
-						// Obtener cámara
-						Camera* camera = &(Application::GetInstance().opengl->camera);
+                        float desiredSize = 5.0f;
+                        float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
 
-						// Obtener viewport
-						int viewport[4];
-						glGetIntegerv(GL_VIEWPORT, viewport);
+                        //get mouse pos
+                        float  mouseX, mouseY;
+                        SDL_GetMouseState(&mouseX, &mouseY);
 
-						// Convertir coordenadas de pantalla a NDC
-						float x = (2.0f * mouseX) / viewport[2] - 1.0f;
-						float y = 1.0f - (2.0f * mouseY) / viewport[3];
+                        //get camera
+                        Camera* camera = &(Application::GetInstance().opengl->camera);
+                        int viewport[4];
+                        glGetIntegerv(GL_VIEWPORT, viewport);
 
-						// Crear ray desde la cámara
-						glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
-						glm::vec4 rayEye = glm::inverse(camera->GetProjectionMatrix()) * rayClip;
-						rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
-						glm::vec3 rayWorld = glm::vec3(glm::inverse(camera->GetViewMatrix()) * rayEye);
-						rayWorld = glm::normalize(rayWorld);
+                        //convert coordinates
+                        float x = (2.0f * mouseX) / viewport[2] - 1.0f;
+                        float y = 1.0f - (2.0f * mouseY) / viewport[3];
 
-						// Intersección con plano Y=0
-						glm::vec3 camPos = camera->GetPosition();
-						float t = -camPos.y / rayWorld.y;
-						glm::vec3 dropPosition = camPos + rayWorld * t;
+                        //calculate ray
+                        glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
+                        glm::vec4 rayEye = glm::inverse(camera->GetProjectionMatrix()) * rayClip;
+                        rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
+                        glm::vec3 rayWorld = glm::vec3(glm::inverse(camera->GetViewMatrix()) * rayEye);
+                        rayWorld = glm::normalize(rayWorld);
 
-						for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
-						{
-							GameObject* go = new GameObject();
-							go->name = "DroppedMesh_" + std::to_string(i);
+                        //interesct with floor
+                        glm::vec3 camPos = camera->GetPosition();
+                        float t = -camPos.y / rayWorld.y;
+                        glm::vec3 dropPosition = camPos + rayWorld * t;
 
-							// Usar la posición calculada en lugar del offset
-							go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);
-							go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-							go->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
+                        for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
+                        {
+                            //create gameobject with mesh
+                            GameObject* go = new GameObject();
+                            go->name = "DroppedMesh_" + std::to_string(i);
 
-							go->mesh->meshIndex = (int)i;
+                            //change the translation to match the obtained coordinates
+                            go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);
+                            go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                            go->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
 
-							// Resto del código de texturas...
-							std::string texturePath = GetTexturePathFromFBX(path.c_str(), (int)(i - meshCountBefore));
+                            go->mesh->meshIndex = (int)i;
 
-							bool textureLoaded = false;
-							if (!texturePath.empty()) {
-								textureLoaded = go->texture->LoadTexture(texturePath);
-							}
+                            //try to load texture
+                            std::string texturePath = GetTexturePathFromFBX(path.c_str(), (int)(i - meshCountBefore));
 
-							if (textureLoaded) {
-								std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
-							}
-							else {
-								std::cout << "No valid texture found, using checkerboard" << std::endl;
+                            bool textureLoaded = false;
+                            if (!texturePath.empty()) {
+                                textureLoaded = go->texture->LoadTexture(texturePath);
+                            }
 
-								const int size = 64;
-								GLubyte checkerImage[64][64][4];
-								for (int i = 0; i < size; i++) {
-									for (int j = 0; j < size; j++) {
-										int c = ((((i & 0x8) == 0) ^ ((j & 0x8) == 0))) * 255;
-										checkerImage[i][j][0] = (GLubyte)c;
-										checkerImage[i][j][1] = (GLubyte)c;
-										checkerImage[i][j][2] = (GLubyte)c;
-										checkerImage[i][j][3] = (GLubyte)255;
-									}
-								}
+                            if (textureLoaded) {
+                                std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
+                            }
+                            else {
+                                //if no texture available we use checkerboard
+                                std::cout << "No valid texture found, using checkerboard" << std::endl;
 
-								GLuint checkID;
-								glGenTextures(1, &checkID);
-								glBindTexture(GL_TEXTURE_2D, checkID);
-								glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerImage);
-								glGenerateMipmap(GL_TEXTURE_2D);
-								glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-								glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-								glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-								glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-								glBindTexture(GL_TEXTURE_2D, 0);
+                                const int size = 64;
+                                GLubyte checkerImage[64][64][4];
+                                for (int i = 0; i < size; i++) {
+                                    for (int j = 0; j < size; j++) {
+                                        int c = ((((i & 0x8) == 0) ^ ((j & 0x8) == 0))) * 255;
+                                        checkerImage[i][j][0] = (GLubyte)c;
+                                        checkerImage[i][j][1] = (GLubyte)c;
+                                        checkerImage[i][j][2] = (GLubyte)c;
+                                        checkerImage[i][j][3] = (GLubyte)255;
+                                    }
+                                }
 
-								go->texture->hasTexture = true;
-								if (go->texture->texturedata == nullptr) {
-									go->texture->texturedata = new TextureData();
-								}
-								go->texture->texturedata->id = checkID;
-								go->texture->texturedata->type = "checkerboard";
-								go->texture->texturedata->path = "checkerboard";
+                                GLuint checkID;
+                                glGenTextures(1, &checkID);
+                                glBindTexture(GL_TEXTURE_2D, checkID);
+                                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerImage);
+                                glGenerateMipmap(GL_TEXTURE_2D);
+                                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                                glBindTexture(GL_TEXTURE_2D, 0);
 
-								std::cout << "Checkerboard created with ID: " << checkID << std::endl;
-							}
+                                go->texture->hasTexture = true;
+                                if (go->texture->texturedata == nullptr) {
+                                    go->texture->texturedata = new TextureData();
+                                }
+                                go->texture->texturedata->id = checkID;
+                                go->texture->texturedata->type = "checkerboard";
+                                go->texture->texturedata->path = "checkerboard";
 
-							Application::GetInstance().opengl->gameObjects.push_back(go);
-							std::cout << "Created GameObject " << go->name << std::endl;
-						}
+                                std::cout << "Checkerboard created with ID: " << checkID << std::endl;
+                            }
 
-						std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
-					}
-				}
-			}
-			break;
-		}
+                            Application::GetInstance().opengl->gameObjects.push_back(go);
+                            std::cout << "Created GameObject " << go->name << std::endl;
+                        }
+
+                        std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
+                        std::cout << std::endl;
+                    }
+                }
+                else if (extension == ".png" || extension == ".jpg" || extension == ".jpeg") {
+                    //get mouse pos
+                    std::cout << "========TEXTURE==========" << std::endl;
+                    float mouseX, mouseY;
+                    SDL_GetMouseState(&mouseX, &mouseY);
+
+                    //get camera
+                    Camera* camera = &(Application::GetInstance().opengl->camera);
+
+                    int viewport[4];
+                    glGetIntegerv(GL_VIEWPORT, viewport);
+
+                    //convert coordinates
+                    float x = (2.0f * mouseX) / viewport[2] - 1.0f;
+                    float y = 1.0f - (2.0f * mouseY) / viewport[3];
+
+                    //create ray
+                    glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
+                    glm::vec4 rayEye = glm::inverse(camera->GetProjectionMatrix()) * rayClip;
+                    rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
+                    glm::vec3 rayWorld = glm::vec3(glm::inverse(camera->GetViewMatrix()) * rayEye);
+                    rayWorld = glm::normalize(rayWorld);
+
+                    glm::vec3 camPos = camera->GetPosition();
+
+                    //search closes go to the ray
+                    GameObject* closestObject = nullptr;
+                    float closestDistance = FLT_MAX;
+                    float maxSelectionDistance = 2.0f; //max radius of search
+
+                    for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
+                        if (go->mesh->meshIndex < 0) {
+                            continue;
+                        }
+
+                        //get pos of the game object
+                        glm::vec3 objPos(
+                            go->transform->translation.x,
+                            go->transform->translation.y,
+                            go->transform->translation.z
+                        );
+
+                        //vector
+                        glm::vec3 camToObj = objPos - camPos;
+
+                        //proyection to our ray
+                        float t = glm::dot(camToObj, rayWorld);
+
+                        //if out of view, ignore
+                        if (t < 0.0f) {
+                            continue;
+                        }
+
+                        //closest point to ray
+                        glm::vec3 closestPointOnRay = camPos + rayWorld * t;
+
+                        //distance
+                        float perpDistance = glm::length(objPos - closestPointOnRay);
+
+                        //if we are in the radius we continue
+                        if (perpDistance < maxSelectionDistance) {
+                            //get the distance and find the closest one
+                            float distanceFromCamera = glm::length(camToObj);
+
+                            //the closest wins
+                            if (distanceFromCamera < closestDistance) {
+                                closestDistance = distanceFromCamera;
+                                closestObject = go;
+                            }
+                        }
+                    }
+
+                    //bind texture to the closest game object
+                    if (closestObject != nullptr) {
+
+                        //new texture data (delete the previous)
+                        if (closestObject->texture->texturedata != nullptr) {
+                            delete closestObject->texture->texturedata;
+                            closestObject->texture->texturedata = nullptr;
+                        }
+
+                        if (closestObject->texture->LoadTexture(path)) {
+                            std::cout << "Texture assigned successfully to " << closestObject->name << std::endl;
+
+                            for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
+                                if (go->texture->texturedata != nullptr) {
+                                    if (go == closestObject) {
+                                    }
+                                    std::cout << std::endl;
+                                }
+                                else {
+                                    std::cout << "  " << go->name << " -> No texture" << std::endl;
+                                }
+                            }
+                        }
+                        else {
+                            std::cerr << "Failed to load texture for " << closestObject->name << std::endl;
+                        }
+                    }
+                    else {
+                        //if there is no close object
+                        std::cout << "No object found under cursor (within " << maxSelectionDistance << " units)" << std::endl;
+                    }
+                }
+            }
+            break;
+        }
 		}
 	}
 	return true;

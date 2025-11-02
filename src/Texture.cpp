@@ -1,12 +1,12 @@
 #include "Texture.h"
 #include <iostream>
 
-// Para el checkerboard
+//to use for the checkerboard
 #define CHECKERS_HEIGHT 64
 #define CHECKERS_WIDTH 64
 
 Texture::Texture() {
-    // Initialize DevIL only once
+    //init devil
     static bool initialized = false;
     if (!initialized) {
         ilInit();
@@ -23,7 +23,7 @@ Texture::~Texture() {
 void Texture::CreateCheckerboard() {
     GLubyte checkerImage[CHECKERS_HEIGHT][CHECKERS_WIDTH][4];
 
-    // Generar patrón de checkerboard
+    //create checkerboard pattern
     for (int i = 0; i < CHECKERS_HEIGHT; i++) {
         for (int j = 0; j < CHECKERS_WIDTH; j++) {
             int c = ((((i & 0x8) == 0) ^ ((j & 0x8) == 0))) * 255;
@@ -34,7 +34,7 @@ void Texture::CreateCheckerboard() {
         }
     }
 
-    // Crear textura de checkerboard
+    //create texture with pattern
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
 
@@ -43,7 +43,6 @@ void Texture::CreateCheckerboard() {
 
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    // Parametros de textura
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
