@@ -17,7 +17,7 @@ public:
 	void Draw(Camera* camera);
 
 public:
-	MeshData* mesh;
+	MeshData* meshdata;
 	bool drawOutline = false;
 
 
