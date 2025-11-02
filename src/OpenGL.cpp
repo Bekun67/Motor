@@ -11,6 +11,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Texture.h"
 #include "GameObject.h"
+#include "ConfigurationWindow.h"
+#include "ConsoleWindow.h"
+
 
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
 {
@@ -110,6 +113,7 @@ void OpenGL::DrawGrid()
 bool OpenGL::Start()
 {
     std::cout << "Init OpenGL Context & GLAD" << std::endl;
+    ConsoleWindow::AddLog("Initializing OpenGL Context", LogType::INFO);
 
     SDL_Window* window = Application::GetInstance().window->GetWindow();
     glContext = SDL_GL_CreateContext(window);
@@ -117,13 +121,30 @@ bool OpenGL::Start()
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
     {
         std::cerr << "Failed to initialize GLAD" << std::endl;
+        ConsoleWindow::AddLog("Failed to initialize GLAD", LogType::ERROR_LOG);
         return false;
     }
+
+    ConsoleWindow::AddLog("GLAD initialized successfully", LogType::INFO);
+
+    // Log OpenGL info
+    const char* version = (const char*)glGetString(GL_VERSION);
+    const char* vendor = (const char*)glGetString(GL_VENDOR);
+    const char* renderer = (const char*)glGetString(GL_RENDERER);
+
+    ConsoleWindow::AddLog(std::string("OpenGL Version: ") + version, LogType::INFO);
+    ConsoleWindow::AddLog(std::string("OpenGL Vendor: ") + vendor, LogType::INFO);
+    ConsoleWindow::AddLog(std::string("OpenGL Renderer: ") + renderer, LogType::INFO);
+
 
     // Do a depth test
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
 
+    ConsoleWindow::AddLog("OpenGL depth test enabled", LogType::INFO);
+
+    // Compile shaders
+    ConsoleWindow::AddLog("Compiling shaders...", LogType::INFO);
 
     // Shader using position normal texcoord and matrix
     const char* vertexShaderSource = "#version 330 core\n"
@@ -167,6 +188,11 @@ bool OpenGL::Start()
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 1024, NULL, infoLog);
         std::cerr << "ERROR: Shader Program Linking Failed\n" << infoLog << std::endl;
+        ConsoleWindow::AddLog("Shader linking failed", LogType::ERROR_LOG);
+    }
+    else
+    {
+        ConsoleWindow::AddLog("Shaders compiled and linked successfully", LogType::INFO);
     }
 
     glDeleteShader(vs);
@@ -174,41 +200,45 @@ bool OpenGL::Start()
 
     lastTicks = SDL_GetTicks();
 
-    // Cargar modelo FBX
+    // Load model
     const char* fbxPath = "Assets/Models/BakerHouse.fbx";
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
+        ConsoleWindow::AddLog("Failed to load model", LogType::ERROR_LOG);
         return false;
     }
     std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
 
-    // Crear GameObject para la casa
+    // Create GameObject
+    ConsoleWindow::AddLog("Creating BakerHouse GameObject", LogType::INFO);
     GameObject* house = new GameObject();
     house->name = "BakerHouse";
 
-    // Configurar Transform (posición inicial)
+    // Configurate Transform (initial pos)
     house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
     house->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
     house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
 
-    // Asignar mesh (usamos el primer mesh cargado)
+	// Asign mesh to first loaded GameObject
     if (!g_Meshes.empty()) {
         house->mesh->meshdata = &g_Meshes[0];
-        std::cout << "Mesh assigned to GameObject" << std::endl;
+        ConsoleWindow::AddLog("Mesh assigned to GameObject", LogType::INFO);
     }
 
-    // Cargar y asignar textura
+	// Load and asign texture
     if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
-        std::cout << "Texture assigned to GameObject" << std::endl;
+        ConsoleWindow::AddLog("Texture assigned to GameObject", LogType::INFO);
     }
 
-    // Añadir a la lista de GameObjects
+	// Add to gameObjects list
     gameObjects.push_back(house);
 
     CreateGrid(50);
 
-    std::cout << "OpenGL initialized successfully" << std::endl;
+    ConsoleWindow::AddLog("Grid created (50x50)", LogType::INFO);
 
+    std::cout << "OpenGL initialized successfully" << std::endl;
+    ConsoleWindow::AddLog("OpenGL module initialized successfully", LogType::INFO);
     return true;
 }
 
@@ -218,6 +248,24 @@ bool OpenGL::Update()
     uint64_t currentTicks = SDL_GetTicks();
     float deltaTime = (currentTicks - lastTicks) / 1000.0f;
     lastTicks = currentTicks;
+
+    // Calculate and send FPS to configuration window
+    if (deltaTime > 0.0f)
+    {
+        float fps = 1.0f / deltaTime;
+
+        // Find configuration window and update FPS
+        auto& windows = Application::GetInstance().imgui->GetEditorWindows();
+        for (EditorWindow* window : windows)
+        {
+            ConfigurationWindow* configWindow = dynamic_cast<ConfigurationWindow*>(window);
+            if (configWindow)
+            {
+                configWindow->AddFPS(fps);
+                break;
+            }
+        }
+    }
 
     // Use camera input handling
     camera.HandleInput(deltaTime);

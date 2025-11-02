@@ -1,4 +1,5 @@
 #include "Window.h"
+#include "ConsoleWindow.h"
 #include <iostream>
 
 Window::Window() : window(nullptr), width(1280), height(720), scale(1)
@@ -13,13 +14,18 @@ Window::~Window()
 bool Window::Start()
 {
     std::cout << "Init SDL3 Window" << std::endl;
+    ConsoleWindow::AddLog("Initializing SDL3 Window", LogType::INFO);
 
     // Initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
-        std::cerr << "SDL_Init failed! SDL Error: " << SDL_GetError() << std::endl;
+        std::string error = "SDL_Init failed! SDL Error: " + std::string(SDL_GetError());
+        std::cerr << error << std::endl;
+        ConsoleWindow::AddLog(error, LogType::ERROR_LOG);
         return false;
     }
+
+    ConsoleWindow::AddLog("SDL3 initialized successfully", LogType::INFO);
 
     // Set OpenGL version to 3.3
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);  // Major version
@@ -34,21 +40,25 @@ bool Window::Start()
     // Set depth buffer to 24 bits for proper 3D rendering
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
+    ConsoleWindow::AddLog("OpenGL attributes set: 3.3 Core", LogType::INFO);
 
     // Create window WITH OpenGL flag
     window = SDL_CreateWindow(
-        "SDL3 OpenGL Window",
+        "Ilium Engine",
         width,
         height,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE  // Añade SDL_WINDOW_OPENGL
+        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
     );
 
     if (window == nullptr)
     {
-        std::cerr << "Window creation failed! SDL Error: " << SDL_GetError() << std::endl;
+        std::string error = "Window creation failed! SDL Error: " + std::string(SDL_GetError());
+        std::cerr << error << std::endl;
+        ConsoleWindow::AddLog(error, LogType::ERROR_LOG);
         return false;
     }
 
+    ConsoleWindow::AddLog("Window created successfully (1280x720)", LogType::INFO);
     return true;
 }
 
@@ -88,6 +98,8 @@ void Window::Render()
 bool Window::CleanUp()
 {
     std::cout << "Destroying SDL Window" << std::endl;
+    ConsoleWindow::AddLog("Destroying SDL Window", LogType::INFO);
+
     if (window != nullptr)
     {
         SDL_DestroyWindow(window);

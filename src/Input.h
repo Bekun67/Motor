@@ -59,6 +59,8 @@ public:
 	// Check if a certain window event happened
 	bool GetWindowEvent(EventWindow ev);
 
+	void SetWindowEvent(EventWindow ev, bool value);
+
 	// Get mouse wheel motion
 	int GetMouseWheelX() const { return mouseWheelX; }
 	int GetMouseWheelY() const { return mouseWheelY; }

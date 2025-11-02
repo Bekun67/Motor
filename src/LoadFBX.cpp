@@ -1,4 +1,5 @@
 #include "LoadFBX.h"
+#include "ConsoleWindow.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -12,16 +13,32 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
-#define LOG(format, ...) printf(format "\n", __VA_ARGS__)
+#define LOG(format, ...) \
+    do { \
+        printf(format "\n", __VA_ARGS__); \
+        char buffer[512]; \
+        snprintf(buffer, sizeof(buffer), format, __VA_ARGS__); \
+        ConsoleWindow::AddLog(buffer, LogType::INFO); \
+    } while(0)
+
+#define LOG_ERROR(format, ...) \
+    do { \
+        printf(format "\n", __VA_ARGS__); \
+        char buffer[512]; \
+        snprintf(buffer, sizeof(buffer), format, __VA_ARGS__); \
+        ConsoleWindow::AddLog(buffer, LogType::ERROR_LOG); \
+    } while(0)
 
 std::vector<MeshData> g_Meshes;
 glm::vec3 g_ModelCenter(0.0f);
 float g_ModelRadius = 1.0f;
 
 bool LoadFile(const char* file_path) {
+    LOG("Loading model: %s", file_path);
+
     Assimp::Importer importer;
 
-    unsigned int flags = 
+    unsigned int flags =
         aiProcess_Triangulate |
         aiProcess_GenSmoothNormals |
         aiProcess_JoinIdenticalVertices |
@@ -33,26 +50,29 @@ bool LoadFile(const char* file_path) {
     const aiScene* scene = importer.ReadFile(file_path, flags);
 
     if (!scene) {
-        LOG("Assimp error: %s", importer.GetErrorString());
+        LOG_ERROR("Assimp error: %s", importer.GetErrorString());
         return false;
     }
 
     if (!scene->HasMeshes()) {
-        LOG("No meshes found in file: %s", file_path);
+        LOG_ERROR("No meshes found in file: %s", file_path);
         return false;
     }
+
+    LOG("Found %d meshes in file", scene->mNumMeshes);
 
     glm::vec3 minBound(FLT_MAX);
     glm::vec3 maxBound(-FLT_MAX);
 
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
         aiMesh* mesh = scene->mMeshes[m];
+        LOG("Processing mesh %d: %d vertices, %d faces", m, mesh->mNumVertices, mesh->mNumFaces);
 
-        std::vector<float> vertexData;         
+        std::vector<float> vertexData;
         std::vector<uint32_t> indices;
 
-        vertexData.reserve(mesh->mNumVertices * 8); //vertexs
-        indices.reserve(mesh->mNumFaces * 3); //faces
+        vertexData.reserve(mesh->mNumVertices * 8);
+        indices.reserve(mesh->mNumFaces * 3);
 
         for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
             const aiVector3D& pos = mesh->mVertices[v];
@@ -73,13 +93,11 @@ bool LoadFile(const char* file_path) {
             vertexData.push_back(normal.z);
 
             if (mesh->HasTextureCoords(0)) {
-                //load uvs
                 aiVector3D uv = mesh->mTextureCoords[0][v];
                 vertexData.push_back(uv.x);
                 vertexData.push_back(uv.y);
             }
             else {
-                //if no uvs detected 
                 vertexData.push_back(0.0);
                 vertexData.push_back(0.0);
             }
@@ -88,7 +106,7 @@ bool LoadFile(const char* file_path) {
         for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
             const aiFace& face = mesh->mFaces[f];
             if (face.mNumIndices != 3) {
-                LOG("ERROR: face with not 3 indices detected (mesh %i face %i)", m, f);
+                LOG_ERROR("ERROR: face with not 3 indices detected (mesh %d face %d)", m, f);
                 continue;
             }
             else {
@@ -100,7 +118,6 @@ bool LoadFile(const char* file_path) {
 
         MeshData md;
 
-        //create vao and vbo to associate them
         glGenVertexArrays(1, &md.VAO);
         glBindVertexArray(md.VAO);
 
@@ -108,22 +125,18 @@ bool LoadFile(const char* file_path) {
         glBindBuffer(GL_ARRAY_BUFFER, md.VBO);
         glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(float), vertexData.data(), GL_STATIC_DRAW);
 
-        //load faces
         glGenBuffers(1, &md.EBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, md.EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
-        GLsizei vertexSize = 8 * sizeof(float); //8 variables for vertex, 3 pos, 3 normals, 2 uvs
+        GLsizei vertexSize = 8 * sizeof(float);
 
-        //position
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(0));
 
-        //normals
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(3 * sizeof(float)));
 
-        //uvs
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)(6 * sizeof(float)));
 
@@ -133,13 +146,15 @@ bool LoadFile(const char* file_path) {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-        //add the new mesh to the list and iterate to the next one
         g_Meshes.push_back(md);
-        LOG("Loaded mesh %i -> VAO %u VBO %u EBO %u indices %i", m, md.VAO, md.VBO, md.EBO, md.numIndices);
+        LOG("Loaded mesh %d -> VAO %u VBO %u EBO %u indices %d", m, md.VAO, md.VBO, md.EBO, md.numIndices);
     }
 
     g_ModelCenter = (minBound + maxBound) * 0.5f;
     g_ModelRadius = glm::length(maxBound - g_ModelCenter);
+
+    LOG("Model loaded successfully. Center: (%.2f, %.2f, %.2f), Radius: %.2f",
+        g_ModelCenter.x, g_ModelCenter.y, g_ModelCenter.z, g_ModelRadius);
 
     return true;
 }

@@ -1,12 +1,20 @@
 #include "Input.h"
+#include <iostream>
 #include "Window.h"
+#include <imgui_impl_sdl3.h>
 #include "Application.h"
+
 
 #define MAX_KEYS 300
 
 Input::Input() : Module()
 {
-	//name = "input";
+	name = "input";
+
+	for (int i = 0; i < WE_COUNT; ++i)
+	{
+		windowEvents[i] = false;
+	}
 
 	keyboard = new KeyState[MAX_KEYS];
 	// reserve memory
@@ -36,6 +44,7 @@ bool Input::Awake()
 // Called before the first frame
 bool Input::Start()
 {
+	std::cout << "Init Input system" << std::endl;
 	return true;
 }
 
@@ -46,6 +55,32 @@ bool Input::PreUpdate()
 
 	mouseWheelX = 0;
 	mouseWheelY = 0;
+
+	SDL_Event event2;
+	while (SDL_PollEvent(&event2))
+	{
+		// Let ImGui handle events first
+		ImGui_ImplSDL3_ProcessEvent(&event2);
+
+		switch (event2.type)
+		{
+		case SDL_EVENT_QUIT:
+			windowEvents[WE_QUIT] = true;
+			break;
+
+		case SDL_EVENT_WINDOW_HIDDEN:
+			windowEvents[WE_HIDE] = true;
+			break;
+
+		case SDL_EVENT_WINDOW_SHOWN:
+			windowEvents[WE_SHOW] = true;
+			break;
+
+		case SDL_EVENT_MOUSE_WHEEL:
+			mouseWheelY = (int)event2.wheel.y;
+			break;
+		}
+	}
 
 	const bool* keys = SDL_GetKeyboardState(NULL);
 	for (int i = 0; i < MAX_KEYS; ++i)
@@ -149,6 +184,11 @@ bool Input::CleanUp()
 bool Input::GetWindowEvent(EventWindow ev)
 {
 	return windowEvents[ev];
+}
+
+void Input::SetWindowEvent(EventWindow ev, bool value)
+{
+	windowEvents[ev] = value;
 }
 
 //Vector2D Input::GetMousePosition()

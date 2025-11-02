@@ -1,5 +1,9 @@
 #include "Application.h"
 #include "LoadFBX.h"
+#include "ConsoleWindow.h"
+#include "ConfigurationWindow.h"
+#include "HierarchyWindow.h"
+#include "InspectorWindow.h"
 #include <iostream>
 
 Application* app = nullptr;
@@ -11,16 +15,16 @@ Application::Application() : isRunning(true)
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
     opengl = std::make_shared<OpenGL>();
-    //render = std::make_shared<Render>();
     camera = std::make_shared<Camera>();
 	texture = std::make_shared<Texture>();
+	imgui = std::make_shared<ImGuiModule>();
 
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Input>(input));
     AddModule(std::static_pointer_cast<OpenGL>(opengl));
-    //AddModule(std::static_pointer_cast<Render>(render));
     AddModule(std::static_pointer_cast<Camera>(camera));
 	AddModule(std::static_pointer_cast<Texture>(texture));
+	AddModule(std::static_pointer_cast<ImGuiModule>(imgui));
 }
 
 Application& Application::GetInstance()
@@ -36,17 +40,38 @@ void Application::AddModule(std::shared_ptr<Module> module)
 
 bool Application::Awake() 
 {
+    ConsoleWindow::AddLog("Application Awake", LogType::INFO);
     return true;
 }
 
 bool Application::Start()
 {
+    ConsoleWindow::AddLog("Application Start", LogType::INFO);
+
     bool result = true;
     for (const auto& module : moduleList) {
+        std::string msg = "Starting module: " + module->name;
+        ConsoleWindow::AddLog(msg, LogType::INFO);
+
         result = module.get()->Start();
         if (!result) {
+            std::string error = "Failed to start module: " + module->name;
+            ConsoleWindow::AddLog(error, LogType::ERROR_LOG);
             break;
         }
+    }
+
+    // Create editor windows after ImGui is initialized
+    if (result && imgui)
+    {
+        ConsoleWindow::AddLog("Creating Editor Windows", LogType::INFO);
+
+        imgui->AddEditorWindow(new ConsoleWindow());
+        imgui->AddEditorWindow(new ConfigurationWindow());
+        imgui->AddEditorWindow(new HierarchyWindow());
+        imgui->AddEditorWindow(new InspectorWindow());
+
+        ConsoleWindow::AddLog("Editor Windows created successfully", LogType::INFO);
     }
 
     return true;
@@ -118,6 +143,7 @@ bool Application::PostUpdate()
 bool Application::CleanUp()
 {
     std::cout << "Application CleanUp" << std::endl;
+    ConsoleWindow::AddLog("Application CleanUp", LogType::INFO);
 
     bool result = true;
     for (const auto& module : moduleList) {
