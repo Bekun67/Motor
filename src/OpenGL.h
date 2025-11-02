@@ -7,6 +7,8 @@
 class GameObject;
 struct SDL_Window;
 
+class Model;
+
 class OpenGL : public Module
 {
 public:
@@ -18,6 +20,7 @@ public:
 	unsigned int VAO;
 	unsigned int VBO;
 
+	Model* fbxModel = nullptr;
 	bool showGrid = true;
 	unsigned int gridVAO = 0;
 	unsigned int gridVBO = 0;
