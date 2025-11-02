@@ -28,7 +28,7 @@ void Camera::HandleInput(float deltaTime)
     bool altPressed = state[SDL_SCANCODE_LALT] || state[SDL_SCANCODE_RALT];
     orbitMode = altPressed;
 
-    // Detectar si SHIFT está pulsado para duplicar velocidad
+	// Use shift to increase movement speed
     bool shiftPressed = state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT];
     float currentSpeed = shiftPressed ? moveSpeed * 2.0f : moveSpeed;
 
@@ -63,7 +63,7 @@ void Camera::HandleInput(float deltaTime)
         front = glm::normalize(front);
         glm::vec3 right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
 
-        // Usar currentSpeed en lugar de moveSpeed
+		// Use currentSpeed and deltaTime to move camera
         if (state[SDL_SCANCODE_W] || buttons & SDL_BUTTON_LEFT) position += front * currentSpeed * deltaTime;
         if (state[SDL_SCANCODE_S]) position -= front * currentSpeed * deltaTime;
         if (state[SDL_SCANCODE_A]) position -= right * currentSpeed * deltaTime;
@@ -74,7 +74,7 @@ void Camera::HandleInput(float deltaTime)
         // update focus point based on new position and front vector
         focusPoint = position + front * distanceToFocus;
     }
-    // Orbital (Alt + Click derecho)
+    // Orbital (Alt + Right click)
     else if (orbitMode && (buttons & SDL_BUTTON_RMASK))
     {
         if (firstMouse)
