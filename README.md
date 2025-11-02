@@ -14,4 +14,6 @@ Por el momento se pueden llevar a cabo las funciones básicas de una engine, com
 - Cámara:
   - Click derecho: Rotar la cámara
   - W A S D + Click derecho: Navegar el modelo
+  - F: La cámara se centra en la geometría
+  - SHIFT: Duplica la velocidad de movimiento
 - Cargar modelos o texturas: Arrastrar los archivos al programa (Drag and drop)
