@@ -9,9 +9,12 @@
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
 
-enum class ComponentType;
+//forward declatarions
 class Component;
-
+class ComponentTransform;
+class ComponentMesh;
+class ComponentTexture;
+enum class ComponentType;
 
 class GameObject
 {

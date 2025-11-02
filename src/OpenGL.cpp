@@ -21,6 +21,11 @@ OpenGL::~OpenGL()
 {
 }
 
+OpenGL& OpenGL::GetInstance() {
+    static OpenGL instance; 
+    return instance;
+}
+
 static GLuint CompileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
@@ -92,7 +97,7 @@ void OpenGL::DrawGrid()
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
 
-    // Identiti matrix for grid
+    //identiti matrix for grid
     glm::mat4 model = glm::mat4(1.0f);
     glm::mat4 view = camera.GetViewMatrix();
     glm::mat4 projection = camera.GetProjectionMatrix();
@@ -174,41 +179,42 @@ bool OpenGL::Start()
 
     lastTicks = SDL_GetTicks();
 
-    // Cargar modelo FBX
+    //load house fbx
     const char* fbxPath = "Assets/Models/BakerHouse.fbx";
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
         return false;
     }
-    std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
+    else std::cout << "FBX loaded" << std::endl;
 
-    // Crear GameObject para la casa
+    //create gameobject for the house
     GameObject* house = new GameObject();
     house->name = "BakerHouse";
+    std::cout << "Created GameObject " << house->name << std::endl;
 
-    // Configurar Transform (posición inicial)
+    //place it in the middle and rotate it (it was facing sideways)
     house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
-    house->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+    aiQuaternion rotX(aiVector3D(1.0f, 0.0f, 0.0f), glm::radians(90.0f));
+    house->transform->rotation = rotX;
     house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
 
-    // Asignar mesh (usamos el primer mesh cargado)
+    //assigned the very first index in our loaded meshes
     if (!g_Meshes.empty()) {
-        house->mesh->meshdata = &g_Meshes[0];
-        std::cout << "Mesh assigned to GameObject" << std::endl;
+        house->mesh->meshIndex = 0;
     }
 
-    // Cargar y asignar textura
+    //assign texture
     if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
-        std::cout << "Texture assigned to GameObject" << std::endl;
+        std::cout << "Texture assigned to " << house->name << std::endl;
     }
 
-    // Añadir a la lista de GameObjects
+    //add it to the gameobjects list
     gameObjects.push_back(house);
+    std::cout << "Total GameObjects in scene: " << gameObjects.size() << std::endl;
 
     CreateGrid(50);
 
     std::cout << "OpenGL initialized successfully" << std::endl;
-
     return true;
 }
 

@@ -1,6 +1,8 @@
 #pragma once
 #include "Module.h"
 #include "LoadFBX.h"
+#include "GameObject.h"
+#include "OpenGL.h"
 #include <iostream>
 
 #define NUM_MOUSE_BUTTONS 5
@@ -25,9 +27,6 @@ class Input : public Module
 {
 
 public:
-
-
-
 	Input();
 
 	// Destructor
@@ -73,6 +72,4 @@ private:
 	int mouseY;
 	int mouseWheelX = 0;
 	int mouseWheelY = 0;
-	
-
 };

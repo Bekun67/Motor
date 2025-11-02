@@ -6,10 +6,7 @@
 
 Input::Input() : Module()
 {
-	//name = "input";
-
 	keyboard = new KeyState[MAX_KEYS];
-	// reserve memory
 	memset(keyboard, KEY_IDLE, sizeof(KeyState) * MAX_KEYS);
 	memset(mouseButtons, KEY_IDLE, sizeof(KeyState) * NUM_MOUSE_BUTTONS);
 }
@@ -19,7 +16,6 @@ Input::~Input()
 	delete[] keyboard;
 }
 
-// Called before render is available
 bool Input::Awake()
 {
 	bool ret = true;
@@ -33,13 +29,11 @@ bool Input::Awake()
 	return ret;
 }
 
-// Called before the first frame
 bool Input::Start()
 {
 	return true;
 }
 
-// Called each loop iteration
 bool Input::PreUpdate()
 {
 	static SDL_Event event;
@@ -117,29 +111,56 @@ bool Input::PreUpdate()
 			const char* droppedFile = drop.data;
 
 			if (droppedFile) {
+				//if we dropped a file
 				std::string path(droppedFile);
 				std::cout << "Dropped file: " << path << std::endl;
 
+				//check the extension (case sensitive)
 				std::string extension = "";
 				if (path.size() >= 4) extension = path.substr(path.size() - 4);
 				for (size_t i = 0; i < extension.size(); ++i) extension[i] = (char)tolower(extension[i]);
 
+				//if the extension is fbx it means we have loaded a model
 				if (extension == ".fbx") {
+					//we add the new meshes and calculate the index from we have to draw the new game object
+					size_t meshCountBefore = g_Meshes.size();
+
 					if (LoadFile(path.c_str())) {
-						std::cout << "Loaded FBX: " << path << std::endl;
+						std::cout << "FBX loaded" << std::endl;
+
+						//aprox size to draw 
+						float desiredSize = 5.0f; 
+						float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
+
+						//create new game object with this mesh
+						for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
+						{
+							GameObject* go = new GameObject();
+							go->name = "DroppedMesh_" + std::to_string(i);
+
+							float offset = (float)(i - meshCountBefore) * desiredSize * 2.5f;
+							go->transform->translation = aiVector3D(offset, 0.0f, 0.0f);
+							go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+
+							go->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
+
+							go->mesh->meshIndex = (int)i;
+
+							Application::GetInstance().opengl->gameObjects.push_back(go);
+							std::cout << "Created GameObject " << go->name << std::endl;
+						}
+
+						std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
 					}
 				}
 			}
 			break;
 		}
-
-		break;
 		}
 	}
 	return true;
 }
 
-// Called before quitting
 bool Input::CleanUp()
 {
 	SDL_QuitSubSystem(SDL_INIT_EVENTS);
@@ -150,13 +171,3 @@ bool Input::GetWindowEvent(EventWindow ev)
 {
 	return windowEvents[ev];
 }
-
-//Vector2D Input::GetMousePosition()
-//{
-//	return Vector2D(mouseX, mouseY);
-//}
-//
-//Vector2D Input::GetMouseMotion()
-//{
-//	return Vector2D(mouseMotionX, mouseMotionY);
-//}

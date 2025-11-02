@@ -23,8 +23,10 @@ public:
 	unsigned int gridVBO = 0;
 	int gridLineCount = 0;
 
-	// GameObjects in scene
+	//GameObjects in scene
 	std::vector<GameObject*> gameObjects;
+
+	static OpenGL& GetInstance();
 
 private:
 	bool Start() override;

@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Component.h"
-
-#include "LoadFBX.h"
 #include "Camera.h"
 
 class MeshData;
@@ -17,8 +15,5 @@ public:
 	void Draw(Camera* camera);
 
 public:
-	MeshData* meshdata;
-	bool drawOutline = false;
-
-
+	int meshIndex = -1; 
 };
