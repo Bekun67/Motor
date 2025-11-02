@@ -1,19 +1,23 @@
 # ILLIUM ENGINE
-https://github.com/Bekun67/Motor
+https://github.com/bekun67/motor
 
-Illium Engine es un motor de videojuegos creado para la asignatura de Motores.
-Por el momento se pueden llevar a cabo las funciones básicas de una engine, como cargar modelos y texturas.
+Illium Engine és un motor de videojocs creat per a l'assignatura de Motors.
+De moment es poden dur a terme les funcions bàsiques d'una engine, com carregar models i textures.
 
-## INTEGRANTES
-- Isaac Ramírez Prieto: https://github.com/Bekun67
+## INTEGRANTS
+- Isaac Ramírez Prieto: https://github.com/bekun67
 - Martí Mach Aymerich: https://github.com/0psycada
-- Xavier Chaparro Foyo: https://github.com/XaviFast05
-- Clara Rodríguez Moreno: https://github.com/Kopeke4
+- Xavier Chaparro Foyo: https://github.com/xavifast05
+- Clara Rodríguez Moreno: https://github.com/kopeke4
 
-## CONTROLES
-- Cámara:
-  - Click derecho: Rotar la cámara
-  - W A S D + Click derecho: Navegar el modelo
-  - F: La cámara se centra en la geometría
-  - SHIFT: Duplica la velocidad de movimiento
-- Cargar modelos o texturas: Arrastrar los archivos al programa (Drag and drop)
+## CONTROLS
+- Càmera:
+  - Clic dret: Girar la cambra
+  - W A S D + Clic dret: Navegar el model
+  - F: La càmera se centra en la geometria
+  - SHIFT: Duplica la velocitat de moviment
+- Carregar models o textures: Arrossegar els arxius al programa (Drag and drop)
+- Canviar grandària del model:
+  - Engrandir: Número de l'1 - 9 + X
+  - Empetitir: Número de l'1 - 9 + Z
+
