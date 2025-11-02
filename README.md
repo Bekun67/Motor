@@ -12,6 +12,6 @@ Por el momento se pueden llevar a cabo las funciones básicas de una engine, com
 
 ## CONTROLES
 - Cámara:
-  - Alt + Click derecho: Rotar la cámara
+  - Click derecho: Rotar la cámara
   - W A S D + Click derecho: Navegar el modelo
 - Cargar modelos o texturas: Arrastrar los archivos al programa (Drag and drop)
