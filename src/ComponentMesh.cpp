@@ -106,7 +106,6 @@ void ComponentMesh::Draw(Camera* camera)
     }
     else
     {
-        // Si no hay textura, usar blanco para que se vea
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }

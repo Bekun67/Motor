@@ -62,7 +62,7 @@ bool Texture::LoadFromFile(const std::string& path, bool flipY) {
     if (!ilLoadImage(path.c_str())) {
         std::cerr << "Error loading image with DevIL: " << path << std::endl;
         ilDeleteImages(1, &imageID);
-        return false;  // <-- CAMBIAR: retornar false cuando falla
+        return false;
     }
 
     if (flipY)

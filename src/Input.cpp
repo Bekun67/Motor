@@ -117,12 +117,14 @@ bool Input::PreUpdate()
 				std::string path(droppedFile);
 				std::cout << "Dropped file: " << path << std::endl;
 
+				//check for extension
 				std::string extension = "";
 				if (path.size() >= 4) extension = path.substr(path.size() - 4);
 				for (size_t i = 0; i < extension.size(); ++i) extension[i] = (char)tolower(extension[i]);
 
 				if (extension == ".fbx") {
 					size_t meshCountBefore = g_Meshes.size();
+					//if fbx we load its mesh
 
 					if (LoadFile(path.c_str())) {
 						std::cout << "FBX loaded" << std::endl;
@@ -132,6 +134,7 @@ bool Input::PreUpdate()
 
 						for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
 						{
+							//create gameobject with mesh
 							GameObject* go = new GameObject();
 							go->name = "DroppedMesh_" + std::to_string(i);
 
@@ -142,7 +145,7 @@ bool Input::PreUpdate()
 
 							go->mesh->meshIndex = (int)i;
 
-							// Intentar cargar textura del FBX
+							//try to load texture
 							std::string texturePath = GetTexturePathFromFBX(path.c_str(), (int)(i - meshCountBefore));
 
 							bool textureLoaded = false;
@@ -154,7 +157,7 @@ bool Input::PreUpdate()
 								std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
 							}
 							else {
-								// Si no hay textura o falló la carga, usar checkerboard
+								//if no texture available we use checkerboard
 								std::cout << "No valid texture found, using checkerboard" << std::endl;
 								Application::GetInstance().texture->CreateCheckerboard();
 								go->texture->hasTexture = true;
@@ -202,14 +205,13 @@ std::string Input::GetTexturePathFromFBX(const char* fbxPath, int meshIndex)
 
 			std::string fullPath = texPath.C_Str();
 
-			// Extraer directorio del FBX
+			//get the directory
 			std::string fbxDir = fbxPath;
 			size_t lastSlash = fbxDir.find_last_of("/\\");
 			if (lastSlash != std::string::npos) {
 				fbxDir = fbxDir.substr(0, lastSlash + 1);
 			}
 
-			// Si la ruta es relativa, combinarla con el directorio del FBX
 			if (fullPath.find(":") == std::string::npos &&
 				fullPath[0] != '/' && fullPath[0] != '\\') {
 				fullPath = fbxDir + fullPath;
