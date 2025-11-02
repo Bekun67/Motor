@@ -99,11 +99,16 @@ void ComponentMesh::Draw(Camera* camera)
     }
     else if (!meshdata.textures.empty())
     {
-        //use mesh's own texture if available
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, meshdata.textures[0].id);
         GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
         glUniform1i(texLoc, 0);
+    }
+    else
+    {
+        // Si no hay textura, usar blanco para que se vea
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     //draw mesh

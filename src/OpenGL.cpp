@@ -155,7 +155,8 @@ bool OpenGL::Start()
         "vec3 n = normalize(fragNormal);\n"
         "float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
         "vec3 texColor = texture(uTexture, fragUV).rgb;\n"
-        "FragColor = vec4(texColor * lambert, 1.0);\n"
+        "float ambient = 0.3;\n"
+        "FragColor = vec4(texColor * (lambert + ambient), 1.0);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -205,7 +206,6 @@ bool OpenGL::Start()
 
     //assign texture
     if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
-        std::cout << "Texture assigned to " << house->name << std::endl;
     }
 
     //add it to the gameobjects list

@@ -61,13 +61,8 @@ bool Texture::LoadFromFile(const std::string& path, bool flipY) {
 
     if (!ilLoadImage(path.c_str())) {
         std::cerr << "Error loading image with DevIL: " << path << std::endl;
-        std::cerr << "Generating checkerboard..." << std::endl;
         ilDeleteImages(1, &imageID);
-
-        // Chekerboard si no carga
-        CreateCheckerboard();
-        filePath = path + " (checkerboard fallback)";
-        return true; 
+        return false;  // <-- CAMBIAR: retornar false cuando falla
     }
 
     if (flipY)
@@ -81,6 +76,10 @@ bool Texture::LoadFromFile(const std::string& path, bool flipY) {
     unsigned char* data = ilGetData();
 
     // create texture with OpenGL
+    if (textureID != 0) {
+        glDeleteTextures(1, &textureID);
+    }
+
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
 

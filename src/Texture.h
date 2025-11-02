@@ -21,9 +21,9 @@ public:
     void Unload();
 
     GLuint GetID() const { return textureID; }
+    void CreateCheckerboard();
 
 private:
     GLuint textureID = 0;
     std::string filePath;
-    void CreateCheckerboard();
 };
