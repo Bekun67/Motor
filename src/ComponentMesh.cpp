@@ -90,20 +90,27 @@ void ComponentMesh::Draw(Camera* camera)
 
     //bind texture
     ComponentTexture* texComp = gameObject->texture;
+    bool texturebound = false;
+
+    //try to use the texture of component texture
     if (texComp != nullptr && texComp->hasTexture && texComp->texturedata != nullptr)
     {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texComp->texturedata->id);
         GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
         glUniform1i(texLoc, 0);
+        texturebound = true;
     }
+    //if no texture available try to use the fbx one
     else if (!meshdata.textures.empty())
     {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, meshdata.textures[0].id);
         GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
         glUniform1i(texLoc, 0);
+        texturebound = true;
     }
+    //if no texture at all unbind (ge would use the checkerboard)
     else
     {
         glActiveTexture(GL_TEXTURE0);
@@ -114,4 +121,8 @@ void ComponentMesh::Draw(Camera* camera)
     glBindVertexArray(meshdata.VAO);
     glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+
+    if (texturebound) {
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
 }

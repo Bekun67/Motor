@@ -45,28 +45,28 @@ void OpenGL::CreateGrid(int size)
 {
     std::vector<float> gridVertices;
 
-    // Create lines (X)
+    // Create lines (X axis)
     for (int z = -size; z <= size; ++z) {
         
-        gridVertices.push_back(-size); // x1
-        gridVertices.push_back(0.0f);   // y1
-        gridVertices.push_back(z);      // z1
+        gridVertices.push_back(-size); 
+        gridVertices.push_back(0.0f);   
+        gridVertices.push_back(z);      
 
-        gridVertices.push_back(size);   // x2
-        gridVertices.push_back(0.0f);   // y2
-        gridVertices.push_back(z);      // z2
+        gridVertices.push_back(size);   
+        gridVertices.push_back(0.0f);   
+        gridVertices.push_back(z);      
     }
 
-    //Create lines (Z)
+    //Create lines (Z axis)
     for (int x = -size; x <= size; ++x) {
         
-        gridVertices.push_back(x);      // x1
-        gridVertices.push_back(0.0f);   // y1
-        gridVertices.push_back(-size);  // z1
+        gridVertices.push_back(x);    
+        gridVertices.push_back(0.0f);   
+        gridVertices.push_back(-size); 
 
-        gridVertices.push_back(x);      // x2
-        gridVertices.push_back(0.0f);   // y2
-        gridVertices.push_back(size);   // z2
+        gridVertices.push_back(x);     
+        gridVertices.push_back(0.0f);  
+        gridVertices.push_back(size);   
     }
 
     gridLineCount = gridVertices.size() / 3;
@@ -210,6 +210,90 @@ bool OpenGL::Start()
     //add it to the gameobjects list
     gameObjects.push_back(house);
     std::cout << "Total GameObjects in scene: " << gameObjects.size() << std::endl;
+
+    //load cannon FBX
+    const char* cannonPath = "Assets/Models/Cannon.fbx";
+    size_t meshCountBefore = g_Meshes.size();
+
+    if (!LoadFile(cannonPath)) {
+        std::cerr << "Failed to load model: " << cannonPath << std::endl;
+    }
+    else {
+        std::cout << "Cannon FBX loaded" << std::endl;
+
+        //create the one that has texture
+        GameObject* cannon1 = new GameObject();
+        cannon1->name = "Cannon_Left";
+        std::cout << "Created GameObject " << cannon1->name << std::endl;
+
+        cannon1->transform->translation = aiVector3D(-5.0f, 0.0f, 0.0f);
+        cannon1->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+        cannon1->transform->scaling = aiVector3D(100.0f, 100.0f, 100.0f);
+
+        if (meshCountBefore < g_Meshes.size()) {
+            cannon1->mesh->meshIndex = (int)meshCountBefore;
+        }
+
+        //assing lenna texture
+        if (cannon1->texture->LoadTexture("Assets/Textures/lenna.png")) {
+            std::cout << "Texture assigned to " << cannon1->name << std::endl;
+        }
+        else {
+            std::cout << "Failed to load texture for " << cannon1->name << std::endl;
+        }
+
+        gameObjects.push_back(cannon1);
+
+        //create the one that has no texture
+        GameObject* cannon2 = new GameObject();
+        cannon2->name = "Cannon_Right";
+        std::cout << "Created GameObject " << cannon2->name << std::endl;
+
+        cannon2->transform->translation = aiVector3D(5.0f, 0.0f, 0.0f);
+        cannon2->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+        cannon2->transform->scaling = aiVector3D(100.0f, 100.0f, 100.0f);
+
+        if (meshCountBefore < g_Meshes.size()) {
+            cannon2->mesh->meshIndex = (int)meshCountBefore;
+        }
+
+        const int size = 64;
+        GLubyte checkerImage[64][64][4];
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                int c = ((((i & 0x8) == 0) ^ ((j & 0x8) == 0))) * 255;
+                checkerImage[i][j][0] = (GLubyte)c;
+                checkerImage[i][j][1] = (GLubyte)c;
+                checkerImage[i][j][2] = (GLubyte)c;
+                checkerImage[i][j][3] = (GLubyte)255;
+            }
+        }
+
+        GLuint checkID;
+        glGenTextures(1, &checkID);
+        glBindTexture(GL_TEXTURE_2D, checkID);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerImage);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        cannon2->texture->hasTexture = true;
+        if (cannon2->texture->texturedata == nullptr) {
+            cannon2->texture->texturedata = new TextureData();
+        }
+        cannon2->texture->texturedata->id = checkID;
+        cannon2->texture->texturedata->type = "checkerboard";
+        cannon2->texture->texturedata->path = "checkerboard";
+
+        std::cout << cannon2->name << " created without texture (will use checkerboard)" << std::endl;
+        gameObjects.push_back(cannon2);
+
+        std::cout << "Total GameObjects in scene: " << gameObjects.size() << std::endl;
+    }
+    std::cout << std::endl;
 
     CreateGrid(50);
 

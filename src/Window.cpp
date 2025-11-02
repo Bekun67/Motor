@@ -22,8 +22,8 @@ bool Window::Start()
     }
 
     // Set OpenGL version to 3.3
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);  // Major version
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);  // Minor version
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3); 
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);  
 
     // Use the core OpenGL profile (modern functions only)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -40,7 +40,7 @@ bool Window::Start()
         "SDL3 OpenGL Window",
         width,
         height,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE  // Añade SDL_WINDOW_OPENGL
+        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE 
     );
 
     if (window == nullptr)
@@ -54,23 +54,6 @@ bool Window::Start()
 
 bool Window::Update()
 {
-    /*SDL_Event event;*/
-
-    // Poll events
-    //while (SDL_PollEvent(&event))
-    //{
-    //    if (event.type == SDL_EVENT_QUIT)
-    //    {
-    //        return false;
-    //    }
-
-    //    // Handle window close button
-    //    if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
-    //    {
-    //        return false;
-    //    }
-    //}
-
     return true;
 }
 
