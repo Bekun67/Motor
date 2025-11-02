@@ -3,6 +3,7 @@
 #include "ComponentTransform.h"
 #include "ComponentTexture.h"
 #include "GameObject.h"
+#include "LoadFBX.h"
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -11,46 +12,55 @@
 
 ComponentMesh::ComponentMesh(GameObject* gameObject)
     : Component(gameObject, ComponentType::MESH),
-    meshdata(nullptr),
-    drawOutline(false)
+    meshIndex(-1)
 {
 }
 
 ComponentMesh::~ComponentMesh()
 {
-    meshdata = nullptr;
+    meshIndex = -1;
 }
 
 void ComponentMesh::Update()
 {
-    // Update logic if needed
 }
 
 void ComponentMesh::Draw(Camera* camera)
 {
-    if (meshdata == nullptr || meshdata->VAO == 0 || meshdata->numIndices == 0)
+    if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())
+    {
+        //if index is not valid
         return;
+    }
 
-    // Get shader program from OpenGL module
+    //get the desired mesh using the given index
+    MeshData& meshdata = g_Meshes[meshIndex];
+
+    if (meshdata.VAO == 0 || meshdata.numIndices == 0)
+    {
+        return;
+    }
+
     unsigned int shaderProgram = Application::GetInstance().opengl->shaderProgram;
     glUseProgram(shaderProgram);
 
-    // Get transform component
+    //get transform
     ComponentTransform* transform = gameObject->transform;
     if (transform == nullptr)
+    {
         return;
+    }
 
-    // Build model matrix from transform
     glm::mat4 model = glm::mat4(1.0f);
 
-    // Apply translation
+    //apply translate to the mesh
     model = glm::translate(model, glm::vec3(
         transform->translation.x,
         transform->translation.y,
         transform->translation.z
     ));
 
-    // Apply rotation (convert quaternion to matrix)
+    //apply rotation
     glm::quat quat(
         transform->rotation.w,
         transform->rotation.x,
@@ -59,18 +69,17 @@ void ComponentMesh::Draw(Camera* camera)
     );
     model *= glm::mat4_cast(quat);
 
-    // Apply scale
+    //lastly, apply scale
     model = glm::scale(model, glm::vec3(
         transform->scaling.x,
         transform->scaling.y,
         transform->scaling.z
     ));
 
-    // Get view and projection matrices
+    //get the matrices
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
 
-    // Set uniforms
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
@@ -79,7 +88,7 @@ void ComponentMesh::Draw(Camera* camera)
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    // Bind texture if available
+    //bind texture
     ComponentTexture* texComp = gameObject->texture;
     if (texComp != nullptr && texComp->hasTexture && texComp->texturedata != nullptr)
     {
@@ -88,23 +97,21 @@ void ComponentMesh::Draw(Camera* camera)
         GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
         glUniform1i(texLoc, 0);
     }
-    else if (!meshdata->textures.empty())
+    else if (!meshdata.textures.empty())
     {
-        // Use mesh's own texture if available
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, meshdata->textures[0].id);
+        glBindTexture(GL_TEXTURE_2D, meshdata.textures[0].id);
         GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
         glUniform1i(texLoc, 0);
     }
-
-    // Draw the mesh
-    glBindVertexArray(meshdata->VAO);
-    glDrawElements(GL_TRIANGLES, meshdata->numIndices, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-
-    // Draw outline if enabled
-    if (drawOutline)
+    else
     {
-        // TODO: Implement outline drawing using stencil buffer
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
+
+    //draw mesh
+    glBindVertexArray(meshdata.VAO);
+    glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }

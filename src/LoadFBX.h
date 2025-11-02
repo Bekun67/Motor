@@ -16,6 +16,12 @@ struct MeshData {
     GLuint EBO = 0;
     GLsizei numIndices = 0;
     std::vector<TextureData> textures;
+
+    //variables to normalize scale
+    glm::vec3 center = glm::vec3(0.0f);
+    float radius = 1.0f;
+    glm::vec3 minBound = glm::vec3(0.0f);
+    glm::vec3 maxBound = glm::vec3(0.0f);
 };
 
 bool LoadFile(const char* file_path);
