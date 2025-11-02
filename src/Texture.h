@@ -25,4 +25,5 @@ public:
 private:
     GLuint textureID = 0;
     std::string filePath;
+    void CreateCheckerboard();
 };
