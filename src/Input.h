@@ -1,10 +1,10 @@
 #pragma once
 #include "Module.h"
 #include "LoadFBX.h"
+#include <iostream>
+#include <string>
 #include "GameObject.h"
 #include "OpenGL.h"
-#include <iostream>
-
 #define NUM_MOUSE_BUTTONS 5
 
 enum EventWindow
@@ -23,9 +23,10 @@ enum KeyState
 	KEY_UP
 };
 
+class GameObject;
+
 class Input : public Module
 {
-
 public:
 	Input();
 
@@ -63,6 +64,8 @@ public:
 	int GetMouseWheelY() const { return mouseWheelY; }
 
 private:
+	std::string GetTexturePathFromFBX(const char* fbxPath, int meshIndex);
+
 	bool windowEvents[WE_COUNT];
 	KeyState* keyboard;
 	KeyState mouseButtons[NUM_MOUSE_BUTTONS];

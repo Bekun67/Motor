@@ -1,6 +1,9 @@
 #include "Input.h"
 #include "Window.h"
 #include "Application.h"
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 
 #define MAX_KEYS 300
 
@@ -111,40 +114,61 @@ bool Input::PreUpdate()
 			const char* droppedFile = drop.data;
 
 			if (droppedFile) {
-				//if we dropped a file
 				std::string path(droppedFile);
 				std::cout << "Dropped file: " << path << std::endl;
 
-				//check the extension (case sensitive)
+				//check for extension
 				std::string extension = "";
 				if (path.size() >= 4) extension = path.substr(path.size() - 4);
 				for (size_t i = 0; i < extension.size(); ++i) extension[i] = (char)tolower(extension[i]);
 
-				//if the extension is fbx it means we have loaded a model
 				if (extension == ".fbx") {
-					//we add the new meshes and calculate the index from we have to draw the new game object
 					size_t meshCountBefore = g_Meshes.size();
+					//if fbx we load its mesh
 
 					if (LoadFile(path.c_str())) {
 						std::cout << "FBX loaded" << std::endl;
 
-						//aprox size to draw 
-						float desiredSize = 5.0f; 
+						float desiredSize = 5.0f;
 						float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
 
-						//create new game object with this mesh
 						for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
 						{
+							//create gameobject with mesh
 							GameObject* go = new GameObject();
 							go->name = "DroppedMesh_" + std::to_string(i);
 
 							float offset = (float)(i - meshCountBefore) * desiredSize * 2.5f;
 							go->transform->translation = aiVector3D(offset, 0.0f, 0.0f);
 							go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-
 							go->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
 
 							go->mesh->meshIndex = (int)i;
+
+							//try to load texture
+							std::string texturePath = GetTexturePathFromFBX(path.c_str(), (int)(i - meshCountBefore));
+
+							bool textureLoaded = false;
+							if (!texturePath.empty()) {
+								textureLoaded = go->texture->LoadTexture(texturePath);
+							}
+
+							if (textureLoaded) {
+								std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
+							}
+							else {
+								//if no texture available we use checkerboard
+								std::cout << "No valid texture found, using checkerboard" << std::endl;
+								Application::GetInstance().texture->CreateCheckerboard();
+								go->texture->hasTexture = true;
+
+								if (go->texture->texturedata == nullptr) {
+									go->texture->texturedata = new TextureData();
+								}
+								go->texture->texturedata->id = Application::GetInstance().texture->GetID();
+								go->texture->texturedata->type = "checkerboard";
+								go->texture->texturedata->path = "checkerboard";
+							}
 
 							Application::GetInstance().opengl->gameObjects.push_back(go);
 							std::cout << "Created GameObject " << go->name << std::endl;
@@ -159,6 +183,45 @@ bool Input::PreUpdate()
 		}
 	}
 	return true;
+}
+
+std::string Input::GetTexturePathFromFBX(const char* fbxPath, int meshIndex)
+{
+	Assimp::Importer importer;
+	const aiScene* scene = importer.ReadFile(fbxPath,
+		aiProcess_Triangulate | aiProcess_FlipUVs);
+
+	if (!scene || meshIndex >= (int)scene->mNumMeshes) {
+		return "";
+	}
+
+	aiMesh* mesh = scene->mMeshes[meshIndex];
+	if (mesh->mMaterialIndex >= 0 && mesh->mMaterialIndex < (int)scene->mNumMaterials) {
+		aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
+			aiString texPath;
+			material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
+
+			std::string fullPath = texPath.C_Str();
+
+			//get the directory
+			std::string fbxDir = fbxPath;
+			size_t lastSlash = fbxDir.find_last_of("/\\");
+			if (lastSlash != std::string::npos) {
+				fbxDir = fbxDir.substr(0, lastSlash + 1);
+			}
+
+			if (fullPath.find(":") == std::string::npos &&
+				fullPath[0] != '/' && fullPath[0] != '\\') {
+				fullPath = fbxDir + fullPath;
+			}
+
+			return fullPath;
+		}
+	}
+
+	return "";
 }
 
 bool Input::CleanUp()
