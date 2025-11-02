@@ -24,10 +24,13 @@ Camera::Camera(float fov, float aspect, float nearClip, float farClip)
 void Camera::HandleInput(float deltaTime)
 {
     const bool* state = SDL_GetKeyboardState(NULL);
-   
 
     bool altPressed = state[SDL_SCANCODE_LALT] || state[SDL_SCANCODE_RALT];
-    orbitMode = altPressed; 
+    orbitMode = altPressed;
+
+    // Detectar si SHIFT está pulsado para duplicar velocidad
+    bool shiftPressed = state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT];
+    float currentSpeed = shiftPressed ? moveSpeed * 2.0f : moveSpeed;
 
     float mouseX, mouseY;
     Uint32 buttons = SDL_GetMouseState(&mouseX, &mouseY);
@@ -60,14 +63,15 @@ void Camera::HandleInput(float deltaTime)
         front = glm::normalize(front);
         glm::vec3 right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
 
-        if (state[SDL_SCANCODE_W] || buttons & SDL_BUTTON_LEFT) position += front * moveSpeed * deltaTime;
-        if (state[SDL_SCANCODE_S]) position -= front * moveSpeed * deltaTime;
-        if (state[SDL_SCANCODE_A]) position -= right * moveSpeed * deltaTime;
-        if (state[SDL_SCANCODE_D]) position += right * moveSpeed * deltaTime;
-        if (state[SDL_SCANCODE_Q]) position.y -= moveSpeed * deltaTime;
-        if (state[SDL_SCANCODE_E]) position.y += moveSpeed * deltaTime;
+        // Usar currentSpeed en lugar de moveSpeed
+        if (state[SDL_SCANCODE_W] || buttons & SDL_BUTTON_LEFT) position += front * currentSpeed * deltaTime;
+        if (state[SDL_SCANCODE_S]) position -= front * currentSpeed * deltaTime;
+        if (state[SDL_SCANCODE_A]) position -= right * currentSpeed * deltaTime;
+        if (state[SDL_SCANCODE_D]) position += right * currentSpeed * deltaTime;
+        if (state[SDL_SCANCODE_Q]) position.y -= currentSpeed * deltaTime;
+        if (state[SDL_SCANCODE_E]) position.y += currentSpeed * deltaTime;
 
-		// update focus point based on new position and front vector
+        // update focus point based on new position and front vector
         focusPoint = position + front * distanceToFocus;
     }
     // Orbital (Alt + Click derecho)
@@ -102,8 +106,8 @@ void Camera::HandleInput(float deltaTime)
     {
         firstMouse = true;
     }
-  
-	// Get delta of mouse wheel and call Zoom
+
+    // Get delta of mouse wheel and call Zoom
     int scroll = Application::GetInstance().input.get()->GetMouseWheelY();
     Zoom((float)scroll, deltaTime);
 
@@ -116,11 +120,11 @@ void Camera::HandleInput(float deltaTime)
 
 void Camera::Zoom(float scroll, float deltaTime)
 {
-	// Stop if no scroll or no deltaTime
+    // Stop if no scroll or no deltaTime
     if (scroll == 0.0f || deltaTime == 0.0f)
         return;
 
-	// Calculate front vector
+    // Calculate front vector
     glm::vec3 front;
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     front.y = sin(glm::radians(pitch));
@@ -136,15 +140,14 @@ void Camera::Zoom(float scroll, float deltaTime)
     {
         position += movement;
     }
-	// scroll == -1 is zoom out
+    // scroll == -1 is zoom out
     else if (scroll == -1.0f)
     {
         position -= movement;
     }
 
-	// Update distance to focus so we can keep the same distance
+    // Update distance to focus so we can keep the same distance
     focusPoint = position + front * distanceToFocus;
-
 }
 
 void Camera::FrameSelected(const glm::vec3& target, float distance)
