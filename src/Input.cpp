@@ -88,37 +88,37 @@ bool Input::PreUpdate()
 
 	if (keyboard[SDL_SCANCODE_3] == KEY_DOWN) {
 		std::cout << "GameObject selected: 3" << std::endl;
-		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[2];
 	}
 
 	if (keyboard[SDL_SCANCODE_4] == KEY_DOWN) {
 		std::cout << "GameObject selected: 4" << std::endl;
-		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[3];
 	}
 
 	if (keyboard[SDL_SCANCODE_5] == KEY_DOWN) {
 		std::cout << "GameObject selected: 5" << std::endl;
-		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[4];
 	}
 
 	if (keyboard[SDL_SCANCODE_6] == KEY_DOWN) {
 		std::cout << "GameObject selected: 6" << std::endl;
-		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[5];
 	}
 	
 	if (keyboard[SDL_SCANCODE_7] == KEY_DOWN) {
 		std::cout << "GameObject selected: 7" << std::endl;
-		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[6];
 	}
 
 	if (keyboard[SDL_SCANCODE_8] == KEY_DOWN) {
 		std::cout << "GameObject selected: 8" << std::endl;
-		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[7];
 	}
 
 	if (keyboard[SDL_SCANCODE_9] == KEY_DOWN) {
 		std::cout << "GameObject selected: 9 " <<  std::endl;
-		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[8];
 	}
 
 	// Transform manipulations
