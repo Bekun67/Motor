@@ -4,24 +4,30 @@ class GameObject;
 
 enum class ComponentType
 {
-	NONE,
-	TRANSFORM,
-	TEXTURE,
-	MESH,
+    TRANSFORM,
+    MESH,
+    TEXTURE,
+    UNKNOWN
 };
 
 class Component
 {
 public:
-	Component(GameObject* owner, ComponentType type)
-	{
-		active = true;
-		this->Parent = owner;
-	}
+    Component(GameObject* gameObject, ComponentType type);
+    virtual ~Component();
 
-	~Component() {}
+    virtual void Update() = 0;
+    virtual void Enable() { active = true; }
+    virtual void Disable() { active = false; }
 
-	bool active;
-	ComponentType type;
-	GameObject* Parent;
+    ComponentType GetType() const { return type; }
+    GameObject* GetGameObject() const { return gameObject; }
+    bool IsActive() const { return active; }
+
+public:
+    ComponentType type;
+    bool active;
+
+protected:
+    GameObject* gameObject;
 };

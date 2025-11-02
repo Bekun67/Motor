@@ -174,38 +174,36 @@ bool OpenGL::Start()
 
     lastTicks = SDL_GetTicks();
 
-    GameObject* house = new GameObject();
-    house->name = "BakerHouse";
-
-
+    // Cargar modelo FBX
     const char* fbxPath = "Assets/Models/BakerHouse.fbx";
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
+        return false;
     }
-    else {
-        std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
-    }
+    std::cout << "Loaded FBX meshes: " << g_Meshes.size() << std::endl;
 
-    Texture* modelTexture = new Texture();
-    if (!modelTexture->LoadFromFile("Assets/Textures/Baker_house.png")) {
-        std::cerr << "Failed to load texture!" << std::endl;
-    }
-    else {
-        std::cout << "Texture loaded successfully!" << std::endl;
-    }
+    // Crear GameObject para la casa
+    GameObject* house = new GameObject();
+    house->name = "BakerHouse";
 
-    // Assign texture to first mesh on GameObject
+    // Configurar Transform (posición inicial)
+    house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+    house->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+    house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+    // Asignar mesh (usamos el primer mesh cargado)
     if (!g_Meshes.empty()) {
-        TextureData texData;
-        texData.id = modelTexture->GetID();
-        texData.type = "diffuse";
-        texData.path = "Assets/Textures/Baker_house.png";
-        g_Meshes[0].textures.push_back(texData);
-
-        
         house->mesh->meshdata = &g_Meshes[0];
-        house->texture->texturedata = &texData;
+        std::cout << "Mesh assigned to GameObject" << std::endl;
     }
+
+    // Cargar y asignar textura
+    if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
+        std::cout << "Texture assigned to GameObject" << std::endl;
+    }
+
+    // Añadir a la lista de GameObjects
+    gameObjects.push_back(house);
 
     CreateGrid(50);
 
@@ -221,50 +219,23 @@ bool OpenGL::Update()
     float deltaTime = (currentTicks - lastTicks) / 1000.0f;
     lastTicks = currentTicks;
 
-	// Use camera input handling
+    // Use camera input handling
     camera.HandleInput(deltaTime);
 
     glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glUseProgram(shaderProgram);
 
+    // Draw grid
     DrawGrid();
 
-    GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
-    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
-    GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
-
-    glm::mat4 model = glm::mat4(1.0f);
-
-    model = glm::translate(model, -g_ModelCenter);
-
-    model = glm::scale(model, glm::vec3(scaleFactor));
-
-    model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1, 0, 0));
-
-    glm::mat4 view = camera.GetViewMatrix();
-    glm::mat4 projection = camera.GetProjectionMatrix();
-
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-    for (const MeshData& md : g_Meshes) {
-        if (md.VAO == 0 || md.numIndices == 0) continue;
-
-        // Activate existing texture
-        if (!md.textures.empty()) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, md.textures[0].id);
-
-            GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
-            glUniform1i(texLoc, 0); 
+    // Draw all GameObjects
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr && go->mesh != nullptr)
+        {
+            go->mesh->Draw(&camera);
         }
-
-        glBindVertexArray(md.VAO);
-        glDrawElements(GL_TRIANGLES, md.numIndices, GL_UNSIGNED_INT, 0);
     }
-    // glBindVertexArray(VAO); glDrawArrays(GL_TRIANGLES, 0, 3);
 
     return true;
 }
@@ -273,9 +244,15 @@ bool OpenGL::CleanUp()
 {
     std::cout << "Destroying OpenGL Context" << std::endl;
 
+    // Delete all GameObjects
+    for (GameObject* go : gameObjects)
+    {
+        delete go;
+    }
+    gameObjects.clear();
+
     // Delete loaded resources by LoadFBX
     for (MeshData& md : g_Meshes) {
-
         for (TextureData& tex : md.textures) {
             if (tex.id != 0)
                 glDeleteTextures(1, &tex.id);
@@ -285,9 +262,13 @@ bool OpenGL::CleanUp()
         if (md.EBO) glDeleteBuffers(1, &md.EBO);
         if (md.VBO) glDeleteBuffers(1, &md.VBO);
         if (md.VAO) glDeleteVertexArrays(1, &md.VAO);
-        md = MeshData(); 
+        md = MeshData();
     }
     g_Meshes.clear();
+
+    // Delete grid buffers
+    if (gridVBO) glDeleteBuffers(1, &gridVBO);
+    if (gridVAO) glDeleteVertexArrays(1, &gridVAO);
 
     // Delete shader program
     if (shaderProgram) {
@@ -300,6 +281,7 @@ bool OpenGL::CleanUp()
         SDL_GL_DestroyContext(glContext);
         glContext = nullptr;
     }
+
 
     return true;
 }

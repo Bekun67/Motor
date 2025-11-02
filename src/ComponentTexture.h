@@ -1,24 +1,25 @@
 #pragma once
 
 #include "Component.h"
-#include <assimp/scene.h>
 #include "LoadFBX.h"
+#include <string>
 
 class ComponentTexture : public Component
 {
 public:
-	ComponentTexture(GameObject* gameObject);
-	virtual ~ComponentTexture();
+    ComponentTexture(GameObject* gameObject);
+    virtual ~ComponentTexture();
 
-	void Update();
+    void Update() override;
 
-	void LoadTexture(const aiScene* scene, const aiNode* node, unsigned int i);
+    // Load texture from file
+    bool LoadTexture(const std::string& path);
 
-
-	
+    // Get texture ID
+    unsigned int GetTextureID() const;
 
 public:
-
-	TextureData* texturedata;
-
+    TextureData* texturedata;
+    std::string texturePath;
+    bool hasTexture;
 };

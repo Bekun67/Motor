@@ -2,6 +2,9 @@
 #include "Module.h"
 #include "Camera.h"
 #include <SDL3/SDL.h>
+#include <vector>
+
+class GameObject;
 struct SDL_Window;
 
 class OpenGL : public Module
@@ -20,6 +23,8 @@ public:
 	unsigned int gridVBO = 0;
 	int gridLineCount = 0;
 
+	// GameObjects in scene
+	std::vector<GameObject*> gameObjects;
 
 private:
 	bool Start() override;
@@ -29,7 +34,6 @@ private:
 
 	void CreateGrid(int size);
 	void DrawGrid();
-
 
 	Camera camera;
 	uint64_t lastTicks;
