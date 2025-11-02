@@ -50,8 +50,6 @@ void Texture::CreateCheckerboard() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glBindTexture(GL_TEXTURE_2D, 0);
-
-    std::cout << "Textura checkerboard creada" << std::endl;
 }
 
 bool Texture::LoadFromFile(const std::string& path, bool flipY) {

@@ -27,6 +27,7 @@ public:
 	std::vector<GameObject*> gameObjects;
 
 	static OpenGL& GetInstance();
+	Camera camera;
 
 private:
 	bool Start() override;
@@ -37,7 +38,6 @@ private:
 	void CreateGrid(int size);
 	void DrawGrid();
 
-	Camera camera;
 	uint64_t lastTicks;
 
 	float scaleFactor = 1.0f;
