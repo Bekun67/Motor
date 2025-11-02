@@ -12,7 +12,7 @@ De moment es poden dur a terme les funcions bàsiques d'una engine, com carregar
 
 ## CONTROLS
 - Càmera:
-  - Clic dret: Girar la cambra
+  - Clic dret: Girar la càmera
   - W A S D + Clic dret: Navegar el model
   - F: La càmera se centra en la geometria
   - SHIFT: Duplica la velocitat de moviment
