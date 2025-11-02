@@ -9,7 +9,7 @@ Si s'arrossega una textura sense posar-la assobre de cap model s'aplicarà al mo
 Si hi ha cap error amb la textura o no troba l'arxiu posarà el checkerboard.  
 Si el nom d'arxiu del model o la textura té un nom amb caràcters especials l'engine no el podrà carregar.  
 
-Com que no em sabut aplicar el imgui per a fer l'UI em fet que per a seleccionar un game object s'hagi de clicar un número entre l'1 i el 9.
+Com que no hem sabut aplicar el imgui per a fer l'UI em fet que per a seleccionar un game object s'hagi de clicar un número entre l'1 i el 9.
 
 ## INTEGRANTS
 - Isaac Ramírez Prieto: https://github.com/bekun67
