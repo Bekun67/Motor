@@ -62,6 +62,7 @@ bool Input::PreUpdate()
 				keyboard[i] = KEY_IDLE;
 		}
 	}
+
 	for (int i = 0; i < NUM_MOUSE_BUTTONS; ++i)
 	{
 		if (mouseButtons[i] == KEY_DOWN)
@@ -69,6 +70,178 @@ bool Input::PreUpdate()
 		if (mouseButtons[i] == KEY_UP)
 			mouseButtons[i] = KEY_IDLE;
 	}
+
+	OpenGL* opengl = Application::GetInstance().opengl.get();
+	float scaleFactor = 0.1f;
+
+	// GameObject selection with number keys 1-9
+	if (keyboard[SDL_SCANCODE_1] == KEY_DOWN) {
+		std::cout << "GameObject selected: 1" << std::endl;
+		if (0 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[0];
+
+	}
+
+	if (keyboard[SDL_SCANCODE_2] == KEY_DOWN) {
+		std::cout << "GameObject selected: 2 " << std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+
+	if (keyboard[SDL_SCANCODE_3] == KEY_DOWN) {
+		std::cout << "GameObject selected: 3" << std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+
+	if (keyboard[SDL_SCANCODE_4] == KEY_DOWN) {
+		std::cout << "GameObject selected: 4" << std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+
+	if (keyboard[SDL_SCANCODE_5] == KEY_DOWN) {
+		std::cout << "GameObject selected: 5" << std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+
+	if (keyboard[SDL_SCANCODE_6] == KEY_DOWN) {
+		std::cout << "GameObject selected: 6" << std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+	
+	if (keyboard[SDL_SCANCODE_7] == KEY_DOWN) {
+		std::cout << "GameObject selected: 7" << std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+
+	if (keyboard[SDL_SCANCODE_8] == KEY_DOWN) {
+		std::cout << "GameObject selected: 8" << std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+
+	if (keyboard[SDL_SCANCODE_9] == KEY_DOWN) {
+		std::cout << "GameObject selected: 9 " <<  std::endl;
+		if (1 < opengl->gameObjects.size()) opengl->selectedGameObject = opengl->gameObjects[1];
+	}
+
+	// Transform manipulations
+	if (opengl->selectedGameObject != nullptr)
+	{
+		ComponentTransform* transform = opengl->selectedGameObject->transform;
+
+		if (transform != nullptr)
+		{
+			// Augment scale
+			if (keyboard[SDL_SCANCODE_X])
+			{
+				transform->scaling.x += scaleFactor;
+				transform->scaling.y += scaleFactor;
+				transform->scaling.z += scaleFactor;
+				std::cout << "Scaling up: " << transform->scaling.x << std::endl;
+			}
+
+			// less scale
+			if (keys[SDL_SCANCODE_Z])
+			{
+				//Stop at 0.1
+				float newScale = transform->scaling.x - scaleFactor;
+				newScale = std::max(0.1f, newScale);
+
+				transform->scaling.x = newScale;
+				transform->scaling.y = newScale;
+				transform->scaling.z = newScale;
+				std::cout << "Scaling down: " << transform->scaling.x << std::endl;
+			}
+
+			float moveSpeed = 0.1f; 
+
+	
+
+			// Move X+
+			if (keyboard[SDL_SCANCODE_L] != KEY_IDLE)
+			{
+				transform->translation.x += moveSpeed;
+			}
+
+			// Move x-
+			if (keyboard[SDL_SCANCODE_J] != KEY_IDLE)
+			{
+				transform->translation.x -= moveSpeed;
+			}
+
+			// Move Z+
+			if (keyboard[SDL_SCANCODE_I] != KEY_IDLE)
+			{
+				transform->translation.z += moveSpeed;
+			}
+
+			// Move z-
+			if (keyboard[SDL_SCANCODE_K] != KEY_IDLE)
+			{
+				transform->translation.z -= moveSpeed;
+			}
+
+			// Move Y+
+			if (keyboard[SDL_SCANCODE_O] != KEY_IDLE)
+			{
+				transform->translation.y += moveSpeed;
+			}
+
+			// Move Y-
+			if (keyboard[SDL_SCANCODE_U] != KEY_IDLE)
+			{
+				transform->translation.y -= moveSpeed;
+			}
+
+			// Rotations
+			aiQuaternion deltaRotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+			bool rotationApplied = false;
+
+			float baseRotationSpeed = 0.9f;
+
+			float deltaTime = 1.0f / 60.0f;
+
+			float rotationValue = baseRotationSpeed * deltaTime;
+
+			// Left and right rotation around Y axis (Yaw)
+			if (keyboard[SDL_SCANCODE_B] != KEY_IDLE)
+			{
+				
+				aiQuaternion rotB(rotationValue, 0.0f, 1.0f, 0.0f);
+				deltaRotation = rotB * deltaRotation; // Premultiply for local space rotation
+				rotationApplied = true;
+			}
+			if (keyboard[SDL_SCANCODE_V] != KEY_IDLE)
+			{
+
+				aiQuaternion rotV(-rotationValue, 0.0f, 1.0f, 0.0f);
+				deltaRotation = rotV * deltaRotation;
+				rotationApplied = true;
+			}
+
+			// Front and back rotation around X axis (Pitch)
+			if (keyboard[SDL_SCANCODE_M] != KEY_IDLE)
+			{
+
+				aiQuaternion rotM(rotationValue, 1.0f, 0.0f, 0.0f);
+				deltaRotation = rotM * deltaRotation;
+				rotationApplied = true;
+			}
+			if (keyboard[SDL_SCANCODE_N] != KEY_IDLE)
+			{
+
+				aiQuaternion rotN(-rotationValue, 1.0f, 0.0f, 0.0f);
+				deltaRotation = rotN * deltaRotation;
+				rotationApplied = true;
+			}
+
+			// Apply acomulated rotation to the transform
+			if (rotationApplied)
+			{
+				transform->rotation = deltaRotation * transform->rotation;
+
+				transform->rotation.Normalize();
+			}
+		}
+	}
+
 	while (SDL_PollEvent(&event))
 	{
 		switch (event.type)

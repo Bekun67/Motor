@@ -26,6 +26,10 @@ public:
 	//GameObjects in scene
 	std::vector<GameObject*> gameObjects;
 
+	GameObject* selectedGameObject = nullptr;
+
+	void* GetGLContext() const { return glContext; }
+
 	static OpenGL& GetInstance();
 	Camera camera;
 

@@ -5,6 +5,7 @@
 #include <string>
 #include "GameObject.h"
 #include "OpenGL.h"
+#include <algorithm>
 #define NUM_MOUSE_BUTTONS 5
 
 enum EventWindow
