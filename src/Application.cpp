@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "LoadFBX.h"
 #include <iostream>
 
 Application* app = nullptr;

@@ -103,12 +103,36 @@ bool Input::PreUpdate()
 			mouseMotionY = event.motion.yrel / scale;
 			mouseX = event.motion.x / scale;
 			mouseY = event.motion.y / scale;
+			break;
 		}
 		case SDL_EVENT_MOUSE_WHEEL:
 		{
 			mouseWheelX = event.wheel.x;
 			mouseWheelY = event.wheel.y;
+			break;
 		}
+		case SDL_EVENT_DROP_FILE:
+		{
+			SDL_DropEvent drop = event.drop;
+			const char* droppedFile = drop.data;
+
+			if (droppedFile) {
+				std::string path(droppedFile);
+				std::cout << "Dropped file: " << path << std::endl;
+
+				std::string extension = "";
+				if (path.size() >= 4) extension = path.substr(path.size() - 4);
+				for (size_t i = 0; i < extension.size(); ++i) extension[i] = (char)tolower(extension[i]);
+
+				if (extension == ".fbx") {
+					if (LoadFile(path.c_str())) {
+						std::cout << "Loaded FBX: " << path << std::endl;
+					}
+				}
+			}
+			break;
+		}
+
 		break;
 		}
 	}
