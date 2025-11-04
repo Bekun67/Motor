@@ -169,33 +169,120 @@ void ModuleEditor::DrawMenuBar()
         if (ImGui::Button("Create Cube"))
         {
             LOG("Creating cube primitive");
+
+            // Generate the cube mesh and get its index
             int meshIndex = PrimitiveGenerator::GenerateCube(2.0f);
 
+            // Create GameObject
             GameObject* cube = new GameObject();
             cube->name = "Cube_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            // Set transform
             cube->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
             cube->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
             cube->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+            // Assign mesh index
             cube->mesh->meshIndex = meshIndex;
+
+            // Assign checkerboard texture
             AssignCheckerboardTexture(cube);
 
+            // Add to gameObjects list
             Application::GetInstance().opengl->gameObjects.push_back(cube);
-            std::cout << "Created GameObject " << cube->name << std::endl;
+
+            LOG("Created GameObject: " + cube->name + " with meshIndex: " + std::to_string(meshIndex));
+            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
         }
+
         if (ImGui::Button("Create Sphere"))
         {
-            LOG("Creating sphere primitive (TODO)");
+            LOG("Creating sphere primitive");
+
+            // Generate the sphere mesh and get its index
+            int meshIndex = PrimitiveGenerator::GenerateSphere(1.0f, 32, 16);
+
+            // Create GameObject
+            GameObject* sphere = new GameObject();
+            sphere->name = "Sphere_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            // Set transform
+            sphere->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
+            sphere->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+            sphere->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+            // Assign mesh index
+            sphere->mesh->meshIndex = meshIndex;
+
+            // Assign checkerboard texture
+            AssignCheckerboardTexture(sphere);
+
+            // Add to gameObjects list
+            Application::GetInstance().opengl->gameObjects.push_back(sphere);
+
+            LOG("Created GameObject: " + sphere->name + " with meshIndex: " + std::to_string(meshIndex));
+            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
         }
-        if (ImGui::Button("Create Cilinder"))
+
+        if (ImGui::Button("Create Cylinder"))
         {
-            LOG("Creating cilinder primitive (TODO)");
+            LOG("Creating cylinder primitive");
+
+            // Generate the cylinder mesh and get its index
+            int meshIndex = PrimitiveGenerator::GenerateCylinder(0.5f, 2.0f, 32);
+
+            // Create GameObject
+            GameObject* cylinder = new GameObject();
+            cylinder->name = "Cylinder_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            // Set transform
+            cylinder->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
+            cylinder->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+            cylinder->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+            // Assign mesh index
+            cylinder->mesh->meshIndex = meshIndex;
+
+            // Assign checkerboard texture
+            AssignCheckerboardTexture(cylinder);
+
+            // Add to gameObjects list
+            Application::GetInstance().opengl->gameObjects.push_back(cylinder);
+
+            LOG("Created GameObject: " + cylinder->name + " with meshIndex: " + std::to_string(meshIndex));
+            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
         }
+
         if (ImGui::Button("Create Plane"))
         {
-            LOG("Creating plane primitive (TODO)");
+            LOG("Creating plane primitive");
+
+            // Generate the plane mesh and get its index
+            int meshIndex = PrimitiveGenerator::GeneratePlane(5.0f, 5.0f, 10, 10);
+
+            // Create GameObject
+            GameObject* plane = new GameObject();
+            plane->name = "Plane_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            // Set transform
+            plane->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+            plane->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+            plane->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+            // Assign mesh index
+            plane->mesh->meshIndex = meshIndex;
+
+            // Assign checkerboard texture
+            AssignCheckerboardTexture(plane);
+
+            // Add to gameObjects list
+            Application::GetInstance().opengl->gameObjects.push_back(plane);
+
+            LOG("Created GameObject: " + plane->name + " with meshIndex: " + std::to_string(meshIndex));
+            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
         }
     }
-    
+
     if (ImGui::CollapsingHeader("Help"))
     {
         if (ImGui::Button("Documentation"))
@@ -206,8 +293,7 @@ void ModuleEditor::DrawMenuBar()
         }
         if (ImGui::Button("Report a Bug"))
         {
-            //not yet implemented
-            std::string url = std::string(repoURL) ;
+            std::string url = std::string(repoURL);
             SDL_OpenURL(url.c_str());
             LOG("Opening issues page: " + url);
         }
