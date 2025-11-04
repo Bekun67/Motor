@@ -9,6 +9,7 @@
 #include "ComponentTexture.h"
 #include "ComponentTransform.h"
 #include "LoadFBX.h"
+#include "PrimitiveGenerator.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
@@ -167,7 +168,19 @@ void ModuleEditor::DrawMenuBar()
     {
         if (ImGui::Button("Create Cube"))
         {
-            LOG("Creating cube primitive (TODO)");
+            LOG("Creating cube primitive");
+            int meshIndex = PrimitiveGenerator::GenerateCube(2.0f);
+
+            GameObject* cube = new GameObject();
+            cube->name = "Cube_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+            cube->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
+            cube->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+            cube->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+            cube->mesh->meshIndex = meshIndex;
+            AssignCheckerboardTexture(cube);
+
+            Application::GetInstance().opengl->gameObjects.push_back(cube);
+            std::cout << "Created GameObject " << cube->name << std::endl;
         }
         if (ImGui::Button("Create Sphere"))
         {
@@ -182,7 +195,7 @@ void ModuleEditor::DrawMenuBar()
             LOG("Creating plane primitive (TODO)");
         }
     }
-
+    
     if (ImGui::CollapsingHeader("Help"))
     {
         if (ImGui::Button("Documentation"))
@@ -441,37 +454,10 @@ void ModuleEditor::DrawInspector()
 
                 if (ImGui::Button("Use Checkerboard"))
                 {
-                    // Create checkerboard texture
-                    const int size = 64;
-                    GLubyte checkerImage[64][64][4];
-                    for (int i = 0; i < size; i++) {
-                        for (int j = 0; j < size; j++) {
-                            int c = ((((i & 0x8) == 0) ^ ((j & 0x8) == 0))) * 255;
-                            checkerImage[i][j][0] = (GLubyte)c;
-                            checkerImage[i][j][1] = (GLubyte)c;
-                            checkerImage[i][j][2] = (GLubyte)c;
-                            checkerImage[i][j][3] = (GLubyte)255;
-                        }
-                    }
-
                     // Delete old texture
                     if (texture->texturedata->id != 0)
                         glDeleteTextures(1, &texture->texturedata->id);
-
-                    GLuint checkID;
-                    glGenTextures(1, &checkID);
-                    glBindTexture(GL_TEXTURE_2D, checkID);
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerImage);
-                    glGenerateMipmap(GL_TEXTURE_2D);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glBindTexture(GL_TEXTURE_2D, 0);
-
-                    texture->texturedata->id = checkID;
-                    texture->texturedata->type = "checkerboard";
-                    texture->texturedata->path = "checkerboard";
-                    texture->texturePath = "checkerboard";
-
+                    AssignCheckerboardTexture(selectedGameObject);
                     LOG("Applied checkerboard texture to " + selectedGameObject->name);
                 }
             }
@@ -518,4 +504,38 @@ void ModuleEditor::DrawAbout()
     }
 
     ImGui::End();
+}
+
+void ModuleEditor::AssignCheckerboardTexture(GameObject* go)
+{
+    const int size = 64;
+    GLubyte checkerImage[64][64][4];
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            int c = ((((i & 0x8) == 0) ^ ((j & 0x8) == 0))) * 255;
+            checkerImage[i][j][0] = (GLubyte)c;
+            checkerImage[i][j][1] = (GLubyte)c;
+            checkerImage[i][j][2] = (GLubyte)c;
+            checkerImage[i][j][3] = (GLubyte)255;
+        }
+    }
+
+    GLuint checkID;
+    glGenTextures(1, &checkID);
+    glBindTexture(GL_TEXTURE_2D, checkID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerImage);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    go->texture->hasTexture = true;
+    if (go->texture->texturedata == nullptr) {
+        go->texture->texturedata = new TextureData();
+    }
+    go->texture->texturedata->id = checkID;
+    go->texture->texturedata->type = "checkerboard";
+    go->texture->texturedata->path = "checkerboard";
 }

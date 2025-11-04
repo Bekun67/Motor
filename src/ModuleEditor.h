@@ -51,6 +51,7 @@ private:
     void DrawHierarchy();
     void DrawInspector();
     void DrawAbout();
+    void AssignCheckerboardTexture(GameObject* go);
 
     // Console
     std::deque<LogEntry> logs;
