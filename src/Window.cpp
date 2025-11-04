@@ -59,7 +59,6 @@ bool Window::Update()
 
 bool Window::PostUpdate()
 {
-    Render(); 
     return true;
 }
 

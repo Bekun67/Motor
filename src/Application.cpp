@@ -11,16 +11,16 @@ Application::Application() : isRunning(true)
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
     opengl = std::make_shared<OpenGL>();
-    //render = std::make_shared<Render>();
     camera = std::make_shared<Camera>();
 	texture = std::make_shared<Texture>();
+    editor = std::make_shared<ModuleEditor>();
 
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Input>(input));
     AddModule(std::static_pointer_cast<OpenGL>(opengl));
-    //AddModule(std::static_pointer_cast<Render>(render));
     AddModule(std::static_pointer_cast<Camera>(camera));
 	AddModule(std::static_pointer_cast<Texture>(texture));
+    AddModule(std::static_pointer_cast<ModuleEditor>(editor));
 }
 
 Application& Application::GetInstance()

@@ -3,6 +3,10 @@
 #include "Camera.h"
 #include <SDL3/SDL.h>
 #include <vector>
+#include <string>
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_opengl3.h"
 
 class GameObject;
 struct SDL_Window;
@@ -36,11 +40,18 @@ public:
 	static OpenGL& GetInstance();
 	Camera camera;
 
+	char *buf;
+	float f;
+
 private:
 	bool Start() override;
 	bool CleanUp() override;
 	bool Update() override;
 	bool Draw();
+
+	void MySaveFunction();
+
+
 
 	void CreateGrid(int size);
 	void DrawGrid();

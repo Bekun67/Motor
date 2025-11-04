@@ -1,4 +1,5 @@
-﻿#include "OpenGL.h"
+﻿#include "ModuleEditor.h"
+#include "OpenGL.h"
 #include "Application.h"
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
@@ -11,6 +12,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Texture.h"
 #include "GameObject.h"
+
 
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
 {
@@ -124,6 +126,20 @@ bool OpenGL::Start()
         std::cerr << "Failed to initialize GLAD" << std::endl;
         return false;
     }
+
+
+    // Start Imgui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+
+    ImGui::StyleColorsClassic();
+
+    ImGui_ImplSDL3_InitForOpenGL(window, glContext);
+    ImGui_ImplOpenGL3_Init("#version 330");
+    LOG("ImGui initialized successfully");
 
     // Do a depth test
     glEnable(GL_DEPTH_TEST);
@@ -329,9 +345,20 @@ bool OpenGL::Update()
     return true;
 }
 
+void OpenGL::MySaveFunction()
+{
+
+}
+
 bool OpenGL::CleanUp()
 {
     std::cout << "Destroying OpenGL Context" << std::endl;
+
+    // Cleanup ImGui
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+    LOG("ImGui cleaned up");
 
     // Delete all GameObjects
     for (GameObject* go : gameObjects)
