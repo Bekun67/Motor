@@ -13,7 +13,11 @@ public:
 
 	void Update();
 	void Draw(Camera* camera);
+	void DrawVertexNormals(Camera* camera, float length = 0.3f);
+	void DrawFaceNormals(Camera* camera, float length = 0.5f);
 
 public:
-	int meshIndex = -1; 
+	int meshIndex = -1;
+	bool showVertexNormals = false;
+	bool showFaceNormals = false;
 };

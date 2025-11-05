@@ -512,11 +512,10 @@ void ModuleEditor::DrawInspector()
                 ImGui::Text("VBO: %u", meshData.VBO);
                 ImGui::Text("EBO: %u", meshData.EBO);
 
-                // TODO: Add options for showing normals
-                static bool showVertexNormals = false;
-                static bool showFaceNormals = false;
-                ImGui::Checkbox("Show Vertex Normals", &showVertexNormals);
-                ImGui::Checkbox("Show Face Normals", &showFaceNormals);
+                ImGui::Separator();
+                ImGui::Text("Normals Visualization");
+                ImGui::Checkbox("Show Vertex Normals", &mesh->showVertexNormals);
+                ImGui::Checkbox("Show Face Normals", &mesh->showFaceNormals);
             }
             else
             {
