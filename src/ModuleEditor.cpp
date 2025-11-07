@@ -612,8 +612,7 @@ void ModuleEditor::DrawInspector()
 
                 // Show texture preview
                 ImGui::Text("Texture Preview:");
-                //TODO enseñar textura
-                //ImGui::Image((void*)(intptr_t)texture->texturedata->id, ImVec2(128, 128));
+                ImGui::Image((ImTextureID)(intptr_t)texture->texturedata->id, ImVec2(128, 128));
 
                 if (ImGui::Button("Use Checkerboard"))
                 {

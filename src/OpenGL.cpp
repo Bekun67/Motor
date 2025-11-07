@@ -225,7 +225,6 @@ bool OpenGL::Start()
 
     //add it to the gameobjects list
     gameObjects.push_back(house);
-    std::cout << "Total GameObjects in scene: " << gameObjects.size() << std::endl;
 
     //load cannon FBX
     const char* cannonPath = "Assets/Models/Cannon.fbx";
@@ -244,7 +243,7 @@ bool OpenGL::Start()
 
         cannon1->transform->translation = aiVector3D(-5.0f, 0.0f, 0.0f);
         cannon1->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-        cannon1->transform->scaling = aiVector3D(100.0f, 100.0f, 100.0f);
+        cannon1->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
 
         if (meshCountBefore < g_Meshes.size()) {
             cannon1->mesh->meshIndex = (int)meshCountBefore;
@@ -267,7 +266,7 @@ bool OpenGL::Start()
 
         cannon2->transform->translation = aiVector3D(5.0f, 0.0f, 0.0f);
         cannon2->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-        cannon2->transform->scaling = aiVector3D(100.0f, 100.0f, 100.0f);
+        cannon2->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
 
         if (meshCountBefore < g_Meshes.size()) {
             cannon2->mesh->meshIndex = (int)meshCountBefore;
