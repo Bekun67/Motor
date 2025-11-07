@@ -44,6 +44,8 @@ public:
     bool showInspector = true;
     bool showAbout = false;
 
+    bool editing = false;
+
 private:
     void DrawMenuBar();
     void DrawConsole();

@@ -20,6 +20,7 @@
 #include <string>
 
 ModuleEditor* g_Editor = nullptr;
+static char nameBuffer[128] = "";
 
 void LOG(const std::string& message)
 {
@@ -464,7 +465,33 @@ void ModuleEditor::DrawInspector()
     }
     else
     {
-        ImGui::Text("GameObject: %s", selectedGameObject->name.c_str());
+        //editable name
+        static GameObject* lastSelectedGO = nullptr;
+        if (lastSelectedGO != selectedGameObject) {
+            strncpy_s(nameBuffer, selectedGameObject->name.c_str(), sizeof(nameBuffer) - 1);
+            nameBuffer[sizeof(nameBuffer) - 1] = '\0';
+            lastSelectedGO = selectedGameObject;
+            editing = false;
+        }
+
+        ImGui::InputText("GameObject", nameBuffer, IM_ARRAYSIZE(nameBuffer));
+
+        //we do this to prevent using keyboard controls while editing the name
+        if (ImGui::IsItemActive()) editing = true;
+
+        //when we deselect the name input
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            //if we have modified the name input we change de object's name
+            editing = false;
+            if (strlen(nameBuffer) > 0) {
+                selectedGameObject->name = std::string(nameBuffer);
+            }
+            else {
+                //if the name is "" we revert, as if we don't do this the engine crashes
+                strncpy_s(nameBuffer, selectedGameObject->name.c_str(), sizeof(nameBuffer) - 1);
+                nameBuffer[sizeof(nameBuffer) - 1] = '\0';
+            }
+        }
         ImGui::Separator();
 
         // Transform Component

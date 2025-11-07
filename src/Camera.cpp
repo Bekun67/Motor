@@ -111,10 +111,26 @@ void Camera::HandleInput(float deltaTime)
     int scroll = Application::GetInstance().input.get()->GetMouseWheelY();
     Zoom((float)scroll, deltaTime);
 
-    // Frame selected
-    if (state[SDL_SCANCODE_F])
-    {
-        FrameSelected(glm::vec3(0.0f, 0.0f, 0.0f)); // TODO: Use model position 
+    ModuleEditor* moduleEditor = Application::GetInstance().editor.get();
+    if (!moduleEditor->editing) {
+        // Frame selected
+        if (state[SDL_SCANCODE_F])
+        {
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            if (opengl->selectedGameObject == nullptr) return;
+
+            float radius = glm::length(glm::vec3(
+                opengl->selectedGameObject->transform->scaling.x,
+                opengl->selectedGameObject->transform->scaling.y,
+                opengl->selectedGameObject->transform->scaling.z
+            )) * opengl->selectedGameObject->transform->radius;
+
+            //we pass to the "FrameSelected" method the selectedGameObject's translation position and its radius
+            FrameSelected(glm::vec3(opengl->selectedGameObject->transform->translation.x,
+                opengl->selectedGameObject->transform->translation.y,
+                opengl->selectedGameObject->transform->translation.z),
+                radius);
+        }
     }
 }
 
@@ -153,7 +169,14 @@ void Camera::Zoom(float scroll, float deltaTime)
 void Camera::FrameSelected(const glm::vec3& target, float distance)
 {
     focusPoint = target;
-    distanceToFocus = distance;
+
+    //we change the focus distance depending on the selected game object's radius
+    float fovRadians = glm::radians(fov);
+    float distanceFromRadius = distance / tan(fovRadians * 0.5f);
+
+    distanceToFocus = distanceFromRadius * 1.5f;
+
+    distanceToFocus = glm::clamp(distanceToFocus, minZoomDistance, maxZoomDistance);
 
     glm::vec3 front;
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));

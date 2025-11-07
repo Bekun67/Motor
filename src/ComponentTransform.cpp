@@ -12,6 +12,7 @@ ComponentTransform::ComponentTransform(GameObject* gameObject)
     scaling = aiVector3D(1.0f, 1.0f, 1.0f);
     translation = aiVector3D(0.0f, 0.0f, 0.0f);
     rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+	radius = g_ModelRadius;
 }
 
 ComponentTransform::~ComponentTransform()
