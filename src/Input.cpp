@@ -77,77 +77,34 @@ bool Input::PreUpdate()
 	float scaleFactor = 0.1f;
 
 	if (!moduleEditor->editing) {
-		// GameObject selection with number keys 1-9
-		if (keyboard[SDL_SCANCODE_1] == KEY_DOWN) {
-			if (0 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[0];
-				std::cout << "GameObject selected: 1 " << std::endl;
+		// GameObject deletion
+		if (keyboard[SDLK_DELETE] == KEY_DOWN) {
+			// GameObject selection with number keys 1-9
+			if (keyboard[SDL_SCANCODE_DELETE] == KEY_DOWN && opengl->selectedGameObject != nullptr) {
+				std::cout << "Deleted GameObject " << opengl->selectedGameObject->name << std::endl;
+
 			}
-			else std::cout << "No GameObject 1 detected" << std::endl;
 		}
 
-		if (keyboard[SDL_SCANCODE_2] == KEY_DOWN) {
-			if (1 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[1];
-				std::cout << "GameObject selected: 2 " << std::endl;
-			}
-			else std::cout << "No GameObject 2 detected" << std::endl;
-		}
+		if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN || keyboard[SDL_SCANCODE_F2] == KEY_DOWN)
+		{
+			int index = -1;
+			if (opengl->gameObjects.size() > 0) {
 
-		if (keyboard[SDL_SCANCODE_3] == KEY_DOWN) {
-			if (2 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[2];
-				std::cout << "GameObject selected: 3" << std::endl;
+				for (int i = 0; i < opengl->gameObjects.size(); i++)
+				{
+					if (opengl->selectedGameObject == opengl->gameObjects[i]) index = i;
+				}
+				if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < opengl->gameObjects.size() - 1) {
+					opengl->selectedGameObject = opengl->gameObjects[index + 1];
+					std::cout << "Selecting next Game Object, " << opengl->selectedGameObject->name << std::endl;
+				}
+				if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
+					opengl->selectedGameObject = opengl->gameObjects[index - 1];
+					std::cout << "Selecting previous Game Object, " << opengl->selectedGameObject->name << std::endl;
+				}
 			}
-			else std::cout << "No GameObject 3 detected" << std::endl;
-		}
-
-		if (keyboard[SDL_SCANCODE_4] == KEY_DOWN) {
-			if (3 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[3];
-				std::cout << "GameObject selected: 4" << std::endl;
-			}
-			else std::cout << "No GameObject 4 detected" << std::endl;
-		}
-
-		if (keyboard[SDL_SCANCODE_5] == KEY_DOWN) {
-			if (4 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[4];
-				std::cout << "GameObject selected: 5" << std::endl;
-			}
-			else std::cout << "No GameObject 5 detected" << std::endl;
-		}
-
-		if (keyboard[SDL_SCANCODE_6] == KEY_DOWN) {
-			if (5 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[5];
-				std::cout << "GameObject selected: 6" << std::endl;
-			}
-			else std::cout << "No GameObject 6 detected" << std::endl;
-		}
-
-		if (keyboard[SDL_SCANCODE_7] == KEY_DOWN) {
-			if (6 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[6];
-				std::cout << "GameObject selected: 7" << std::endl;
-			}
-			else std::cout << "No GameObject 7 detected" << std::endl;
-		}
-
-		if (keyboard[SDL_SCANCODE_8] == KEY_DOWN) {
-			if (7 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[7];
-				std::cout << "GameObject selected: 8" << std::endl;
-			}
-			else std::cout << "No GameObject 8 detected" << std::endl;
-		}
-
-		if (keyboard[SDL_SCANCODE_9] == KEY_DOWN) {
-			if (8 < opengl->gameObjects.size()) {
-				opengl->selectedGameObject = opengl->gameObjects[8];
-				std::cout << "GameObject selected: 9 " << std::endl;
-			}
-			else std::cout << "No GameObject 9 detected" << std::endl;
+			else std::cout << "No Game Objects in scene to select" << std::endl;
 		}
 	}
 
@@ -219,54 +176,65 @@ bool Input::PreUpdate()
 					transform->translation.y -= moveSpeed;
 				}
 
-				// Rotations
-				aiQuaternion deltaRotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+				// Rotations, we do them using euler angles as it is easier to implement
+				aiVector3D deltaRotationEuler(0.0f, 0.0f, 0.0f);
 				bool rotationApplied = false;
 
-				float baseRotationSpeed = 0.9f;
-
+				float baseRotationSpeed = 90.0f;
 				float deltaTime = 1.0f / 60.0f;
-
 				float rotationValue = baseRotationSpeed * deltaTime;
 
-				// Left and right rotation around Y axis (Yaw)
+				// Y axis
 				if (keyboard[SDL_SCANCODE_B] != KEY_IDLE)
 				{
-
-					aiQuaternion rotB(rotationValue, 0.0f, 1.0f, 0.0f);
-					deltaRotation = rotB * deltaRotation; // Premultiply for local space rotation
+					deltaRotationEuler.y += rotationValue;
 					rotationApplied = true;
 				}
 				if (keyboard[SDL_SCANCODE_V] != KEY_IDLE)
 				{
-
-					aiQuaternion rotV(-rotationValue, 0.0f, 1.0f, 0.0f);
-					deltaRotation = rotV * deltaRotation;
+					deltaRotationEuler.y -= rotationValue;
 					rotationApplied = true;
 				}
 
-				// Front and back rotation around X axis (Pitch)
+				// X axis
 				if (keyboard[SDL_SCANCODE_M] != KEY_IDLE)
 				{
-
-					aiQuaternion rotM(rotationValue, 1.0f, 0.0f, 0.0f);
-					deltaRotation = rotM * deltaRotation;
+					deltaRotationEuler.x += rotationValue;
 					rotationApplied = true;
 				}
 				if (keyboard[SDL_SCANCODE_N] != KEY_IDLE)
 				{
-
-					aiQuaternion rotN(-rotationValue, 1.0f, 0.0f, 0.0f);
-					deltaRotation = rotN * deltaRotation;
+					deltaRotationEuler.x -= rotationValue;
 					rotationApplied = true;
 				}
 
-				// Apply acomulated rotation to the transform
+				// Z axis
+				if (keyboard[SDL_SCANCODE_G] != KEY_IDLE)
+				{
+					deltaRotationEuler.z += rotationValue;
+					rotationApplied = true;
+				}
+				if (keyboard[SDL_SCANCODE_H] != KEY_IDLE)
+				{
+					deltaRotationEuler.z -= rotationValue;
+					rotationApplied = true;
+				}
+
+				// apply rotation
 				if (rotationApplied)
 				{
-					transform->rotation = deltaRotation * transform->rotation;
+					// euler angles -> quaternion
+					aiQuaternion deltaQuat;
+					deltaQuat = aiQuaternion(aiVector3D(
+						glm::radians(deltaRotationEuler.x),
+						glm::radians(deltaRotationEuler.y),
+						glm::radians(deltaRotationEuler.z)
+					));
 
+					// mult the quaternion to apply it
+					transform->rotation = deltaQuat * transform->rotation;
 					transform->rotation.Normalize();
+					moduleEditor->updatedAngles = true;
 				}
 			}
 		}

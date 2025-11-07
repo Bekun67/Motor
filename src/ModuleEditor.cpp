@@ -18,6 +18,10 @@
 #include <IL/il.h>
 #include <iostream>
 #include <string>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
+
 
 ModuleEditor* g_Editor = nullptr;
 static char nameBuffer[128] = "";
@@ -516,7 +520,54 @@ void ModuleEditor::DrawInspector()
                     transform->scaling.z = scale[2];
                 }
 
-                //TODO hacer bien la rotacion hacer editables unos angulos
+                //rotation
+                static glm::vec3 rotationEuler = glm::vec3(0.0f); 
+                static float lastAngles[3] = { 0.0f, 0.0f, 0.0f };
+                static bool firstFrame = true;
+
+                // first rotation
+                if (firstFrame)
+                {
+                    glm::quat q(transform->rotation.w, transform->rotation.x, transform->rotation.y, transform->rotation.z);
+                    rotationEuler = glm::degrees(glm::eulerAngles(q));
+                    lastAngles[0] = rotationEuler.x;
+                    lastAngles[1] = rotationEuler.y;
+                    lastAngles[2] = rotationEuler.z;
+                    firstFrame = false;
+                }
+                if (updatedAngles) {
+                    glm::quat q(transform->rotation.w, transform->rotation.x, transform->rotation.y, transform->rotation.z);
+                    rotationEuler = glm::degrees(glm::eulerAngles(q));
+                    updatedAngles = false;
+                }
+                // edit tab
+                float angles[3] = { rotationEuler.x, rotationEuler.y, rotationEuler.z };
+                ImGui::InputFloat3("Rotation", angles, "%.2f");
+
+                // detect if the value has changed
+                bool changed = false;
+                for (int i = 0; i < 3; ++i)
+                {
+                    if (angles[i] != lastAngles[i])
+                    {
+                        changed = true;
+                        lastAngles[i] = angles[i]; 
+                    }
+                }
+
+                //if it has changed we apply it
+                if (changed)
+                {
+                    rotationEuler = glm::vec3(angles[0], angles[1], angles[2]);
+
+                    glm::quat newQuat = glm::quat(glm::radians(rotationEuler));
+                    transform->rotation.w = newQuat.w;
+                    transform->rotation.x = newQuat.x;
+                    transform->rotation.y = newQuat.y;
+                    transform->rotation.z = newQuat.z;
+                }
+
+                // show quat
                 ImGui::Text("Rotation (Quaternion):");
                 ImGui::Text("W: %.3f, X: %.3f, Y: %.3f, Z: %.3f",
                     transform->rotation.w,

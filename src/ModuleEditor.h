@@ -45,6 +45,7 @@ public:
     bool showAbout = false;
 
     bool editing = false;
+    bool updatedAngles = false;
 
 private:
     void DrawMenuBar();
