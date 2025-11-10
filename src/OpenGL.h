@@ -27,6 +27,7 @@ public:
 	Model* fbxModel = nullptr;
 	bool showGrid = true;
 	unsigned int gridVAO = 0;
+	unsigned int normalShaderProgram;
 	unsigned int gridVBO = 0;
 	int gridLineCount = 0;
 

@@ -154,7 +154,7 @@ void ComponentMesh::DrawVertexNormals(Camera* camera, float length)
         return;
     }
 
-    // Calculate transformation matrix
+    // Transformation matrix
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(
         transform->translation.x,
@@ -178,19 +178,19 @@ void ComponentMesh::DrawVertexNormals(Camera* camera, float length)
 
     glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
 
-    // Read VBO data
+    // Read VBO
     glBindBuffer(GL_ARRAY_BUFFER, meshdata.VBO);
     GLint bufferSize;
     glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
 
-    int vertexSize = 8;
+    int vertexSize = 8; 
     int numVertices = bufferSize / (vertexSize * sizeof(float));
 
     std::vector<float> vertexData(bufferSize / sizeof(float));
     glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    // Lines for vertex
+    // create lines
     std::vector<float> normalLines;
     for (int i = 0; i < numVertices; ++i)
     {
@@ -199,10 +199,10 @@ void ComponentMesh::DrawVertexNormals(Camera* camera, float length)
         glm::vec3 pos(vertexData[offset], vertexData[offset + 1], vertexData[offset + 2]);
         glm::vec3 normal(vertexData[offset + 3], vertexData[offset + 4], vertexData[offset + 5]);
 
-        // pos
+
         glm::vec4 worldPos = model * glm::vec4(pos, 1.0f);
 
-        // normal
+
         glm::vec3 worldNormal = glm::normalize(normalMatrix * normal);
 
 
@@ -217,7 +217,7 @@ void ComponentMesh::DrawVertexNormals(Camera* camera, float length)
         normalLines.push_back(endPoint.z);
     }
 
-    // VAO and VBA for lines
+    // temporal VAO and VBO
     GLuint normalVAO, normalVBO;
     glGenVertexArrays(1, &normalVAO);
     glGenBuffers(1, &normalVBO);
@@ -229,26 +229,26 @@ void ComponentMesh::DrawVertexNormals(Camera* camera, float length)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Usar shader y dibujar líneas en azul
-    unsigned int shaderProgram = Application::GetInstance().opengl->shaderProgram;
-    glUseProgram(shaderProgram);
+    // use normal shaders
+    unsigned int normalShader = Application::GetInstance().opengl->normalShaderProgram;
+    glUseProgram(normalShader);
 
     glm::mat4 identityModel = glm::mat4(1.0f);
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
 
-    GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
-    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
-    GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+    GLint modelLoc = glGetUniformLocation(normalShader, "model_matrix");
+    GLint viewLoc = glGetUniformLocation(normalShader, "view");
+    GLint projLoc = glGetUniformLocation(normalShader, "projection");
+    GLint colorLoc = glGetUniformLocation(normalShader, "lineColor");
 
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(identityModel));
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
+    // blue
+    glUniform3f(colorLoc, 0.0f, 0.0f, 1.0f);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // Dibujar líneas en azul (necesitarás modificar el shader para soportar color uniforme)
     glDrawArrays(GL_LINES, 0, normalLines.size() / 3);
 
     glBindVertexArray(0);
@@ -270,7 +270,7 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
         return;
     }
 
-
+    // transformation matrix
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(
         transform->translation.x,
@@ -294,7 +294,7 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
 
     glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
 
-
+    // VBO
     glBindBuffer(GL_ARRAY_BUFFER, meshdata.VBO);
     GLint vboSize;
     glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vboSize);
@@ -312,13 +312,13 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
     glGetBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, eboSize, indices.data());
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-
+    // create lines
     std::vector<float> faceNormalLines;
     int vertexSize = 8; 
 
     for (size_t i = 0; i < indices.size(); i += 3)
     {
-        // Get triangle vertex
+
         unsigned int idx0 = indices[i];
         unsigned int idx1 = indices[i + 1];
         unsigned int idx2 = indices[i + 2];
@@ -331,7 +331,7 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
         glm::vec3 v1(vertexData[offset1], vertexData[offset1 + 1], vertexData[offset1 + 2]);
         glm::vec3 v2(vertexData[offset2], vertexData[offset2 + 1], vertexData[offset2 + 2]);
 
-
+        // calculate face center
         glm::vec3 faceCenter = (v0 + v1 + v2) / 3.0f;
 
 
@@ -339,7 +339,7 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
         glm::vec3 edge2 = v2 - v0;
         glm::vec3 faceNormal = glm::normalize(glm::cross(edge1, edge2));
 
-
+ 
         glm::vec4 worldCenter = model * glm::vec4(faceCenter, 1.0f);
         glm::vec3 worldNormal = glm::normalize(normalMatrix * faceNormal);
 
@@ -348,14 +348,13 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
         faceNormalLines.push_back(worldCenter.y);
         faceNormalLines.push_back(worldCenter.z);
 
-
         glm::vec3 endPoint = glm::vec3(worldCenter) + worldNormal * length;
         faceNormalLines.push_back(endPoint.x);
         faceNormalLines.push_back(endPoint.y);
         faceNormalLines.push_back(endPoint.z);
     }
 
-
+    // temporal VAO and VBO
     GLuint faceNormalVAO, faceNormalVBO;
     glGenVertexArrays(1, &faceNormalVAO);
     glGenBuffers(1, &faceNormalVBO);
@@ -367,23 +366,25 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Usar shader y dibujar líneas en rojo
-    unsigned int shaderProgram = Application::GetInstance().opengl->shaderProgram;
-    glUseProgram(shaderProgram);
+    // use normal shaders
+    unsigned int normalShader = Application::GetInstance().opengl->normalShaderProgram;
+    glUseProgram(normalShader);
 
     glm::mat4 identityModel = glm::mat4(1.0f);
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
 
-    GLint modelLoc = glGetUniformLocation(shaderProgram, "model_matrix");
-    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
-    GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+    GLint modelLoc = glGetUniformLocation(normalShader, "model_matrix");
+    GLint viewLoc = glGetUniformLocation(normalShader, "view");
+    GLint projLoc = glGetUniformLocation(normalShader, "projection");
+    GLint colorLoc = glGetUniformLocation(normalShader, "lineColor");
 
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(identityModel));
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+    // red
+    glUniform3f(colorLoc, 1.0f, 0.0f, 0.0f);
 
     glDrawArrays(GL_LINES, 0, faceNormalLines.size() / 3);
 

@@ -43,6 +43,49 @@ static GLuint CompileShader(GLenum type, const char* source) {
     return shader;
 }
 
+// Create normals shaders
+static GLuint CreateNormalShader() {
+    const char* vertexShaderSource = "#version 330 core\n"
+        "layout(location = 0) in vec3 position;\n"
+        "uniform mat4 model_matrix;\n"
+        "uniform mat4 view;\n"
+        "uniform mat4 projection;\n"
+        "void main() {\n"
+        "    gl_Position = projection * view * model_matrix * vec4(position, 1.0);\n"
+        "}\n";
+
+    const char* fragmentShaderSource = "#version 330 core\n"
+        "out vec4 FragColor;\n"
+        "uniform vec3 lineColor;\n"
+        "void main() {\n"
+        "    FragColor = vec4(lineColor, 1.0);\n"
+        "}\n";
+
+    GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+
+    int success;
+    char infoLog[1024];
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(program, 1024, NULL, infoLog);
+        std::cerr << "ERROR: Normal Shader Program Linking Failed\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    std::cout << "Normal shader created successfully" << std::endl;
+    return program;
+
+}
+
+
 void OpenGL::CreateGrid(int size)
 {
     std::vector<float> gridVertices;
@@ -192,6 +235,9 @@ bool OpenGL::Start()
 
     glDeleteShader(vs);
     glDeleteShader(fs);
+
+    // Create shaders for normals
+    normalShaderProgram = CreateNormalShader();
 
     lastTicks = SDL_GetTicks();
 
@@ -389,6 +435,11 @@ bool OpenGL::CleanUp()
     if (shaderProgram) {
         glDeleteProgram(shaderProgram);
         shaderProgram = 0;
+    }
+
+    if (normalShaderProgram) {
+        glDeleteProgram(normalShaderProgram);
+        normalShaderProgram = 0;
     }
 
     if (glContext != nullptr)
