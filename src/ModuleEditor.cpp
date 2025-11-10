@@ -73,6 +73,8 @@ bool ModuleEditor::Start()
     LOG(std::string("DevIL Version: ") + std::to_string(devilVersion / 100) + "." +
         std::to_string((devilVersion % 100) / 10) + "." + std::to_string(devilVersion % 10));
 
+    firstTimeSetup = true;
+
     return true;
 }
 
@@ -103,13 +105,17 @@ bool ModuleEditor::Update()
     }
 
     // Draw all editor windows
-    DrawMenuBar();
-
-    if (showConsole) DrawConsole();
+    DrawSceneViewport();  // Primero la escena
+    DrawHierarchy();      // Izquierda
+    DrawInspector();      // Derecha
+    DrawConsole();        // Abajo
+    DrawMenuBar();        // Menu flotante pequeño
     if (showConfiguration) DrawConfiguration();
-    if (showHierarchy) DrawHierarchy();
-    if (showInspector) DrawInspector();
     if (showAbout) DrawAbout();
+
+    // Desactivar el setup inicial después del primer frame
+    if (firstTimeSetup)
+        firstTimeSetup = false;
 
     return true;
 }
@@ -147,8 +153,45 @@ void ModuleEditor::ClearLog()
     logs.clear();
 }
 
+void ModuleEditor::DrawSceneViewport()
+{
+    if (firstTimeSetup)
+    {
+        // Centrado en la parte superior
+        ImGui::SetNextWindowPos(ImVec2(300, 20), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(680, 440), ImGuiCond_FirstUseEver);
+    }
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+    // Obtener el tamaño disponible para el contenido
+    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+    ImVec2 viewportPos = ImGui::GetCursorScreenPos();
+
+    // Actualizar las variables públicas para que OpenGL sepa dónde renderizar
+    sceneViewportPos = viewportPos;
+    sceneViewportSize = viewportSize;
+
+    // Mostrar información del viewport
+    ImGui::SetCursorPos(ImVec2(10, 10));
+    ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Scene View");
+    ImGui::SetCursorPos(ImVec2(10, 30));
+    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%.0fx%.0f", viewportSize.x, viewportSize.y);
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
 void ModuleEditor::DrawMenuBar()
 {
+
+    if (firstTimeSetup)
+    {
+        ImGui::SetNextWindowPos(ImVec2(10, 20), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(280, 320), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Main Menu");
 
     if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen))
@@ -320,6 +363,14 @@ void ModuleEditor::DrawMenuBar()
 
 void ModuleEditor::DrawConsole()
 {
+
+    if (firstTimeSetup)
+    {
+        // Posicionar en la parte inferior, ocupando todo el ancho
+        ImGui::SetNextWindowPos(ImVec2(300, 470), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(680, 240), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Console", &showConsole);
 
     if (ImGui::Button("Clear"))
@@ -358,6 +409,13 @@ void ModuleEditor::DrawConsole()
 
 void ModuleEditor::DrawConfiguration()
 {
+    if (firstTimeSetup)
+    {
+        // Posicionar en la parte superior derecha
+        ImGui::SetNextWindowPos(ImVec2(400, 150), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 450), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Configuration", &showConfiguration);
 
     if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen))
@@ -435,6 +493,14 @@ void ModuleEditor::DrawConfiguration()
 
 void ModuleEditor::DrawHierarchy()
 {
+
+    if (firstTimeSetup)
+    {
+        // Posicionar en la parte derecha, arriba
+        ImGui::SetNextWindowPos(ImVec2(10, 350), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(280, 360), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Hierarchy", &showHierarchy);
 
     OpenGL* opengl = Application::GetInstance().opengl.get();
@@ -461,6 +527,14 @@ void ModuleEditor::DrawHierarchy()
 
 void ModuleEditor::DrawInspector()
 {
+
+    if (firstTimeSetup)
+    {
+        // Posicionar debajo de Hierarchy
+        ImGui::SetNextWindowPos(ImVec2(990, 20), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(280, 440), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Inspector", &showInspector);
 
     if (selectedGameObject == nullptr)
@@ -636,6 +710,13 @@ void ModuleEditor::DrawInspector()
 void ModuleEditor::DrawAbout()
 {
     if (!showAbout) return;
+
+    if (firstTimeSetup)
+    {
+        // Centrar la ventana About
+        ImGui::SetNextWindowPos(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
+    }
 
     ImGui::Begin("About", &showAbout);
 

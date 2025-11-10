@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <deque>
+#include "imgui.h" 
 
 class GameObject;
 
@@ -47,6 +48,9 @@ public:
     bool editing = false;
     bool updatedAngles = false;
 
+    ImVec2 sceneViewportPos;
+    ImVec2 sceneViewportSize;
+
 private:
     void DrawMenuBar();
     void DrawConsole();
@@ -55,6 +59,7 @@ private:
     void DrawInspector();
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
+    void DrawSceneViewport();
 
     // Console
     std::deque<LogEntry> logs;
@@ -74,6 +79,8 @@ private:
     const char* version = "v0.1.5";
     const char* team = "Team Hutao";
     const char* repoURL = "https://github.com/Bekun67/Motor";
+
+    bool firstTimeSetup = true;
 };
 
 // Global logging functions
