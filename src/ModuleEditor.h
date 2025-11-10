@@ -47,6 +47,10 @@ public:
     bool editing = false;
     bool updatedAngles = false;
 
+    // Selected GameObject
+    GameObject* selectedGameObject = nullptr;
+    int CountNames(std::string prefix);
+
 private:
     void DrawMenuBar();
     void DrawConsole();
@@ -65,9 +69,6 @@ private:
     std::vector<float> fpsHistory;
     const size_t maxFPSHistory = 100;
     float lastFrameTime = 0.0f;
-
-    // Selected GameObject
-    GameObject* selectedGameObject = nullptr;
 
     // About window info
     const char* motorName = "Ilium Engine";
