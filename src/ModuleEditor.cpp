@@ -212,7 +212,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* cube = new GameObject();
-            cube->name = "Cube_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Cube_");
+            cube->name = "Cube_" + std::to_string(index);
 
             // Set transform
             cube->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -241,7 +243,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* sphere = new GameObject();
-            sphere->name = "Sphere_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Sphere_");
+            sphere->name = "Sphere_" + std::to_string(index);
 
             // Set transform
             sphere->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -270,7 +274,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* cylinder = new GameObject();
-            cylinder->name = "Cylinder_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Cylinder_");
+            cylinder->name = "Cylinder_" + std::to_string(index);
 
             // Set transform
             cylinder->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -299,7 +305,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* plane = new GameObject();
-            plane->name = "Plane_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Plane_");
+            plane->name = "Plane_" + std::to_string(index);
 
             // Set transform
             plane->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
@@ -784,4 +792,41 @@ void ModuleEditor::AssignCheckerboardTexture(GameObject* go)
     go->texture->texturedata->id = checkID;
     go->texture->texturedata->type = "checkerboard";
     go->texture->texturedata->path = "checkerboard";
+}
+
+int ModuleEditor::CountNames(std::string prefix)
+{
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    int maxIndex = -1;
+
+    for (size_t i = 0; i < opengl->gameObjects.size(); i++)
+    {
+        GameObject* obj = opengl->gameObjects[i];
+
+        //check matches
+        bool matches = true;
+        if (obj->name.size() <= prefix.size()) matches = false;
+        else
+        {
+            for (size_t j = 0; j < prefix.size(); j++)
+            {
+                if (obj->name[j] != prefix[j])
+                {
+                    matches = false;
+                    break;
+                }
+            }
+        }
+
+        if (matches)
+        {
+            //get the numeric part
+            std::string numberPart = obj->name.substr(prefix.size());
+            int value = std::atoi(numberPart.c_str()); //from string to int
+
+            if (value > maxIndex) maxIndex = value; //get the highest num
+        }
+    }
+
+    return maxIndex + 1; //return the next num
 }

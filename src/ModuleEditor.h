@@ -50,6 +50,10 @@ public:
 
     ImVec2 sceneViewportPos;
     ImVec2 sceneViewportSize;
+    
+    // Selected GameObject
+    GameObject* selectedGameObject = nullptr;
+    int CountNames(std::string prefix);
 
 private:
     void DrawMenuBar();
@@ -71,9 +75,6 @@ private:
     std::vector<float> fpsHistory;
     const size_t maxFPSHistory = 100;
     float lastFrameTime = 0.0f;
-
-    // Selected GameObject
-    GameObject* selectedGameObject = nullptr;
 
     // About window info
     const char* motorName = "Ilium Engine";
