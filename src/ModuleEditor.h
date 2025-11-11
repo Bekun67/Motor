@@ -82,8 +82,6 @@ private:
     const char* repoURL = "https://github.com/Bekun67/Motor";
 
     bool firstTimeSetup = true;
-
-    bool forceResetLayout = false;
 };
 
 // Global logging functions

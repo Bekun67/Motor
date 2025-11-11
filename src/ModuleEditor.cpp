@@ -113,9 +113,6 @@ bool ModuleEditor::Update()
     if (showConfiguration) DrawConfiguration();
     if (showAbout) DrawAbout();
 
-    if (firstTimeSetup)
-        firstTimeSetup = false;
-
     return true;
 }
 
@@ -154,14 +151,14 @@ void ModuleEditor::ClearLog()
 
 void ModuleEditor::DrawSceneViewport()
 {
-    if (firstTimeSetup || forceResetLayout)
+    if (firstTimeSetup)
     {
-        ImGui::SetNextWindowPos(ImVec2(170, 20), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(810, 540), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(170, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(810, 540), ImGuiCond_Always);
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
 
     // Get scale
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -177,15 +174,16 @@ void ModuleEditor::DrawSceneViewport()
 void ModuleEditor::DrawMenuBar()
 {
 
-    if (firstTimeSetup || forceResetLayout)
+    if (firstTimeSetup)
     {
-        ImGui::SetNextWindowPos(ImVec2(10, 20), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(150, 320), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(10, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(150, 320), ImGuiCond_Always);
+        firstTimeSetup = false;
     }
 
     ImGui::Begin("Main Menu");
 
-    if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen ))
     {
         if (ImGui::Button("Exit"))
         {
@@ -355,11 +353,11 @@ void ModuleEditor::DrawMenuBar()
 void ModuleEditor::DrawConsole()
 {
 
-    if (firstTimeSetup || forceResetLayout)
+    if (firstTimeSetup)
     {
         // Posicionar en la parte inferior, ocupando todo el ancho
-        ImGui::SetNextWindowPos(ImVec2(170, 570), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(810, 140), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(170, 570), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(810, 140), ImGuiCond_Always);
     }
 
     ImGui::Begin("Console", &showConsole);
@@ -400,7 +398,7 @@ void ModuleEditor::DrawConsole()
 
 void ModuleEditor::DrawConfiguration()
 {
-    if (firstTimeSetup || forceResetLayout)
+    if (firstTimeSetup)
     {
         // Posicionar en la parte superior derecha
         ImGui::SetNextWindowPos(ImVec2(400, 150), ImGuiCond_FirstUseEver);
@@ -408,14 +406,14 @@ void ModuleEditor::DrawConfiguration()
     }
 
     ImGui::Begin("Configuration", &showConfiguration);
-    if (ImGui::CollapsingHeader("Editor Layout", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Editor Layout", ImGuiTreeNodeFlags_DefaultOpen ))
     {
         ImGui::TextWrapped("Reset all ImGui windows to their default positions and sizes.");
         ImGui::Spacing();
 
         if (ImGui::Button("Default Editor", ImVec2(-1, 0)))
         {
-            forceResetLayout = true;
+            firstTimeSetup = true;
             LOG("Resetting editor layout to default positions");
         }
 
@@ -499,14 +497,14 @@ void ModuleEditor::DrawConfiguration()
 void ModuleEditor::DrawHierarchy()
 {
 
-    if (firstTimeSetup || forceResetLayout)
+    if (firstTimeSetup)
     {
         // Posicionar en la parte derecha, arriba
-        ImGui::SetNextWindowPos(ImVec2(10, 350), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(150, 360), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(10, 350), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(150, 360), ImGuiCond_Always);
     }
 
-    ImGui::Begin("Hierarchy", &showHierarchy, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::Begin("Hierarchy", &showHierarchy, ImGuiWindowFlags_HorizontalScrollbar );
 
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (opengl)
@@ -533,11 +531,11 @@ void ModuleEditor::DrawHierarchy()
 void ModuleEditor::DrawInspector()
 {
 
-    if (firstTimeSetup || forceResetLayout)
+    if (firstTimeSetup)
     {
         // Posicionar debajo de Hierarchy
-        ImGui::SetNextWindowPos(ImVec2(990, 20), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(280, 690), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(990, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(280, 690), ImGuiCond_Always);
     }
 
     ImGui::Begin("Inspector", &showInspector);
@@ -716,11 +714,11 @@ void ModuleEditor::DrawAbout()
 {
     if (!showAbout) return;
 
-    if (firstTimeSetup || forceResetLayout)
+    if (firstTimeSetup)
     {
         // Centrar la ventana About
-        ImGui::SetNextWindowPos(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(400, 200), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_Always);
     }
 
     ImGui::Begin("About", &showAbout);
