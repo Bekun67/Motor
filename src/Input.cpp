@@ -120,6 +120,37 @@ bool Input::PreUpdate()
 		}
 	}
 
+    //deleting gamebojects
+    if (keyboard[SDL_SCANCODE_DELETE] == KEY_DOWN) {
+        if (opengl->selectedGameObject != nullptr) {
+            LOG("Deleting GameObject: " + opengl->selectedGameObject->name);
+
+            GameObject* toDelete = opengl->selectedGameObject;
+            opengl->selectedGameObject = nullptr;  //remove from selected
+
+            Application& app = Application::GetInstance();
+            if (app.editor) {
+                ModuleEditor* editor = app.editor.get();
+                if (editor) {
+                    editor->selectedGameObject = nullptr;
+                }
+            }
+
+            //find and remove selcted gameobjects from gameobjects vector
+            auto& gameObjects = opengl->gameObjects;
+            for (auto it = gameObjects.begin(); it != gameObjects.end(); ++it) {
+                if (*it == toDelete) {
+                    delete* it;  //delete obj
+                    gameObjects.erase(it);  //remove from vector
+                    break;
+                }
+            }
+        }
+        else {
+            LOG("No GameObject selected to delete");
+        }
+    }
+
 	while (SDL_PollEvent(&event))
 	{
 
@@ -157,7 +188,7 @@ bool Input::PreUpdate()
 			break;
 		}
 		case SDL_EVENT_MOUSE_WHEEL:
-		{
+        {
 			mouseWheelX = event.wheel.x;
 			mouseWheelY = event.wheel.y;
 			break;

@@ -22,8 +22,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <imgui.h>           
+#include <glm/gtc/type_ptr.hpp>  
 #include <ImGuizmo.h>        
 
 
@@ -108,18 +107,28 @@ bool ModuleEditor::Update()
             fpsHistory.erase(fpsHistory.begin());
     }
 
-    // IMPORTANTE: BeginFrame debe llamarse DESPU�S de ImGui::NewFrame()
+
     ImGuizmo::BeginFrame();
 
     // Handle Gizmo operation changes with W, E, R keys
-    if (!editing) // Solo cambiar modo si no estamos editando texto
+    if (!editing)
     {
         if (ImGui::IsKeyPressed(ImGuiKey_W))
+        {
             currentGizmoOperation = ImGuizmo::TRANSLATE;
+            LOG("Current Gizmo Operation: TRANSLATE");
+        }
         if (ImGui::IsKeyPressed(ImGuiKey_E))
+        {
             currentGizmoOperation = ImGuizmo::ROTATE;
+			LOG("Current Gizmo Operation: ROTATE");
+        }
         if (ImGui::IsKeyPressed(ImGuiKey_R))
+        {
             currentGizmoOperation = ImGuizmo::SCALE;
+            LOG("Current Gizmo Operation: SCALE");
+        }
+           
     }
 
     // Draw all editor windows
@@ -745,7 +754,6 @@ void ModuleEditor::DrawAbout()
 
     if (firstTimeSetup)
     {
-        // Centrar la ventana About
         ImGui::SetNextWindowPos(ImVec2(400, 200), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_Always);
     }
@@ -826,14 +834,6 @@ void ModuleEditor::DrawGuizmo()
     if (!selected->transform)
         return;
 
-    // Get window size
-    int windowWidth, windowHeight;
-    Application::GetInstance().window->GetWindowSize(windowWidth, windowHeight);
-
-    // Setup ImGuizmo
-   /* ImGuizmo::SetOrthographic(false);
-    ImGuizmo::BeginFrame();*/
-
     // Get camera matrices
     Camera* camera = &opengl->camera;
     glm::mat4 view = camera->GetViewMatrix();
@@ -866,7 +866,12 @@ void ModuleEditor::DrawGuizmo()
     ));
 
     // Set ImGuizmo rect to full window
-    ImGuizmo::SetRect(0.0f, 0.0f, (float)windowWidth, (float)windowHeight);
+    ImGuizmo::SetRect(
+        sceneViewportPos.x,
+        sceneViewportPos.y,
+        sceneViewportSize.x,
+        sceneViewportSize.y
+    );
 
     // Draw and manipulate
     glm::mat4 deltaMatrix = glm::mat4(1.0f);
@@ -879,7 +884,7 @@ void ModuleEditor::DrawGuizmo()
         glm::value_ptr(model),
         glm::value_ptr(deltaMatrix)))
     {
-        // Si el usuario est� manipulando el Guizmo
+		// If we are manipulating
         editing = true;
 
         // Decompose the model matrix back to transform components
@@ -907,32 +912,12 @@ void ModuleEditor::DrawGuizmo()
     }
     else
     {
-        // No se est� manipulando
+		// Not using the Guizmo
         if (editing)
         {
             editing = false;
         }
     }
-
-    // Opcional: Mostrar informaci�n del modo actual
-    ImGui::SetNextWindowPos(ImVec2(10, 10));
-    ImGui::SetNextWindowBgAlpha(0.3f);
-    ImGui::Begin("Guizmo Info", nullptr,
-        ImGuiWindowFlags_NoDecoration |
-        ImGuiWindowFlags_AlwaysAutoResize |
-        ImGuiWindowFlags_NoFocusOnAppearing |
-        ImGuiWindowFlags_NoNav);
-
-    const char* operationName = "Unknown";
-    if (currentGizmoOperation == ImGuizmo::TRANSLATE)
-        operationName = "Translate (W)";
-    else if (currentGizmoOperation == ImGuizmo::ROTATE)
-        operationName = "Rotate (E)";
-    else if (currentGizmoOperation == ImGuizmo::SCALE)
-        operationName = "Scale (R)";
-
-    ImGui::Text("Guizmo Mode: %s", operationName);
-    ImGui::End();
 }
 
 int ModuleEditor::CountNames(std::string prefix)

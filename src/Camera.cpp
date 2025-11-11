@@ -66,8 +66,8 @@ void Camera::HandleInput(float deltaTime)
         glm::vec3 right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
 
 		// Use currentSpeed and deltaTime to move camera
-        /*if (state[SDL_SCANCODE_W] || buttons & SDL_BUTTON_LEFT) position += front * currentSpeed * deltaTime;*/
-        if (buttons & SDL_BUTTON_RMASK) position += front * currentSpeed * deltaTime;
+        if (state[SDL_SCANCODE_W] || buttons & SDL_BUTTON_LEFT) position += front * currentSpeed * deltaTime;
+        
         if (state[SDL_SCANCODE_S]) position -= front * currentSpeed * deltaTime;
         if (state[SDL_SCANCODE_A]) position -= right * currentSpeed * deltaTime;
         if (state[SDL_SCANCODE_D]) position += right * currentSpeed * deltaTime;
