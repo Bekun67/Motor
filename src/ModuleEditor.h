@@ -46,13 +46,20 @@ public:
 
     // Window visibility toggles
     bool showConsole = true;
-    bool showConfiguration = true;
+    bool showConfiguration = false;
     bool showHierarchy = true;
     bool showInspector = true;
     bool showAbout = false;
 
     bool editing = false;
     bool updatedAngles = false;
+
+    ImVec2 sceneViewportPos;
+    ImVec2 sceneViewportSize;
+    
+    // Selected GameObject
+    GameObject* selectedGameObject = nullptr;
+    int CountNames(std::string prefix);
 
 private:
     void DrawMenuBar();
@@ -62,6 +69,8 @@ private:
     void DrawInspector();
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
+    void DrawSceneViewport();
+    
 
     // Console
     std::deque<LogEntry> logs;
@@ -73,14 +82,13 @@ private:
     const size_t maxFPSHistory = 100;
     float lastFrameTime = 0.0f;
 
-    // Selected GameObject
-    GameObject* selectedGameObject = nullptr;
-
     // About window info
     const char* motorName = "Ilium Engine";
     const char* version = "v0.1.5";
     const char* team = "Team Hutao";
     const char* repoURL = "https://github.com/Bekun67/Motor";
+
+    bool firstTimeSetup = true;
 };
 
 // Global logging functions

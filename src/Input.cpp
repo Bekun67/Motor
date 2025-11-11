@@ -77,6 +77,8 @@ bool Input::PreUpdate()
 
 	OpenGL* opengl = Application::GetInstance().opengl.get();
 	float scaleFactor = 0.1f;
+	Application& app = Application::GetInstance();
+	ModuleEditor* editor = app.editor.get();
 
 	if (!moduleEditor->editing) {
 		// GameObject deletion
@@ -99,14 +101,22 @@ bool Input::PreUpdate()
 				}
 				if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < opengl->gameObjects.size() - 1) {
 					opengl->selectedGameObject = opengl->gameObjects[index + 1];
-					std::cout << "Selecting next Game Object, " << opengl->selectedGameObject->name << std::endl;
+					LOG("Selecting next Game Object, " + opengl->selectedGameObject->name);
 				}
 				if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
 					opengl->selectedGameObject = opengl->gameObjects[index - 1];
-					std::cout << "Selecting previous Game Object, " << opengl->selectedGameObject->name << std::endl;
+					LOG("Selecting previous Game Object, " + opengl->selectedGameObject->name);
 				}
+				editor->selectedGameObject = opengl->selectedGameObject;
 			}
-			else std::cout << "No Game Objects in scene to select" << std::endl;
+			else LOG("No Game Objects in scene to select");
+		}
+
+		if (keyboard[SDL_SCANCODE_F3] == KEY_DOWN && opengl->selectedGameObject != nullptr)
+		{
+			LOG("Deselecting GameObject: " + opengl->selectedGameObject->name);
+			opengl->selectedGameObject = nullptr;
+			editor->selectedGameObject = nullptr;
 		}
 	}
 
@@ -219,7 +229,8 @@ bool Input::PreUpdate()
                         {
                             //create gameobject with mesh
                             GameObject* go = new GameObject();
-                            go->name = "DroppedMesh_" + std::to_string(i);
+							int index = moduleEditor->CountNames("DroppedMesh_");
+                            go->name = "DroppedMesh_" + std::to_string(index);
 
                             //change the translation to match the obtained coordinates
                             go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);

@@ -77,6 +77,8 @@ bool ModuleEditor::Start()
     LOG(std::string("DevIL Version: ") + std::to_string(devilVersion / 100) + "." +
         std::to_string((devilVersion % 100) / 10) + "." + std::to_string(devilVersion % 10));
 
+    firstTimeSetup = true;
+
     return true;
 }
 
@@ -106,7 +108,7 @@ bool ModuleEditor::Update()
             fpsHistory.erase(fpsHistory.begin());
     }
 
-    // IMPORTANTE: BeginFrame debe llamarse DESPUÉS de ImGui::NewFrame()
+    // IMPORTANTE: BeginFrame debe llamarse DESPUï¿½S de ImGui::NewFrame()
     ImGuizmo::BeginFrame();
 
     // Handle Gizmo operation changes with W, E, R keys
@@ -121,15 +123,15 @@ bool ModuleEditor::Update()
     }
 
     // Draw all editor windows
-    DrawMenuBar();
-
-    if (showConsole) DrawConsole();
+    DrawSceneViewport();  
+    DrawHierarchy();      
+    DrawInspector();      
+    DrawConsole();        
+    DrawMenuBar();        
     if (showConfiguration) DrawConfiguration();
-    if (showHierarchy) DrawHierarchy();
-    if (showInspector) DrawInspector();
     if (showAbout) DrawAbout();
 
-    // Draw Gizmo (debe ser lo último)
+    // Draw Gizmo (debe ser lo ï¿½ltimo)
     DrawGuizmo();
 
     return true;
@@ -168,11 +170,41 @@ void ModuleEditor::ClearLog()
     logs.clear();
 }
 
+void ModuleEditor::DrawSceneViewport()
+{
+    if (firstTimeSetup)
+    {
+        ImGui::SetNextWindowPos(ImVec2(170, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(810, 540), ImGuiCond_Always);
+    }
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+
+    // Get scale
+    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+    ImVec2 viewportPos = ImGui::GetCursorScreenPos();
+
+    sceneViewportPos = viewportPos;
+    sceneViewportSize = viewportSize;
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
 void ModuleEditor::DrawMenuBar()
 {
+
+    if (firstTimeSetup)
+    {
+        ImGui::SetNextWindowPos(ImVec2(10, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(150, 320), ImGuiCond_Always);
+        firstTimeSetup = false;
+    }
+
     ImGui::Begin("Main Menu");
 
-    if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen ))
     {
         if (ImGui::Button("Exit"))
         {
@@ -201,7 +233,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* cube = new GameObject();
-            cube->name = "Cube_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Cube_");
+            cube->name = "Cube_" + std::to_string(index);
 
             // Set transform
             cube->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -230,7 +264,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* sphere = new GameObject();
-            sphere->name = "Sphere_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Sphere_");
+            sphere->name = "Sphere_" + std::to_string(index);
 
             // Set transform
             sphere->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -259,7 +295,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* cylinder = new GameObject();
-            cylinder->name = "Cylinder_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Cylinder_");
+            cylinder->name = "Cylinder_" + std::to_string(index);
 
             // Set transform
             cylinder->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -288,7 +326,9 @@ void ModuleEditor::DrawMenuBar()
 
             // Create GameObject
             GameObject* plane = new GameObject();
-            plane->name = "Plane_" + std::to_string(Application::GetInstance().opengl->gameObjects.size());
+
+            int index = CountNames("Plane_");
+            plane->name = "Plane_" + std::to_string(index);
 
             // Set transform
             plane->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
@@ -341,6 +381,14 @@ void ModuleEditor::DrawMenuBar()
 
 void ModuleEditor::DrawConsole()
 {
+
+    if (firstTimeSetup)
+    {
+        // Posicionar en la parte inferior, ocupando todo el ancho
+        ImGui::SetNextWindowPos(ImVec2(170, 570), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(810, 140), ImGuiCond_Always);
+    }
+
     ImGui::Begin("Console", &showConsole);
 
     if (ImGui::Button("Clear"))
@@ -379,7 +427,28 @@ void ModuleEditor::DrawConsole()
 
 void ModuleEditor::DrawConfiguration()
 {
+    if (firstTimeSetup)
+    {
+        // Posicionar en la parte superior derecha
+        ImGui::SetNextWindowPos(ImVec2(400, 150), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 450), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Configuration", &showConfiguration);
+    if (ImGui::CollapsingHeader("Editor Layout", ImGuiTreeNodeFlags_DefaultOpen ))
+    {
+        ImGui::TextWrapped("Reset all ImGui windows to their default positions and sizes.");
+        ImGui::Spacing();
+
+        if (ImGui::Button("Default Editor", ImVec2(-1, 0)))
+        {
+            firstTimeSetup = true;
+            LOG("Resetting editor layout to default positions");
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+    }
 
     if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -456,7 +525,15 @@ void ModuleEditor::DrawConfiguration()
 
 void ModuleEditor::DrawHierarchy()
 {
-    ImGui::Begin("Hierarchy", &showHierarchy);
+
+    if (firstTimeSetup)
+    {
+        // Posicionar en la parte derecha, arriba
+        ImGui::SetNextWindowPos(ImVec2(10, 350), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(150, 360), ImGuiCond_Always);
+    }
+
+    ImGui::Begin("Hierarchy", &showHierarchy, ImGuiWindowFlags_HorizontalScrollbar );
 
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (opengl)
@@ -482,6 +559,14 @@ void ModuleEditor::DrawHierarchy()
 
 void ModuleEditor::DrawInspector()
 {
+
+    if (firstTimeSetup)
+    {
+        // Posicionar debajo de Hierarchy
+        ImGui::SetNextWindowPos(ImVec2(990, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(280, 690), ImGuiCond_Always);
+    }
+
     ImGui::Begin("Inspector", &showInspector);
 
     if (selectedGameObject == nullptr)
@@ -658,6 +743,13 @@ void ModuleEditor::DrawAbout()
 {
     if (!showAbout) return;
 
+    if (firstTimeSetup)
+    {
+        // Centrar la ventana About
+        ImGui::SetNextWindowPos(ImVec2(400, 200), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_Always);
+    }
+
     ImGui::Begin("About", &showAbout);
 
     ImGui::Text("%s", motorName);
@@ -787,7 +879,7 @@ void ModuleEditor::DrawGuizmo()
         glm::value_ptr(model),
         glm::value_ptr(deltaMatrix)))
     {
-        // Si el usuario está manipulando el Guizmo
+        // Si el usuario estï¿½ manipulando el Guizmo
         editing = true;
 
         // Decompose the model matrix back to transform components
@@ -815,14 +907,14 @@ void ModuleEditor::DrawGuizmo()
     }
     else
     {
-        // No se está manipulando
+        // No se estï¿½ manipulando
         if (editing)
         {
             editing = false;
         }
     }
 
-    // Opcional: Mostrar información del modo actual
+    // Opcional: Mostrar informaciï¿½n del modo actual
     ImGui::SetNextWindowPos(ImVec2(10, 10));
     ImGui::SetNextWindowBgAlpha(0.3f);
     ImGui::Begin("Guizmo Info", nullptr,
@@ -841,4 +933,41 @@ void ModuleEditor::DrawGuizmo()
 
     ImGui::Text("Guizmo Mode: %s", operationName);
     ImGui::End();
+}
+
+int ModuleEditor::CountNames(std::string prefix)
+{
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    int maxIndex = -1;
+
+    for (size_t i = 0; i < opengl->gameObjects.size(); i++)
+    {
+        GameObject* obj = opengl->gameObjects[i];
+
+        //check matches
+        bool matches = true;
+        if (obj->name.size() <= prefix.size()) matches = false;
+        else
+        {
+            for (size_t j = 0; j < prefix.size(); j++)
+            {
+                if (obj->name[j] != prefix[j])
+                {
+                    matches = false;
+                    break;
+                }
+            }
+        }
+
+        if (matches)
+        {
+            //get the numeric part
+            std::string numberPart = obj->name.substr(prefix.size());
+            int value = std::atoi(numberPart.c_str()); //from string to int
+
+            if (value > maxIndex) maxIndex = value; //get the highest num
+        }
+    }
+
+    return maxIndex + 1; //return the next num
 }

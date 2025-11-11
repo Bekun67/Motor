@@ -18,6 +18,8 @@ public:
     glm::vec3 GetPosition() const { return position; }
     glm::vec3 GetFocusPoint() const { return focusPoint; }
 
+    float aspect = 16.0f / 9.0f;
+
 private:
     glm::vec3 position;
     glm::vec3 focusPoint;
@@ -28,7 +30,6 @@ private:
     float mouseSensitivity;
 
     float fov;
-    float aspect;
     float nearClip;
     float farClip;
 
