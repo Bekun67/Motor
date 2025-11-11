@@ -60,6 +60,7 @@ private:
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
     void DrawSceneViewport();
+    
 
     // Console
     std::deque<LogEntry> logs;
@@ -81,6 +82,8 @@ private:
     const char* repoURL = "https://github.com/Bekun67/Motor";
 
     bool firstTimeSetup = true;
+
+    bool forceResetLayout = false;
 };
 
 // Global logging functions

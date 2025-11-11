@@ -154,7 +154,7 @@ void ModuleEditor::ClearLog()
 
 void ModuleEditor::DrawSceneViewport()
 {
-    if (firstTimeSetup)
+    if (firstTimeSetup || forceResetLayout)
     {
         ImGui::SetNextWindowPos(ImVec2(170, 20), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(810, 540), ImGuiCond_FirstUseEver);
@@ -177,7 +177,7 @@ void ModuleEditor::DrawSceneViewport()
 void ModuleEditor::DrawMenuBar()
 {
 
-    if (firstTimeSetup)
+    if (firstTimeSetup || forceResetLayout)
     {
         ImGui::SetNextWindowPos(ImVec2(10, 20), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(150, 320), ImGuiCond_FirstUseEver);
@@ -355,7 +355,7 @@ void ModuleEditor::DrawMenuBar()
 void ModuleEditor::DrawConsole()
 {
 
-    if (firstTimeSetup)
+    if (firstTimeSetup || forceResetLayout)
     {
         // Posicionar en la parte inferior, ocupando todo el ancho
         ImGui::SetNextWindowPos(ImVec2(170, 570), ImGuiCond_FirstUseEver);
@@ -400,7 +400,7 @@ void ModuleEditor::DrawConsole()
 
 void ModuleEditor::DrawConfiguration()
 {
-    if (firstTimeSetup)
+    if (firstTimeSetup || forceResetLayout)
     {
         // Posicionar en la parte superior derecha
         ImGui::SetNextWindowPos(ImVec2(400, 150), ImGuiCond_FirstUseEver);
@@ -408,6 +408,20 @@ void ModuleEditor::DrawConfiguration()
     }
 
     ImGui::Begin("Configuration", &showConfiguration);
+    if (ImGui::CollapsingHeader("Editor Layout", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::TextWrapped("Reset all ImGui windows to their default positions and sizes.");
+        ImGui::Spacing();
+
+        if (ImGui::Button("Default Editor", ImVec2(-1, 0)))
+        {
+            forceResetLayout = true;
+            LOG("Resetting editor layout to default positions");
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+    }
 
     if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -485,7 +499,7 @@ void ModuleEditor::DrawConfiguration()
 void ModuleEditor::DrawHierarchy()
 {
 
-    if (firstTimeSetup)
+    if (firstTimeSetup || forceResetLayout)
     {
         // Posicionar en la parte derecha, arriba
         ImGui::SetNextWindowPos(ImVec2(10, 350), ImGuiCond_FirstUseEver);
@@ -519,7 +533,7 @@ void ModuleEditor::DrawHierarchy()
 void ModuleEditor::DrawInspector()
 {
 
-    if (firstTimeSetup)
+    if (firstTimeSetup || forceResetLayout)
     {
         // Posicionar debajo de Hierarchy
         ImGui::SetNextWindowPos(ImVec2(990, 20), ImGuiCond_FirstUseEver);
@@ -702,7 +716,7 @@ void ModuleEditor::DrawAbout()
 {
     if (!showAbout) return;
 
-    if (firstTimeSetup)
+    if (firstTimeSetup || forceResetLayout)
     {
         // Centrar la ventana About
         ImGui::SetNextWindowPos(ImVec2(400, 200), ImGuiCond_FirstUseEver);
