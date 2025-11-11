@@ -1,7 +1,7 @@
-# ILLIUM ENGINE
+# ILIUM ENGINE
 https://github.com/bekun67/motor
 
-Illium Engine és un motor de videojocs creat per a l'assignatura de Motors.
+Ilium Engine és un motor de videojocs creat per a l'assignatura de Motors.
 De moment es poden dur a terme les funcions bàsiques d'una engine, com carregar models i textures i editar-los en un espai.  
 
 Al iniciar l'engine es carreguen automàticament 3 models: una casa, un canó sense textura (checkerboard) i un canó amb textura (lenna)  
