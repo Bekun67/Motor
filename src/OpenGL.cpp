@@ -245,32 +245,34 @@ bool OpenGL::Start()
     const char* fbxPath = "Assets/Models/BakerHouse.fbx";
     if (!LoadFile(fbxPath)) {
         std::cerr << "Failed to load model: " << fbxPath << std::endl;
-        return false;
     }
-    else std::cout << "FBX loaded" << std::endl;
+    else
+    {
+        std::cout << "FBX loaded" << std::endl;
+        //create gameobject for the house
+        GameObject* house = new GameObject();
+        house->name = "BakerHouse";
+        std::cout << "Created GameObject " << house->name << std::endl;
 
-    //create gameobject for the house
-    GameObject* house = new GameObject();
-    house->name = "BakerHouse";
-    std::cout << "Created GameObject " << house->name << std::endl;
+        //place it in the middle and rotate it (it was facing sideways)
+        house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+        aiQuaternion rotX(aiVector3D(1.0f, 0.0f, 0.0f), glm::radians(90.0f));
+        house->transform->rotation = rotX;
+        house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
 
-    //place it in the middle and rotate it (it was facing sideways)
-    house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
-    aiQuaternion rotX(aiVector3D(1.0f, 0.0f, 0.0f), glm::radians(90.0f));
-    house->transform->rotation = rotX;
-    house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+        //assigned the very first index in our loaded meshes
+        if (!g_Meshes.empty()) {
+            house->mesh->meshIndex = 0;
+        }
 
-    //assigned the very first index in our loaded meshes
-    if (!g_Meshes.empty()) {
-        house->mesh->meshIndex = 0;
+        //assign texture
+        if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
+        }
+
+        //add it to the gameobjects list
+        gameObjects.push_back(house);
+
     }
-
-    //assign texture
-    if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
-    }
-
-    //add it to the gameobjects list
-    gameObjects.push_back(house);
 
     //load cannon FBX
     const char* cannonPath = "Assets/Models/Cannon.fbx";
