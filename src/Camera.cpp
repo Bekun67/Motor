@@ -1,6 +1,8 @@
 #include "Camera.h"
 #include "Application.h"
 #include <iostream>
+#include <imgui.h>     
+#include <ImGuizmo.h>  
 
 Camera::Camera(float fov, float aspect, float nearClip, float farClip)
     : position(0.0f, 1.0f, 3.0f),

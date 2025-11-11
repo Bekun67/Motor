@@ -5,6 +5,8 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "imgui_impl_sdl3.h"
+#include <imgui.h>     
+#include <ImGuizmo.h>  
 
 #define MAX_KEYS 300
 

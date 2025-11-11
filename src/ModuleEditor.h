@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <deque>
+#include <imgui.h>
 #include <ImGuizmo.h>
 
 class GameObject;

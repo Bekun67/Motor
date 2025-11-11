@@ -23,6 +23,8 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <imgui.h>           
+#include <ImGuizmo.h>        
 
 
 ModuleEditor* g_Editor = nullptr;
@@ -104,41 +106,20 @@ bool ModuleEditor::Update()
             fpsHistory.erase(fpsHistory.begin());
     }
 
-    // Draw all editor windows
-    DrawMenuBar();
+    // IMPORTANTE: BeginFrame debe llamarse DESPUÉS de ImGui::NewFrame()
+    ImGuizmo::BeginFrame();
 
-    if (showConsole) DrawConsole();
-    if (showConfiguration) DrawConfiguration();
-    if (showHierarchy) DrawHierarchy();
-    if (showInspector) DrawInspector();
-    if (showAbout) DrawAbout();
-
-    return true;
-
-    // Calculate FPS
-    static Uint64 lastTime = SDL_GetTicks();
-    Uint64 currentTime = SDL_GetTicks();
-    float deltaTime = (currentTime - lastTime) / 1000.0f;
-    lastTime = currentTime;
-
-    if (deltaTime > 0.0f)
+    // Handle Gizmo operation changes with W, E, R keys
+    if (!editing) // Solo cambiar modo si no estamos editando texto
     {
-        float fps = 1.0f / deltaTime;
-        fpsHistory.push_back(fps);
-        if (fpsHistory.size() > maxFPSHistory)
-            fpsHistory.erase(fpsHistory.begin());
+        if (ImGui::IsKeyPressed(ImGuiKey_W))
+            currentGizmoOperation = ImGuizmo::TRANSLATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_E))
+            currentGizmoOperation = ImGuizmo::ROTATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_R))
+            currentGizmoOperation = ImGuizmo::SCALE;
     }
 
-    // Handle Guizmo operation changes with W, E, R keys
-    const bool* keys = SDL_GetKeyboardState(NULL);
-
-    if (keys[SDL_SCANCODE_W] && !editing)
-        currentGizmoOperation = ImGuizmo::TRANSLATE;
-    if (keys[SDL_SCANCODE_E] && !editing)
-        currentGizmoOperation = ImGuizmo::ROTATE;
-    if (keys[SDL_SCANCODE_R] && !editing)
-        currentGizmoOperation = ImGuizmo::SCALE;
-
     // Draw all editor windows
     DrawMenuBar();
 
@@ -148,7 +129,7 @@ bool ModuleEditor::Update()
     if (showInspector) DrawInspector();
     if (showAbout) DrawAbout();
 
-    // Draw Guizmo (debe ser lo último)
+    // Draw Gizmo (debe ser lo último)
     DrawGuizmo();
 
     return true;
@@ -758,8 +739,8 @@ void ModuleEditor::DrawGuizmo()
     Application::GetInstance().window->GetWindowSize(windowWidth, windowHeight);
 
     // Setup ImGuizmo
-    ImGuizmo::SetOrthographic(false);
-    ImGuizmo::BeginFrame();
+   /* ImGuizmo::SetOrthographic(false);
+    ImGuizmo::BeginFrame();*/
 
     // Get camera matrices
     Camera* camera = &opengl->camera;
