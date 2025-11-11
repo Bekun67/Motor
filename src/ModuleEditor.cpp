@@ -21,6 +21,8 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 
 ModuleEditor* g_Editor = nullptr;
@@ -110,6 +112,44 @@ bool ModuleEditor::Update()
     if (showHierarchy) DrawHierarchy();
     if (showInspector) DrawInspector();
     if (showAbout) DrawAbout();
+
+    return true;
+
+    // Calculate FPS
+    static Uint64 lastTime = SDL_GetTicks();
+    Uint64 currentTime = SDL_GetTicks();
+    float deltaTime = (currentTime - lastTime) / 1000.0f;
+    lastTime = currentTime;
+
+    if (deltaTime > 0.0f)
+    {
+        float fps = 1.0f / deltaTime;
+        fpsHistory.push_back(fps);
+        if (fpsHistory.size() > maxFPSHistory)
+            fpsHistory.erase(fpsHistory.begin());
+    }
+
+    // Handle Guizmo operation changes with W, E, R keys
+    const bool* keys = SDL_GetKeyboardState(NULL);
+
+    if (keys[SDL_SCANCODE_W] && !editing)
+        currentGizmoOperation = ImGuizmo::TRANSLATE;
+    if (keys[SDL_SCANCODE_E] && !editing)
+        currentGizmoOperation = ImGuizmo::ROTATE;
+    if (keys[SDL_SCANCODE_R] && !editing)
+        currentGizmoOperation = ImGuizmo::SCALE;
+
+    // Draw all editor windows
+    DrawMenuBar();
+
+    if (showConsole) DrawConsole();
+    if (showConfiguration) DrawConfiguration();
+    if (showHierarchy) DrawHierarchy();
+    if (showInspector) DrawInspector();
+    if (showAbout) DrawAbout();
+
+    // Draw Guizmo (debe ser lo último)
+    DrawGuizmo();
 
     return true;
 }
@@ -700,4 +740,124 @@ void ModuleEditor::AssignCheckerboardTexture(GameObject* go)
     go->texture->texturedata->id = checkID;
     go->texture->texturedata->type = "checkerboard";
     go->texture->texturedata->path = "checkerboard";
+
+}
+
+void ModuleEditor::DrawGuizmo()
+{
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl || !opengl->selectedGameObject)
+        return;
+
+    GameObject* selected = opengl->selectedGameObject;
+    if (!selected->transform)
+        return;
+
+    // Get window size
+    int windowWidth, windowHeight;
+    Application::GetInstance().window->GetWindowSize(windowWidth, windowHeight);
+
+    // Setup ImGuizmo
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::BeginFrame();
+
+    // Get camera matrices
+    Camera* camera = &opengl->camera;
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+
+    // Create model matrix from transform
+    glm::mat4 model = glm::mat4(1.0f);
+
+    // Apply translation
+    model = glm::translate(model, glm::vec3(
+        selected->transform->translation.x,
+        selected->transform->translation.y,
+        selected->transform->translation.z
+    ));
+
+    // Apply rotation
+    glm::quat quat(
+        selected->transform->rotation.w,
+        selected->transform->rotation.x,
+        selected->transform->rotation.y,
+        selected->transform->rotation.z
+    );
+    model *= glm::mat4_cast(quat);
+
+    // Apply scale
+    model = glm::scale(model, glm::vec3(
+        selected->transform->scaling.x,
+        selected->transform->scaling.y,
+        selected->transform->scaling.z
+    ));
+
+    // Set ImGuizmo rect to full window
+    ImGuizmo::SetRect(0.0f, 0.0f, (float)windowWidth, (float)windowHeight);
+
+    // Draw and manipulate
+    glm::mat4 deltaMatrix = glm::mat4(1.0f);
+
+    if (ImGuizmo::Manipulate(
+        glm::value_ptr(view),
+        glm::value_ptr(projection),
+        currentGizmoOperation,
+        currentGizmoMode,
+        glm::value_ptr(model),
+        glm::value_ptr(deltaMatrix)))
+    {
+        // Si el usuario está manipulando el Guizmo
+        editing = true;
+
+        // Decompose the model matrix back to transform components
+        glm::vec3 newTranslation, newScale;
+        glm::quat newRotation;
+
+        // Decompose matrix
+        selected->transform->Decompose(model, newTranslation, newRotation, newScale);
+
+        // Update transform
+        selected->transform->translation.x = newTranslation.x;
+        selected->transform->translation.y = newTranslation.y;
+        selected->transform->translation.z = newTranslation.z;
+
+        selected->transform->rotation.w = newRotation.w;
+        selected->transform->rotation.x = newRotation.x;
+        selected->transform->rotation.y = newRotation.y;
+        selected->transform->rotation.z = newRotation.z;
+
+        selected->transform->scaling.x = newScale.x;
+        selected->transform->scaling.y = newScale.y;
+        selected->transform->scaling.z = newScale.z;
+
+        updatedAngles = true;
+    }
+    else
+    {
+        // No se está manipulando
+        if (editing)
+        {
+            editing = false;
+        }
+    }
+
+    // Opcional: Mostrar información del modo actual
+    ImGui::SetNextWindowPos(ImVec2(10, 10));
+    ImGui::SetNextWindowBgAlpha(0.3f);
+    ImGui::Begin("Guizmo Info", nullptr,
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav);
+
+    const char* operationName = "Unknown";
+    if (currentGizmoOperation == ImGuizmo::TRANSLATE)
+        operationName = "Translate (W)";
+    else if (currentGizmoOperation == ImGuizmo::ROTATE)
+        operationName = "Rotate (E)";
+    else if (currentGizmoOperation == ImGuizmo::SCALE)
+        operationName = "Scale (R)";
+
+    ImGui::Text("Guizmo Mode: %s", operationName);
+    ImGui::End();
 }

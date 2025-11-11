@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <deque>
+#include <ImGuizmo.h>
 
 class GameObject;
 
@@ -36,6 +37,11 @@ public:
     // Log system
     void AddLog(const std::string& message, LogType type = LogType::INFO);
     void ClearLog();
+
+    // ImGuizmo
+    void DrawGuizmo();
+    ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE currentGizmoMode = ImGuizmo::WORLD;
 
     // Window visibility toggles
     bool showConsole = true;
