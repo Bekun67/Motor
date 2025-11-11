@@ -105,15 +105,14 @@ bool ModuleEditor::Update()
     }
 
     // Draw all editor windows
-    DrawSceneViewport();  // Primero la escena
-    DrawHierarchy();      // Izquierda
-    DrawInspector();      // Derecha
-    DrawConsole();        // Abajo
-    DrawMenuBar();        // Menu flotante pequeño
+    DrawSceneViewport();  
+    DrawHierarchy();      
+    DrawInspector();      
+    DrawConsole();        
+    DrawMenuBar();        
     if (showConfiguration) DrawConfiguration();
     if (showAbout) DrawAbout();
 
-    // Desactivar el setup inicial después del primer frame
     if (firstTimeSetup)
         firstTimeSetup = false;
 
@@ -157,27 +156,19 @@ void ModuleEditor::DrawSceneViewport()
 {
     if (firstTimeSetup)
     {
-        // Centrado en la parte superior
-        ImGui::SetNextWindowPos(ImVec2(300, 20), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(680, 440), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(170, 20), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(810, 540), ImGuiCond_FirstUseEver);
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
 
-    // Obtener el tamaño disponible para el contenido
+    // Get scale
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     ImVec2 viewportPos = ImGui::GetCursorScreenPos();
 
-    // Actualizar las variables públicas para que OpenGL sepa dónde renderizar
     sceneViewportPos = viewportPos;
     sceneViewportSize = viewportSize;
-
-    // Mostrar información del viewport
-    ImGui::SetCursorPos(ImVec2(10, 10));
-    ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Scene View");
-    ImGui::SetCursorPos(ImVec2(10, 30));
-    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%.0fx%.0f", viewportSize.x, viewportSize.y);
 
     ImGui::End();
     ImGui::PopStyleVar();
@@ -189,7 +180,7 @@ void ModuleEditor::DrawMenuBar()
     if (firstTimeSetup)
     {
         ImGui::SetNextWindowPos(ImVec2(10, 20), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(280, 320), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(150, 320), ImGuiCond_FirstUseEver);
     }
 
     ImGui::Begin("Main Menu");
@@ -367,8 +358,8 @@ void ModuleEditor::DrawConsole()
     if (firstTimeSetup)
     {
         // Posicionar en la parte inferior, ocupando todo el ancho
-        ImGui::SetNextWindowPos(ImVec2(300, 470), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(680, 240), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(170, 570), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(810, 140), ImGuiCond_FirstUseEver);
     }
 
     ImGui::Begin("Console", &showConsole);
@@ -498,10 +489,10 @@ void ModuleEditor::DrawHierarchy()
     {
         // Posicionar en la parte derecha, arriba
         ImGui::SetNextWindowPos(ImVec2(10, 350), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(280, 360), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(150, 360), ImGuiCond_FirstUseEver);
     }
 
-    ImGui::Begin("Hierarchy", &showHierarchy);
+    ImGui::Begin("Hierarchy", &showHierarchy, ImGuiWindowFlags_HorizontalScrollbar);
 
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (opengl)
@@ -532,7 +523,7 @@ void ModuleEditor::DrawInspector()
     {
         // Posicionar debajo de Hierarchy
         ImGui::SetNextWindowPos(ImVec2(990, 20), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(280, 440), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(280, 690), ImGuiCond_FirstUseEver);
     }
 
     ImGui::Begin("Inspector", &showInspector);

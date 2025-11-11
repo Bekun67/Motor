@@ -40,7 +40,7 @@ public:
 
     // Window visibility toggles
     bool showConsole = true;
-    bool showConfiguration = true;
+    bool showConfiguration = false;
     bool showHierarchy = true;
     bool showInspector = true;
     bool showAbout = false;
