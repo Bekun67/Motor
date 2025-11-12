@@ -49,6 +49,9 @@ bool Application::Start()
         }
     }
 
+    // Initialize file system directories
+    FileSystemManager::InitializeDirectories();
+
     return true;
 }
 

@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 project(Motor)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(SDL3 CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
@@ -25,11 +28,17 @@ file(GLOB MODULE_FILES
 file(GLOB GRAPHICS_FILES 
     "src/OpenGL.*"
     "src/PrimitiveGenerator.*"
-    "src/Texture.*")
+    "src/Texture.*"
+    "src/Camera.*")
 
 file(GLOB IO_FILES 
     "src/Input.*"
     "src/LoadFBX.*")
+
+file (GLOB IMPORTER_FILES
+    "src/MeshImporter.*"
+    "src/TextureImporter.*"
+    "src/FileSystemManager.*")
 
 add_executable(Motor
     ${CORE_FILES}
@@ -37,6 +46,7 @@ add_executable(Motor
     ${MODULE_FILES}
     ${GRAPHICS_FILES}
     ${IO_FILES}
+    ${IMPORTER_FILES}
 )
 
 source_group("Core" FILES ${CORE_FILES})
@@ -44,6 +54,7 @@ source_group("Components" FILES ${COMPONENT_FILES})
 source_group("Modules" FILES ${MODULE_FILES})
 source_group("Graphics" FILES ${GRAPHICS_FILES})
 source_group("IO" FILES ${IO_FILES})
+source_group("Importers" FILES ${IMPORTER_FILES})
 
 
 target_link_libraries(Motor PRIVATE SDL3::SDL3)

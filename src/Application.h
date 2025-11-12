@@ -9,6 +9,7 @@
 #include "Camera.h"
 #include "Texture.h"
 #include "ModuleEditor.h"
+#include "FileSystemManager.h"
 
 
 class Module;

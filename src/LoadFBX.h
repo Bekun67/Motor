@@ -29,3 +29,9 @@ bool LoadFile(const char* file_path);
 extern glm::vec3 g_ModelCenter;
 extern float g_ModelRadius;
 extern std::vector<MeshData> g_Meshes;
+
+// Load using custom file format (fast)
+bool LoadFileCustomFormat(const char* file_path);
+
+// Import, Save and Load workflow
+bool ImportSaveLoad(const char* file_path);

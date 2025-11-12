@@ -3,6 +3,7 @@
 #include "OpenGL.h"
 #include "Window.h"
 #include "Input.h"
+#include "Camera.h"
 #include "Texture.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
