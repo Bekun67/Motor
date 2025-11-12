@@ -10,11 +10,41 @@ find_package(imguizmo CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(DevIL REQUIRED)
 
+file(GLOB CORE_FILES 
+    "src/Application.*" 
+    "src/Main.*"
+    "src/Window.*")
 
+file(GLOB COMPONENT_FILES 
+    "src/Component*.*")
 
-file(GLOB SOURCES "src/*.cpp" "src/*.h")
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "Source" FILES ${SOURCES})
-add_executable(Motor ${SOURCES})
+file(GLOB MODULE_FILES 
+    "src/Module*.*"
+    "src/GameObject.*")
+
+file(GLOB GRAPHICS_FILES 
+    "src/OpenGL.*"
+    "src/PrimitiveGenerator.*"
+    "src/Texture.*")
+
+file(GLOB IO_FILES 
+    "src/Input.*"
+    "src/LoadFBX.*")
+
+add_executable(Motor
+    ${CORE_FILES}
+    ${COMPONENT_FILES}
+    ${MODULE_FILES}
+    ${GRAPHICS_FILES}
+    ${IO_FILES}
+)
+
+source_group("Core" FILES ${CORE_FILES})
+source_group("Components" FILES ${COMPONENT_FILES})
+source_group("Modules" FILES ${MODULE_FILES})
+source_group("Graphics" FILES ${GRAPHICS_FILES})
+source_group("IO" FILES ${IO_FILES})
+
 
 target_link_libraries(Motor PRIVATE SDL3::SDL3)
 target_link_libraries(Motor PRIVATE glad::glad)
