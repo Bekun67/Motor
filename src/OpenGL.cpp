@@ -56,10 +56,18 @@ static GLuint CreateNormalShader() {
         "}\n";
 
     const char* fragmentShaderSource = "#version 330 core\n"
+        "in vec3 fragNormal;\n"
+        "in vec2 fragUV;\n"
         "out vec4 FragColor;\n"
-        "uniform vec3 lineColor;\n"
+        "uniform sampler2D uTexture;\n"
         "void main() {\n"
-        "    FragColor = vec4(lineColor, 1.0);\n"
+        "    vec3 n = normalize(fragNormal);\n"
+        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "    vec4 texColor = texture(uTexture, fragUV);\n"
+        "    \n"
+        "    if (texColor.a < 0.1) discard;\n"
+        "    \n"
+        "    FragColor = vec4(texColor.rgb * lambert, texColor.a);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -429,14 +437,63 @@ bool OpenGL::Update()
     // Draw grid
     DrawGrid();
 
-    // Draw all GameObjects
+    // NUEVO: Separar objetos opacos y transparentes automáticamente
+    std::vector<GameObject*> opaqueObjects;
+    std::vector<GameObject*> transparentObjects;
+
+    glm::vec3 cameraPos = camera.GetPosition();
+
+    //we split game objects depending on their transaparency
     for (GameObject* go : gameObjects)
     {
-        if (go != nullptr && go->mesh != nullptr)
+        if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
         {
-            go->mesh->Draw(&camera);
+            //verifying its transparency
+            bool isTransparent = false;
+            if (go->texture != nullptr && go->texture->hasTexture)
+            {
+                isTransparent = go->texture->hasTransparency;
+            }
+
+            if (isTransparent)
+            {
+                //calculate distance
+                glm::vec3 objPos(
+                    go->transform->translation.x,
+                    go->transform->translation.y,
+                    go->transform->translation.z
+                );
+                float distance = glm::length(cameraPos - objPos);
+                transparentObjects.push_back(go);
+            }
+            else
+            {
+                opaqueObjects.push_back(go);
+            }
         }
     }
+
+    //first drawing opaque obj
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    for (GameObject* go : opaqueObjects)
+    {
+        go->mesh->Draw(&camera);
+    }
+
+    //then transparent obj
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+
+    for (GameObject* go : transparentObjects)
+    {
+        go->mesh->Draw(&camera);
+    }
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 
     return true;
 }

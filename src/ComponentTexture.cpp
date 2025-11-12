@@ -7,7 +7,8 @@
 ComponentTexture::ComponentTexture(GameObject* gameObject)
     : Component(gameObject, ComponentType::TEXTURE),
     texturedata(nullptr),
-    hasTexture(false)
+    hasTexture(false),
+    hasTransparency(false)
 {
 }
 
@@ -67,6 +68,17 @@ bool ComponentTexture::LoadTexture(const std::string& path)
     int height = ilGetInteger(IL_IMAGE_HEIGHT);
     unsigned char* data = ilGetData();
 
+    //check for transparency
+    hasTransparency = false;
+    int totalPixels = width * height;
+    for (int i = 0; i < totalPixels; i++) {
+        unsigned char alpha = data[i * 4 + 3];
+        if (alpha < 255) {
+            hasTransparency = true;
+            break;
+        }
+    }
+
     //load texture
     GLuint newTextureID;
     glGenTextures(1, &newTextureID);
@@ -93,8 +105,12 @@ bool ComponentTexture::LoadTexture(const std::string& path)
     texturePath = path;
     hasTexture = true;
 
-    std::cout << "Texture loaded for GameObject: " << path << " (ID: " << newTextureID << ")" << std::endl;
-    return true;
+    if (hasTransparency) {
+        std::cout << "Texture loaded with transparency: " << path << " (ID: " << newTextureID << ")" << std::endl;
+    }
+    else {
+        std::cout << "Texture loaded: " << path << " (ID: " << newTextureID << ")" << std::endl;
+    }    return true;
 }
 
 unsigned int ComponentTexture::GetTextureID() const
