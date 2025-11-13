@@ -37,4 +37,6 @@ public:
 
 	std::vector<Component*> components;
 	std::vector<GameObject*> children;
+
+	float distanceToCamera = 0.0f;
 };

@@ -8,6 +8,8 @@
 #include <vector>
 #include "LoadFBX.h" 
 #include <glm/glm.hpp>
+#include <cmath>
+#include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Texture.h"
@@ -220,10 +222,10 @@ bool OpenGL::Start()
         "out vec4 FragColor;\n"
         "uniform sampler2D uTexture;\n"
         "void main() {\n"
-        "vec3 n = normalize(fragNormal);\n"
-        "float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
-        "vec3 texColor = texture(uTexture, fragUV).rgb;\n"
-        "FragColor = vec4(texColor * lambert, 1.0);\n"
+        "    vec3 n = normalize(fragNormal);\n"
+        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "    vec4 texColor = texture(uTexture, fragUV);\n"
+        "    FragColor = vec4(texColor.rgb * lambert, texColor.a);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -437,7 +439,6 @@ bool OpenGL::Update()
     // Draw grid
     DrawGrid();
 
-    // NUEVO: Separar objetos opacos y transparentes automáticamente
     std::vector<GameObject*> opaqueObjects;
     std::vector<GameObject*> transparentObjects;
 
@@ -448,7 +449,13 @@ bool OpenGL::Update()
     {
         if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
         {
-            //verifying its transparency
+            //calculate distance
+            float dx = cameraPos.x - go->transform->translation.x;
+            float dy = cameraPos.y - go->transform->translation.y;
+            float dz = cameraPos.z - go->transform->translation.z;
+            go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
+
+            //filter transparent and opaque
             bool isTransparent = false;
             if (go->texture != nullptr && go->texture->hasTexture)
             {
@@ -457,13 +464,6 @@ bool OpenGL::Update()
 
             if (isTransparent)
             {
-                //calculate distance
-                glm::vec3 objPos(
-                    go->transform->translation.x,
-                    go->transform->translation.y,
-                    go->transform->translation.z
-                );
-                float distance = glm::length(cameraPos - objPos);
                 transparentObjects.push_back(go);
             }
             else
@@ -472,6 +472,13 @@ bool OpenGL::Update()
             }
         }
     }
+
+    //order transparent obj based on distance (method given by #include <algorithm>)
+    std::sort(transparentObjects.begin(), transparentObjects.end(),
+        [](GameObject* a, GameObject* b) 
+        {
+            return a->distanceToCamera > b->distanceToCamera;
+        });
 
     //first drawing opaque obj
     glDepthMask(GL_TRUE);
