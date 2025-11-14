@@ -66,6 +66,8 @@ public:
     ImVec2 textureDropZoneMax;
 
     bool showAllAABBs = false;
+    bool showAllVertexNormals = false;
+    bool showAllFaceNormals = false;
 
 private:
     void DrawMenuBar();

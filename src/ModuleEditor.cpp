@@ -496,6 +496,38 @@ void ModuleEditor::DrawConfiguration()
         {
             ImGui::Checkbox("Show Grid", &opengl->showGrid);
 
+            //vertex normals
+            if (ImGui::Checkbox("Show All Vertex Normals", &showAllVertexNormals))
+            {
+                //apply to all GameObjects in scene
+                for (GameObject* go : opengl->gameObjects)
+                {
+                    if (go && go->mesh)
+                    {
+                        go->mesh->showVertexNormals = showAllVertexNormals;
+                    }
+                }
+
+                if (showAllAABBs) LOG("Enabled Vertex normals visualization for all GameObjects");
+                else LOG("Disabled Vertex normals visualization for all GameObjects");
+            }
+
+            //face normals
+            if (ImGui::Checkbox("Show All Face Normals", &showAllFaceNormals))
+            {
+                //apply to all GameObjects in scene
+                for (GameObject* go : opengl->gameObjects)
+                {
+                    if (go && go->mesh)
+                    {
+                        go->mesh->showFaceNormals = showAllFaceNormals;
+                    }
+                }
+
+                if (showAllAABBs) LOG("Enabled Face normals visualization for all GameObjects");
+                else LOG("Disabled Face normals visualization for all GameObjects");
+            }
+
             //aabb viewer
             if (ImGui::Checkbox("Show All AABBs", &showAllAABBs))
             {

@@ -60,18 +60,10 @@ static GLuint CreateNormalShader() {
         "}\n";
 
     const char* fragmentShaderSource = "#version 330 core\n"
-        "in vec3 fragNormal;\n"
-        "in vec2 fragUV;\n"
         "out vec4 FragColor;\n"
-        "uniform sampler2D uTexture;\n"
+        "uniform vec3 lineColor;\n"
         "void main() {\n"
-        "    vec3 n = normalize(fragNormal);\n"
-        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
-        "    vec4 texColor = texture(uTexture, fragUV);\n"
-        "    \n"
-        "    if (texColor.a < 0.1) discard;\n"
-        "    \n"
-        "    FragColor = vec4(texColor.rgb * lambert, texColor.a);\n"
+        "    FragColor = vec4(lineColor, 1.0);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
