@@ -19,6 +19,8 @@ public:
     // Get texture ID
     unsigned int GetTextureID() const;
 
+    bool LoadTextureFromCustomFormat(const std::string& path);
+
 public:
     TextureData* texturedata;
     std::string texturePath;

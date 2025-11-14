@@ -13,6 +13,8 @@
 #include "Texture.h"
 #include "GameObject.h"
 #include "MeshImporter.h"
+#include "TextureImporter.h"
+#include <chrono>
 
 
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
@@ -242,28 +244,77 @@ bool OpenGL::Start()
 
     lastTicks = SDL_GetTicks();
 
-    //load house fbx
     const char* fbxPath = "Assets/Models/BakerHouse.fbx";
+    const char* texturePath = "Assets/Textures/Baker_house.png";
 
-    // Check if we need to reimport
-    std::string customPath0 = MeshImporter::GetCustomMeshPath(fbxPath, 0);
-    if (FileSystemManager::NeedsReimport(fbxPath, customPath0)) {
-        std::cout << "First time loading or FBX modified, using Import->Save->Load workflow..." << std::endl;
-        if (!ImportSaveLoad(fbxPath)) {
-            std::cerr << "Failed to import model: " << fbxPath << std::endl;
+    // Check if we need to reimport MESH
+    std::string customMeshPath = MeshImporter::GetCustomMeshPath(fbxPath, 0);
+    bool needsMeshReimport = FileSystemManager::NeedsReimport(fbxPath, customMeshPath);
+
+    // Check if we need to reimport TEXTURE
+    std::string customTexturePath = TextureImporter::GetCustomTexturePath(texturePath);
+    bool needsTextureReimport = FileSystemManager::NeedsReimport(texturePath, customTexturePath);
+
+    // MESH IMPORT
+    if (needsMeshReimport) {
+        std::cout << "\n========================================" << std::endl;
+        std::cout << "BAKER HOUSE - First time or FBX modified" << std::endl;
+        std::cout << "========================================" << std::endl;
+
+        // Import from FBX
+        std::cout << "[BakerHouse] Importing from FBX..." << std::endl;
+        auto importStart = std::chrono::high_resolution_clock::now();
+        std::vector<CustomMesh> meshes = MeshImporter::ImportFBX(fbxPath);
+        auto importEnd = std::chrono::high_resolution_clock::now();
+        auto importDuration = std::chrono::duration_cast<std::chrono::milliseconds>(importEnd - importStart);
+
+        if (meshes.empty()) {
+            std::cerr << "[BakerHouse] Failed to import FBX" << std::endl;
         }
-    }
-    else {
-        std::cout << "Loading from custom format (fast path)..." << std::endl;
-        if (!LoadFileCustomFormat(fbxPath)) {
-            std::cerr << "Failed to load custom format, trying import..." << std::endl;
-            if (!ImportSaveLoad(fbxPath)) {
-                std::cerr << "Failed to import model: " << fbxPath << std::endl;
+        else {
+            std::cout << "[BakerHouse] Import completed in " << importDuration.count() << " ms" << std::endl;
+
+            // Save to custom format
+            std::cout << "[BakerHouse] Saving to custom format..." << std::endl;
+            for (size_t i = 0; i < meshes.size(); ++i) {
+                std::string savePath = MeshImporter::GetCustomMeshPath(fbxPath, i);
+                if (!MeshImporter::SaveMesh(meshes[i], savePath)) {
+                    std::cerr << "[BakerHouse] Failed to save mesh " << i << std::endl;
+                }
             }
         }
     }
 
-    // Rest of the BakerHouse GameObject creation code stays the same
+    // TEXTURE IMPORT
+    if (needsTextureReimport) {
+        std::cout << "\n[BakerHouse] Texture needs reimport" << std::endl;
+
+        // Import texture
+        auto texImportStart = std::chrono::high_resolution_clock::now();
+        CustomTexture customTex = TextureImporter::ImportTexture(texturePath);
+        auto texImportEnd = std::chrono::high_resolution_clock::now();
+        auto texImportDuration = std::chrono::duration_cast<std::chrono::milliseconds>(texImportEnd - texImportStart);
+
+        if (customTex.width > 0 && customTex.height > 0) {
+            std::cout << "[BakerHouse] Texture imported in " << texImportDuration.count() << " ms" << std::endl;
+
+            // Save to custom format
+            if (TextureImporter::SaveTexture(customTex, customTexturePath)) {
+                std::cout << "[BakerHouse] Texture saved to custom format" << std::endl;
+            }
+        }
+        else {
+            std::cerr << "[BakerHouse] Failed to import texture" << std::endl;
+        }
+    }
+
+    // NOW LOAD MESH FROM CUSTOM FORMAT
+    std::cout << "\n[BakerHouse] Loading mesh from custom format..." << std::endl;
+    if (!LoadFileCustomFormat(fbxPath)) {
+        std::cerr << "[BakerHouse] Failed to load mesh from custom format" << std::endl;
+    }
+
+    // CREATE GAME OBJECT
     if (!g_Meshes.empty()) {
         GameObject* house = new GameObject();
         house->name = "BakerHouse";
@@ -274,16 +325,59 @@ bool OpenGL::Start()
         house->transform->rotation = rotX;
         house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
 
-        if (!g_Meshes.empty()) {
-            house->mesh->meshIndex = 0;
-        }
+        house->mesh->meshIndex = 0;
 
-        if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
+        // LOAD TEXTURE FROM CUSTOM FORMAT
+        CustomTexture loadedTexture;
+        if (TextureImporter::LoadTexture(loadedTexture, customTexturePath)) {
+            std::cout << "[BakerHouse] Loading texture from custom format..." << std::endl;
+
+            // Create OpenGL texture from custom data
+            GLuint textureID;
+            glGenTextures(1, &textureID);
+            glBindTexture(GL_TEXTURE_2D, textureID);
+
+            // Upload texture data
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+                loadedTexture.width, loadedTexture.height, 0,
+                GL_RGBA, GL_UNSIGNED_BYTE, loadedTexture.data.data());
+
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            // Assign to GameObject
+            house->texture->hasTexture = true;
+            if (house->texture->texturedata == nullptr) {
+                house->texture->texturedata = new TextureData();
+            }
+            house->texture->texturedata->id = textureID;
+            house->texture->texturedata->type = "diffuse";
+            house->texture->texturedata->path = customTexturePath;
+            house->texture->texturePath = customTexturePath;
+
+            std::cout << "[BakerHouse] Texture loaded from custom format (ID: " << textureID << ")" << std::endl;
+        }
+        else {
+            std::cerr << "[BakerHouse] Failed to load texture from custom format, using fallback" << std::endl;
+            // Fallback to loading original texture
+            if (!house->texture->LoadTexture(texturePath)) {
+                std::cerr << "[BakerHouse] Failed to load original texture" << std::endl;
+            }
         }
 
         gameObjects.push_back(house);
+        std::cout << "[BakerHouse] Added to scene" << std::endl;
+    }
+    else {
+        std::cerr << "[BakerHouse] No meshes loaded!" << std::endl;
     }
 
+    std::cout << "\n========================================\n" << std::endl;
     //load cannon FBX
     const char* cannonPath = "Assets/Models/Cannon.fbx";
     size_t meshCountBefore = g_Meshes.size();

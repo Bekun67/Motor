@@ -78,6 +78,7 @@ namespace MeshImporter {
             aiProcess_GenSmoothNormals |
             aiProcess_JoinIdenticalVertices |
             aiProcess_FlipUVs |
+            aiProcess_GlobalScale |  
             aiProcess_PreTransformVertices);
 
         if (!scene || !scene->HasMeshes()) {

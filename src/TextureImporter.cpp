@@ -35,6 +35,8 @@ namespace TextureImporter {
             return texture;
         }
 
+        iluFlipImage();
+
         // Convert to RGBA
         ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
 
