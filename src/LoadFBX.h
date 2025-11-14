@@ -17,6 +17,10 @@ struct MeshData {
     GLsizei numIndices = 0;
     std::vector<TextureData> textures;
 
+    //aabb variables
+    glm::vec3 aabbMin = glm::vec3(0.0f);
+    glm::vec3 aabbMax = glm::vec3(0.0f);
+
     //variables to normalize scale
     glm::vec3 center = glm::vec3(0.0f);
     float radius = 1.0f;

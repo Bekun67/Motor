@@ -65,6 +65,8 @@ public:
     ImVec2 textureDropZoneMin;
     ImVec2 textureDropZoneMax;
 
+    bool showAllAABBs = false;
+
 private:
     void DrawMenuBar();
     void DrawConsole();

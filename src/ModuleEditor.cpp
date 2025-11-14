@@ -498,6 +498,22 @@ void ModuleEditor::DrawConfiguration()
         if (opengl)
         {
             ImGui::Checkbox("Show Grid", &opengl->showGrid);
+
+            //aabb viewer
+            if (ImGui::Checkbox("Show All AABBs", &showAllAABBs))
+            {
+                //apply to all GameObjects in scene
+                for (GameObject* go : opengl->gameObjects)
+                {
+                    if (go && go->mesh)
+                    {
+                        go->mesh->showAABB = showAllAABBs;
+                    }
+                }
+
+                if (showAllAABBs) LOG("Enabled AABB visualization for all GameObjects");
+                else LOG("Disabled AABB visualization for all GameObjects");
+            }
             ImGui::Text("GameObjects in scene: %zu", opengl->gameObjects.size());
         }
     }
@@ -715,6 +731,39 @@ void ModuleEditor::DrawInspector()
             else
             {
                 ImGui::Text("No mesh assigned");
+            }
+        }
+
+        //aabb component
+        if (ImGui::CollapsingHeader("Bounding box"))
+        {
+            ComponentMesh* mesh = selectedGameObject->mesh;
+            if (mesh && mesh->meshIndex >= 0 && mesh->meshIndex < (int)g_Meshes.size())
+            {
+                //showing data
+                MeshData& meshData = g_Meshes[mesh->meshIndex];
+                ImGui::Text("AABB (Local Space)");
+                ImGui::Text("Min: (%.2f, %.2f, %.2f)", meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z);
+                ImGui::Text("Max: (%.2f, %.2f, %.2f)", meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z);
+
+                glm::vec3 center = (meshData.aabbMin + meshData.aabbMax) * 0.5f;
+                glm::vec3 size = meshData.aabbMax - meshData.aabbMin;
+                ImGui::Text("Center: (%.2f, %.2f, %.2f)", center.x, center.y, center.z);
+                ImGui::Text("Size: (%.2f, %.2f, %.2f)", size.x, size.y, size.z);
+
+                ImGui::Separator();
+                ImGui::Text("Collision Visualization");
+
+                //trigger aabb visualization
+                if (ImGui::Checkbox("Show AABB", &mesh->showAABB))
+                {
+                    if (mesh->showAABB) LOG("Enabled AABB visualization for " + selectedGameObject->name);
+                    else LOG("Disabled AABB visualization for " + selectedGameObject->name);
+                }
+            }
+            else
+            {
+                ImGui::Text("No boundig box assigned");
             }
         }
 
