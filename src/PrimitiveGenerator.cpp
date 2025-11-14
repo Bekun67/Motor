@@ -10,6 +10,30 @@ int PrimitiveGenerator::CreateMeshData(const std::vector<float>& vertices, const
 {
     MeshData md;
 
+    glm::vec3 minBound(FLT_MAX);
+    glm::vec3 maxBound(-FLT_MAX);
+
+    for (size_t i = 0; i < vertices.size(); i += 8) {
+        glm::vec3 pos(vertices[i], vertices[i + 1], vertices[i + 2]);
+
+        minBound.x = std::min(minBound.x, pos.x);
+        minBound.y = std::min(minBound.y, pos.y);
+        minBound.z = std::min(minBound.z, pos.z);
+
+        maxBound.x = std::max(maxBound.x, pos.x);
+        maxBound.y = std::max(maxBound.y, pos.y);
+        maxBound.z = std::max(maxBound.z, pos.z);
+    }
+
+    md.aabbMin = minBound;
+    md.aabbMax = maxBound;
+
+    // Calculate center and radius for normalization
+    md.center = (minBound + maxBound) * 0.5f;
+    md.radius = glm::length(maxBound - md.center);
+    md.minBound = minBound;
+    md.maxBound = maxBound;
+
     // Create VAO and VBO
     glGenVertexArrays(1, &md.VAO);
     glBindVertexArray(md.VAO);

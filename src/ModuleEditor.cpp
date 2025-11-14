@@ -18,6 +18,7 @@
 #include <glad/glad.h>
 #include <IL/il.h>
 #include <iostream>
+#include <map>
 #include <string>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>
@@ -509,7 +510,7 @@ void ModuleEditor::DrawConfiguration()
                 }
 
                 if (showAllAABBs) LOG("Enabled Vertex normals visualization for all GameObjects");
-                else LOG("Disabled Vertex normals visualization for all GameObjects");
+                else LOG("Disabled Vertex Normals visualization for all GameObjects");
             }
 
             //face normals
@@ -525,7 +526,7 @@ void ModuleEditor::DrawConfiguration()
                 }
 
                 if (showAllAABBs) LOG("Enabled Face normals visualization for all GameObjects");
-                else LOG("Disabled Face normals visualization for all GameObjects");
+                else LOG("Disabled Face Normals visualization for all GameObjects");
             }
 
             //aabb viewer
@@ -681,46 +682,89 @@ void ModuleEditor::DrawInspector()
                     transform->scaling.z = scale[2];
                 }
 
-                //rotation
-                static glm::vec3 rotationEuler = glm::vec3(0.0f); 
-                static float lastAngles[3] = { 0.0f, 0.0f, 0.0f };
-                static bool firstFrame = true;
+                //method to normalize angles (361º -> 1º)
+                auto normalizeAngle = [](float angle) -> float 
+                    {
+                    angle = fmod(angle, 360.0f);
 
-                // first rotation
-                if (firstFrame)
-                {
+                    if (angle > 180.0f) 
+                    {
+                        angle -= 360.0f;
+                    }
+                    else if (angle < -180.0f) 
+                    {
+                        angle += 360.0f;
+                    }
+
+                    return angle;
+                    };
+
+                //rotation
+                static std::map<GameObject*, glm::vec3> rotationEulerMap;
+                static std::map<GameObject*, float[3]> lastAnglesMap;
+
+                //initialize euler angles
+                if (rotationEulerMap.find(selectedGameObject) == rotationEulerMap.end()) {
                     glm::quat q(transform->rotation.w, transform->rotation.x, transform->rotation.y, transform->rotation.z);
-                    rotationEuler = glm::degrees(glm::eulerAngles(q));
-                    lastAngles[0] = rotationEuler.x;
-                    lastAngles[1] = rotationEuler.y;
-                    lastAngles[2] = rotationEuler.z;
-                    firstFrame = false;
+                    glm::vec3 euler = glm::degrees(glm::eulerAngles(q));
+
+                    //normalized euler angles
+                    euler.x = normalizeAngle(euler.x);
+                    euler.y = normalizeAngle(euler.y);
+                    euler.z = normalizeAngle(euler.z);
+
+                    //apply
+                    rotationEulerMap[selectedGameObject] = euler;
+                    lastAnglesMap[selectedGameObject][0] = euler.x;
+                    lastAnglesMap[selectedGameObject][1] = euler.y;
+                    lastAnglesMap[selectedGameObject][2] = euler.z;
                 }
+
+                glm::vec3& rotationEuler = rotationEulerMap[selectedGameObject];
+                float* lastAngles = lastAnglesMap[selectedGameObject];
+
+                //update angles 
                 if (updatedAngles) {
                     glm::quat q(transform->rotation.w, transform->rotation.x, transform->rotation.y, transform->rotation.z);
-                    rotationEuler = glm::degrees(glm::eulerAngles(q));
+                    glm::vec3 euler = glm::degrees(glm::eulerAngles(q));
+
+                    //normalized
+                    euler.x = normalizeAngle(euler.x);
+                    euler.y = normalizeAngle(euler.y);
+                    euler.z = normalizeAngle(euler.z);
+
+                    rotationEuler = euler;
+                    lastAngles[0] = euler.x;
+                    lastAngles[1] = euler.y;
+                    lastAngles[2] = euler.z;
+
                     updatedAngles = false;
                 }
-                // edit tab
-                float angles[3] = { rotationEuler.x, rotationEuler.y, rotationEuler.z };
-                ImGui::InputFloat3("Rotation", angles, "%.2f");
 
-                // detect if the value has changed
+                //edit tab
+                float angles[3] = { rotationEuler.x, rotationEuler.y, rotationEuler.z };
+                ImGui::DragFloat3("Rotation", angles, 0.5f);
+
+                //if the value was changed
                 bool changed = false;
                 for (int i = 0; i < 3; ++i)
                 {
                     if (angles[i] != lastAngles[i])
                     {
                         changed = true;
-                        lastAngles[i] = angles[i]; 
+
+                        //normalize
+                        angles[i] = normalizeAngle(angles[i]);
+                        lastAngles[i] = angles[i];
                     }
                 }
 
-                //if it has changed we apply it
+                //if it was changed we apply the rotation
                 if (changed)
                 {
                     rotationEuler = glm::vec3(angles[0], angles[1], angles[2]);
 
+                    //convert to quat
                     glm::quat newQuat = glm::quat(glm::radians(rotationEuler));
                     transform->rotation.w = newQuat.w;
                     transform->rotation.x = newQuat.x;
@@ -728,7 +772,7 @@ void ModuleEditor::DrawInspector()
                     transform->rotation.z = newQuat.z;
                 }
 
-                // show quat
+                //show quat (not editable)
                 ImGui::Text("Rotation (Quaternion):");
                 ImGui::Text("W: %.3f, X: %.3f, Y: %.3f, Z: %.3f",
                     transform->rotation.w,

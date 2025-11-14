@@ -20,12 +20,31 @@ namespace MeshImporter {
         customMesh.numVertices = mesh->mNumVertices;
         customMesh.vertices.reserve(mesh->mNumVertices * 8); // 8 floats per vertex
 
+        customMesh.aabbMinX = std::numeric_limits<float>::max();
+        customMesh.aabbMinY = std::numeric_limits<float>::max();
+        customMesh.aabbMinZ = std::numeric_limits<float>::max();
+        customMesh.aabbMaxX = std::numeric_limits<float>::lowest();
+        customMesh.aabbMaxY = std::numeric_limits<float>::lowest();
+        customMesh.aabbMaxZ = std::numeric_limits<float>::lowest();
+
         // Copy vertices, normals, and UVs
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
+            float x = mesh->mVertices[i].x;
+            float y = mesh->mVertices[i].y;
+            float z = mesh->mVertices[i].z;
+
             // Position
             customMesh.vertices.push_back(mesh->mVertices[i].x);
             customMesh.vertices.push_back(mesh->mVertices[i].y);
             customMesh.vertices.push_back(mesh->mVertices[i].z);
+
+            //aabb
+            if (x < customMesh.aabbMinX) customMesh.aabbMinX = x;
+            if (y < customMesh.aabbMinY) customMesh.aabbMinY = y;
+            if (z < customMesh.aabbMinZ) customMesh.aabbMinZ = z;
+            if (x > customMesh.aabbMaxX) customMesh.aabbMaxX = x;
+            if (y > customMesh.aabbMaxY) customMesh.aabbMaxY = y;
+            if (z > customMesh.aabbMaxZ) customMesh.aabbMaxZ = z;
 
             // Normal
             if (mesh->HasNormals()) {
@@ -128,6 +147,14 @@ namespace MeshImporter {
         size_t indexDataSize = mesh.indices.size() * sizeof(unsigned int);
         file.write(reinterpret_cast<const char*>(mesh.indices.data()), indexDataSize);
 
+        //aabb data
+        file.write(reinterpret_cast<const char*>(&mesh.aabbMinX), sizeof(float));
+        file.write(reinterpret_cast<const char*>(&mesh.aabbMinY), sizeof(float));
+        file.write(reinterpret_cast<const char*>(&mesh.aabbMinZ), sizeof(float));
+        file.write(reinterpret_cast<const char*>(&mesh.aabbMaxX), sizeof(float));
+        file.write(reinterpret_cast<const char*>(&mesh.aabbMaxY), sizeof(float));
+        file.write(reinterpret_cast<const char*>(&mesh.aabbMaxZ), sizeof(float));
+
         file.close();
 
         std::cout << "[MeshImporter] Saved mesh to: " << outputPath << std::endl;
@@ -157,6 +184,14 @@ namespace MeshImporter {
         // Read index data
         mesh.indices.resize(mesh.numIndices);
         file.read(reinterpret_cast<char*>(mesh.indices.data()), mesh.numIndices * sizeof(unsigned int));
+
+        //read aabb data
+        file.read(reinterpret_cast<char*>(&mesh.aabbMinX), sizeof(float));
+        file.read(reinterpret_cast<char*>(&mesh.aabbMinY), sizeof(float));
+        file.read(reinterpret_cast<char*>(&mesh.aabbMinZ), sizeof(float));
+        file.read(reinterpret_cast<char*>(&mesh.aabbMaxX), sizeof(float));
+        file.read(reinterpret_cast<char*>(&mesh.aabbMaxY), sizeof(float));
+        file.read(reinterpret_cast<char*>(&mesh.aabbMaxZ), sizeof(float));
 
         file.close();
 

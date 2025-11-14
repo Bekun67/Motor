@@ -229,6 +229,10 @@ bool LoadFileCustomFormat(const char* file_path) {
 
         md.numIndices = customMesh.numIndices;
 
+        //aabb
+        md.aabbMin = glm::vec3(customMesh.aabbMinX, customMesh.aabbMinY, customMesh.aabbMinZ);
+        md.aabbMax = glm::vec3(customMesh.aabbMaxX, customMesh.aabbMaxY, customMesh.aabbMaxZ);
+
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
