@@ -25,4 +25,5 @@ public:
     TextureData* texturedata;
     std::string texturePath;
     bool hasTexture;
+    bool hasTransparency = false;
 };

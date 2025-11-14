@@ -8,6 +8,8 @@
 #include <vector>
 #include "LoadFBX.h" 
 #include <glm/glm.hpp>
+#include <cmath>
+#include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Texture.h"
@@ -58,10 +60,18 @@ static GLuint CreateNormalShader() {
         "}\n";
 
     const char* fragmentShaderSource = "#version 330 core\n"
+        "in vec3 fragNormal;\n"
+        "in vec2 fragUV;\n"
         "out vec4 FragColor;\n"
-        "uniform vec3 lineColor;\n"
+        "uniform sampler2D uTexture;\n"
         "void main() {\n"
-        "    FragColor = vec4(lineColor, 1.0);\n"
+        "    vec3 n = normalize(fragNormal);\n"
+        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "    vec4 texColor = texture(uTexture, fragUV);\n"
+        "    \n"
+        "    if (texColor.a < 0.1) discard;\n"
+        "    \n"
+        "    FragColor = vec4(texColor.rgb * lambert, texColor.a);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -214,10 +224,10 @@ bool OpenGL::Start()
         "out vec4 FragColor;\n"
         "uniform sampler2D uTexture;\n"
         "void main() {\n"
-        "vec3 n = normalize(fragNormal);\n"
-        "float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
-        "vec3 texColor = texture(uTexture, fragUV).rgb;\n"
-        "FragColor = vec4(texColor * lambert, 1.0);\n"
+        "    vec3 n = normalize(fragNormal);\n"
+        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "    vec4 texColor = texture(uTexture, fragUV);\n"
+        "    FragColor = vec4(texColor.rgb * lambert, texColor.a);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -317,6 +327,7 @@ bool OpenGL::Start()
     // CREATE GAME OBJECT
     if (!g_Meshes.empty()) {
         GameObject* house = new GameObject();
+        house->meshPath = fbxPath;
         house->name = "BakerHouse";
         std::cout << "Created GameObject " << house->name << std::endl;
 
@@ -390,6 +401,7 @@ bool OpenGL::Start()
 
         //create the one that has texture
         GameObject* cannon1 = new GameObject();
+        cannon1->meshPath = cannonPath;
         cannon1->name = "Cannon_Left";
         std::cout << "Created GameObject " << cannon1->name << std::endl;
 
@@ -413,6 +425,7 @@ bool OpenGL::Start()
 
         //create the one that has no texture
         GameObject* cannon2 = new GameObject();
+        cannon2->meshPath = cannonPath;
         cannon2->name = "Cannon_Right";
         std::cout << "Created GameObject " << cannon2->name << std::endl;
 
@@ -523,14 +536,68 @@ bool OpenGL::Update()
     // Draw grid
     DrawGrid();
 
-    // Draw all GameObjects
+    std::vector<GameObject*> opaqueObjects;
+    std::vector<GameObject*> transparentObjects;
+
+    glm::vec3 cameraPos = camera.GetPosition();
+
+    //we split game objects depending on their transaparency
     for (GameObject* go : gameObjects)
     {
-        if (go != nullptr && go->mesh != nullptr)
+        if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
         {
-            go->mesh->Draw(&camera);
+            //calculate distance
+            float dx = cameraPos.x - go->transform->translation.x;
+            float dy = cameraPos.y - go->transform->translation.y;
+            float dz = cameraPos.z - go->transform->translation.z;
+            go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
+
+            //filter transparent and opaque
+            bool isTransparent = false;
+            if (go->texture != nullptr && go->texture->hasTexture)
+            {
+                isTransparent = go->texture->hasTransparency;
+            }
+
+            if (isTransparent)
+            {
+                transparentObjects.push_back(go);
+            }
+            else
+            {
+                opaqueObjects.push_back(go);
+            }
         }
     }
+
+    //order transparent obj based on distance (method given by #include <algorithm>)
+    std::sort(transparentObjects.begin(), transparentObjects.end(),
+        [](GameObject* a, GameObject* b) 
+        {
+            return a->distanceToCamera > b->distanceToCamera;
+        });
+
+    //first drawing opaque obj
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    for (GameObject* go : opaqueObjects)
+    {
+        go->mesh->Draw(&camera);
+    }
+
+    //then transparent obj
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+
+    for (GameObject* go : transparentObjects)
+    {
+        go->mesh->Draw(&camera);
+    }
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 
     return true;
 }

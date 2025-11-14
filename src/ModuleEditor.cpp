@@ -698,6 +698,7 @@ void ModuleEditor::DrawInspector()
             {
                 MeshData& meshData = g_Meshes[mesh->meshIndex];
                 ImGui::Text("Mesh Index: %d", mesh->meshIndex);
+                ImGui::Text("Path: %s", selectedGameObject->meshPath.c_str());
                 ImGui::Text("Vertices: %d", meshData.numIndices);
                 ImGui::Text("VAO: %u", meshData.VAO);
                 ImGui::Text("VBO: %u", meshData.VBO);
@@ -734,12 +735,26 @@ void ModuleEditor::DrawInspector()
                         glDeleteTextures(1, &texture->texturedata->id);
                     AssignCheckerboardTexture(selectedGameObject);
                     LOG("Applied checkerboard texture to " + selectedGameObject->name);
+                    selectedGameObject->texture->texturePath = "";
                 }
             }
             else
             {
                 ImGui::Text("No texture assigned");
             }
+
+            //Drag adn Drop Area for textures
+            ImGui::Separator();
+            ImGui::Text("Drag new texture here:");
+
+            //we change isMouseOverTextureDropZone, and input.cpp uses this to drop the texture there
+            ImVec2 dropZoneSize(256, 28);
+            ImGui::Button(" ", dropZoneSize);
+
+            isMouseOverTextureDropZone = ImGui::IsItemHovered();
+
+            textureDropZoneMin = ImGui::GetItemRectMin();
+            textureDropZoneMax = ImGui::GetItemRectMax();
         }
     }
 
