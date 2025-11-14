@@ -61,6 +61,10 @@ public:
     GameObject* selectedGameObject = nullptr;
     int CountNames(std::string prefix);
 
+    bool isMouseOverTextureDropZone = false;
+    ImVec2 textureDropZoneMin;
+    ImVec2 textureDropZoneMax;
+
 private:
     void DrawMenuBar();
     void DrawConsole();

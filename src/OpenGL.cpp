@@ -276,6 +276,7 @@ bool OpenGL::Start()
     // Rest of the BakerHouse GameObject creation code stays the same
     if (!g_Meshes.empty()) {
         GameObject* house = new GameObject();
+        house->meshPath = fbxPath;
         house->name = "BakerHouse";
         std::cout << "Created GameObject " << house->name << std::endl;
 
@@ -306,6 +307,7 @@ bool OpenGL::Start()
 
         //create the one that has texture
         GameObject* cannon1 = new GameObject();
+        cannon1->meshPath = cannonPath;
         cannon1->name = "Cannon_Left";
         std::cout << "Created GameObject " << cannon1->name << std::endl;
 
@@ -329,6 +331,7 @@ bool OpenGL::Start()
 
         //create the one that has no texture
         GameObject* cannon2 = new GameObject();
+        cannon2->meshPath = cannonPath;
         cannon2->name = "Cannon_Right";
         std::cout << "Created GameObject " << cannon2->name << std::endl;
 

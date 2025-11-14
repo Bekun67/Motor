@@ -701,6 +701,7 @@ void ModuleEditor::DrawInspector()
             {
                 MeshData& meshData = g_Meshes[mesh->meshIndex];
                 ImGui::Text("Mesh Index: %d", mesh->meshIndex);
+                ImGui::Text("Path: %s", selectedGameObject->meshPath.c_str());
                 ImGui::Text("Vertices: %d", meshData.numIndices);
                 ImGui::Text("VAO: %u", meshData.VAO);
                 ImGui::Text("VBO: %u", meshData.VBO);
@@ -730,57 +731,6 @@ void ModuleEditor::DrawInspector()
                 ImGui::Text("Texture Preview:");
                 ImGui::Image((ImTextureID)(intptr_t)texture->texturedata->id, ImVec2(128, 128));
 
-                ImGui::Separator();
-
-                //drag and drop texture
-                ImGui::Text("Drag texture here:");
-                ImVec2 dropSize(128, 128);
-                ImGui::Button("##DropZone", dropSize); 
-
-                if (texture->texturedata && texture->texturedata->id != 0)
-                {
-                    ImVec2 pos = ImGui::GetCursorPos();
-                    ImGui::SetCursorPos(ImVec2(pos.x - dropSize.x, pos.y - dropSize.y));
-                    ImGui::Image((ImTextureID)(intptr_t)texture->texturedata->id, dropSize);
-                }
-
-                if (ImGui::BeginDragDropTarget())
-                {
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("FILE_PATH"))
-                    {
-                        const char* path = (const char*)payload->Data;
-
-                        std::string extension = std::filesystem::path(path).extension().string();
-                        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-
-                        if (extension == ".png" || extension == ".jpg" || extension == ".jpeg")
-                        {
-                            //delete old texture
-                            if (texture->texturedata)
-                            {
-                                glDeleteTextures(1, &texture->texturedata->id);
-                                delete texture->texturedata;
-                                texture->texturedata = nullptr;
-                            }
-
-                            //load new one
-                            if (texture->LoadTexture(path))
-                            {
-                                texture->hasTexture = true;
-                                texture->texturePath = path;
-                                //LOG("Texture dropped and assigned: " + path);
-                            }
-                            else
-                            {
-                                //LOG("Failed to load dropped texture: %s", path);
-                            }
-                        }
-                    }
-                    ImGui::EndDragDropTarget();
-                }
-
-                ImGui::Separator();
-
                 if (ImGui::Button("Use Checkerboard"))
                 {
                     // Delete old texture
@@ -788,36 +738,26 @@ void ModuleEditor::DrawInspector()
                         glDeleteTextures(1, &texture->texturedata->id);
                     AssignCheckerboardTexture(selectedGameObject);
                     LOG("Applied checkerboard texture to " + selectedGameObject->name);
+                    selectedGameObject->texture->texturePath = "";
                 }
             }
             else
             {
                 ImGui::Text("No texture assigned");
-                ImVec2 dropSize(128, 128);
-                ImGui::Button("##DropZoneEmpty", dropSize);
-
-                if (ImGui::BeginDragDropTarget())
-                {
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("FILE_PATH"))
-                    {
-                        const char* path = (const char*)payload->Data;
-
-                        std::string extension = std::filesystem::path(path).extension().string();
-                        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-
-                        if (extension == ".png" || extension == ".jpg" || extension == ".jpeg")
-                        {
-                            if (texture->LoadTexture(path))
-                            {
-                                texture->hasTexture = true;
-                                texture->texturePath = path;
-                                //LOG("Texture dropped and assigned: %s", path);
-                            }
-                        }
-                    }
-                    ImGui::EndDragDropTarget();
-                }
             }
+
+            //Drag adn Drop Area for textures
+            ImGui::Separator();
+            ImGui::Text("Drag new texture here:");
+
+            //we change isMouseOverTextureDropZone, and input.cpp uses this to drop the texture there
+            ImVec2 dropZoneSize(256, 28);
+            ImGui::Button(" ", dropZoneSize);
+
+            isMouseOverTextureDropZone = ImGui::IsItemHovered();
+
+            textureDropZoneMin = ImGui::GetItemRectMin();
+            textureDropZoneMax = ImGui::GetItemRectMax();
         }
     }
 

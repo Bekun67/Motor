@@ -198,6 +198,32 @@ bool Input::PreUpdate()
             SDL_DropEvent drop = event.drop;
             const char* droppedFile = drop.data;
 
+            float mouseX, mouseY;
+            SDL_GetMouseState(&mouseX, &mouseY);
+
+            //sceneViewportPos is located in upper left corner
+            int minX = moduleEditor->sceneViewportPos.x;
+            int maxX = moduleEditor->sceneViewportPos.x + moduleEditor->sceneViewportSize.x;
+
+            int minY = moduleEditor->sceneViewportPos.y;
+            int maxY = moduleEditor->sceneViewportPos.y + moduleEditor->sceneViewportSize.y;
+
+            bool mouseInsideScene = false;
+            bool mouseInsideTextureInspector = false;
+
+            if (mouseX > minX && mouseX < maxX &&
+                mouseY > minY && mouseY < maxY)
+            {
+                mouseInsideScene = true;
+            }
+
+            if (moduleEditor->showInspector &&       
+                moduleEditor->selectedGameObject != nullptr &&   
+                moduleEditor->isMouseOverTextureDropZone)        
+            {
+                mouseInsideTextureInspector = true;
+            }
+
             if (droppedFile) {
                 std::string path(droppedFile);
 
@@ -221,6 +247,11 @@ bool Input::PreUpdate()
                 }
 
                 if (extension == ".fbx") {
+                    if (!mouseInsideScene) 
+                    {
+                        LOG("WARNING: Drop mesh in scene");
+                        break;
+                    }
                     //if fbx we load its mesh
                     size_t meshCountBefore = g_Meshes.size();
                     std::cout << "=========MESH===========" << std::endl;
@@ -232,7 +263,6 @@ bool Input::PreUpdate()
                         float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
 
                         //get mouse pos
-                        float  mouseX, mouseY;
                         SDL_GetMouseState(&mouseX, &mouseY);
 
                         //get camera
@@ -262,6 +292,7 @@ bool Input::PreUpdate()
                             GameObject* go = new GameObject();
 							int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
+                            go->meshPath = path;
 
                             //change the translation to match the obtained coordinates
                             go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);
@@ -321,6 +352,7 @@ bool Input::PreUpdate()
 
                             Application::GetInstance().opengl->gameObjects.push_back(go);
                             std::cout << "Created GameObject " << go->name << std::endl;
+                            LOG("Created GameObject " + go->name + " with mesh " + path);
                         }
 
                         std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
@@ -329,8 +361,12 @@ bool Input::PreUpdate()
                 }
                 else if (extension == ".png" || extension == ".jpg" || extension == ".jpeg") {
                     //get mouse pos
+                    if (!mouseInsideScene && !mouseInsideTextureInspector)
+                    {
+                        LOG("WARNING: Drop texture over a GameObject or in the Inspector tab!");
+                        break;
+                    }
                     std::cout << "========TEXTURE==========" << std::endl;
-                    float mouseX, mouseY;
                     SDL_GetMouseState(&mouseX, &mouseY);
 
                     //get camera
@@ -352,84 +388,103 @@ bool Input::PreUpdate()
 
                     glm::vec3 camPos = camera->GetPosition();
 
-                    //search closes go to the ray
                     GameObject* closestObject = nullptr;
-                    float closestDistance = FLT_MAX;
                     float maxSelectionDistance = 2.0f; //max radius of search
 
-                    for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
-                        if (go->mesh->meshIndex < 0) {
-                            continue;
-                        }
+                    //if we are hovering inside the "Drag new texture here:" panel we change the selectedGameObject's texture
+                    if (mouseInsideTextureInspector) closestObject = moduleEditor->selectedGameObject;
 
-                        //get pos of the game object
-                        glm::vec3 objPos(
-                            go->transform->translation.x,
-                            go->transform->translation.y,
-                            go->transform->translation.z
-                        );
+                    //if we are hovering over the scene we find the closest game object
+                    else 
+                    {
+                        float closestDistance = FLT_MAX;
 
-                        //vector
-                        glm::vec3 camToObj = objPos - camPos;
+                        for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
+                            if (go->mesh->meshIndex < 0) {
+                                continue;
+                            }
 
-                        //proyection to our ray
-                        float t = glm::dot(camToObj, rayWorld);
+                            //get pos of the game object
+                            glm::vec3 objPos(
+                                go->transform->translation.x,
+                                go->transform->translation.y,
+                                go->transform->translation.z
+                            );
 
-                        //if out of view, ignore
-                        if (t < 0.0f) {
-                            continue;
-                        }
+                            //vector
+                            glm::vec3 camToObj = objPos - camPos;
 
-                        //closest point to ray
-                        glm::vec3 closestPointOnRay = camPos + rayWorld * t;
+                            //proyection to our ray
+                            float t = glm::dot(camToObj, rayWorld);
 
-                        //distance
-                        float perpDistance = glm::length(objPos - closestPointOnRay);
+                            //if out of view, ignore
+                            if (t < 0.0f) {
+                                continue;
+                            }
 
-                        //if we are in the radius we continue
-                        if (perpDistance < maxSelectionDistance) {
-                            //get the distance and find the closest one
-                            float distanceFromCamera = glm::length(camToObj);
+                            //closest point to ray
+                            glm::vec3 closestPointOnRay = camPos + rayWorld * t;
 
-                            //the closest wins
-                            if (distanceFromCamera < closestDistance) {
-                                closestDistance = distanceFromCamera;
-                                closestObject = go;
+                            //distance
+                            float perpDistance = glm::length(objPos - closestPointOnRay);
+
+                            //if we are in the radius we continue
+                            if (perpDistance < maxSelectionDistance) {
+                                //get the distance and find the closest one
+                                float distanceFromCamera = glm::length(camToObj);
+
+                                //the closest wins
+                                if (distanceFromCamera < closestDistance) {
+                                    closestDistance = distanceFromCamera;
+                                    closestObject = go;
+                                }
                             }
                         }
                     }
 
-                    //bind texture to the closest game object
-                    if (closestObject != nullptr) {
-
+                    //bind texture to the closest game object or inspector object
+                    if (closestObject != nullptr) 
+                    {
                         //new texture data (delete the previous)
-                        if (closestObject->texture->texturedata != nullptr) {
+                        if (closestObject->texture->texturedata != nullptr) 
+                        {
                             delete closestObject->texture->texturedata;
                             closestObject->texture->texturedata = nullptr;
                         }
 
                         if (closestObject->texture->LoadTexture(path)) {
                             std::cout << "Texture assigned successfully to " << closestObject->name << std::endl;
+                            LOG("Texture " + path + " assigned to " + closestObject->name);
 
-                            for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
-                                if (go->texture->texturedata != nullptr) {
+                            for (GameObject* go : Application::GetInstance().opengl->gameObjects) 
+                            {
+                                if (go->texture->texturedata != nullptr) 
+                                {
                                     if (go == closestObject) {
                                     }
                                     std::cout << std::endl;
                                 }
-                                else {
+                                else 
+                                {
                                     std::cout << "  " << go->name << " -> No texture" << std::endl;
                                 }
                             }
                         }
-                        else {
+                        else 
+                        {
                             std::cerr << "Failed to load texture for " << closestObject->name << std::endl;
                         }
                     }
-                    else {
+                    else 
+                    {
                         //if there is no close object
                         std::cout << "No object found under cursor (within " << maxSelectionDistance << " units)" << std::endl;
+                        LOG("WARNING: No GameObject in that position");
                     }
+                }
+                else 
+                {
+                    LOG("WARNING: Unknown file format");
                 }
             }
             break;

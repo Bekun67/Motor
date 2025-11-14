@@ -39,4 +39,5 @@ public:
 	std::vector<GameObject*> children;
 
 	float distanceToCamera = 0.0f;
+	std::string meshPath;
 };
