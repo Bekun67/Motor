@@ -117,17 +117,14 @@ bool ModuleEditor::Update()
         if (ImGui::IsKeyPressed(ImGuiKey_W))
         {
             currentGizmoOperation = ImGuizmo::TRANSLATE;
-            LOG("Current Gizmo Operation: TRANSLATE");
         }
         if (ImGui::IsKeyPressed(ImGuiKey_E))
         {
             currentGizmoOperation = ImGuizmo::ROTATE;
-			LOG("Current Gizmo Operation: ROTATE");
         }
         if (ImGui::IsKeyPressed(ImGuiKey_R))
         {
             currentGizmoOperation = ImGuizmo::SCALE;
-            LOG("Current Gizmo Operation: SCALE");
         }
            
     }
