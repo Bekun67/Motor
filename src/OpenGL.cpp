@@ -182,8 +182,7 @@ bool OpenGL::Start()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-
-    ImGui::StyleColorsClassic();
+    ModuleEditor::SetupImGuiStyle();
 
     ImGui_ImplSDL3_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL3_Init("#version 330");

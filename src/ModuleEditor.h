@@ -46,6 +46,8 @@ public:
     bool SaveScene(const std::string& filepath);
     bool LoadScene(const std::string& filepath);
 
+	static void SetupImGuiStyle();
+
     // ImGuizmo
     void DrawGuizmo();
     ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
