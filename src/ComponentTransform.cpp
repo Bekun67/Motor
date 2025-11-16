@@ -6,12 +6,12 @@
 #include <assimp/scene.h>
 
 ComponentTransform::ComponentTransform(GameObject* gameObject)
-    : Component(gameObject, ComponentType::TRANSFORM) 
+	: Component(gameObject, ComponentType::TRANSFORM)
 {
-    //predeterminated values
-    scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-    translation = aiVector3D(0.0f, 0.0f, 0.0f);
-    rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+	//predeterminated values
+	scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+	translation = aiVector3D(0.0f, 0.0f, 0.0f);
+	rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
 	radius = g_ModelRadius;
 }
 
@@ -50,4 +50,44 @@ bool ComponentTransform::Decompose(const glm::mat4& transform, glm::vec3& transl
 	rotation = glm::quat_cast(rotationMatrix);
 
 	return true;
+}
+
+PropertyMap ComponentTransform::Serialize() const
+{
+	PropertyMap props;
+
+	props["translation_x"] = (float)translation.x;
+	props["translation_y"] = (float)translation.y;
+	props["translation_z"] = (float)translation.z;
+
+	props["rotation_w"] = (float)rotation.w;
+	props["rotation_x"] = (float)rotation.x;
+	props["rotation_y"] = (float)rotation.y;
+	props["rotation_z"] = (float)rotation.z;
+
+	props["scale_x"] = (float)scaling.x;
+	props["scale_y"] = (float)scaling.y;
+	props["scale_z"] = (float)scaling.z;
+
+	props["radius"] = radius;
+
+	return props;
+}
+
+void ComponentTransform::Deserialize(const PropertyMap& props)
+{
+	if (props.count("translation_x")) translation.x = std::get<float>(props.at("translation_x"));
+	if (props.count("translation_y")) translation.y = std::get<float>(props.at("translation_y"));
+	if (props.count("translation_z")) translation.z = std::get<float>(props.at("translation_z"));
+
+	if (props.count("rotation_w")) rotation.w = std::get<float>(props.at("rotation_w"));
+	if (props.count("rotation_x")) rotation.x = std::get<float>(props.at("rotation_x"));
+	if (props.count("rotation_y")) rotation.y = std::get<float>(props.at("rotation_y"));
+	if (props.count("rotation_z")) rotation.z = std::get<float>(props.at("rotation_z"));
+
+	if (props.count("scale_x")) scaling.x = std::get<float>(props.at("scale_x"));
+	if (props.count("scale_y")) scaling.y = std::get<float>(props.at("scale_y"));
+	if (props.count("scale_z")) scaling.z = std::get<float>(props.at("scale_z"));
+
+	if (props.count("radius")) radius = std::get<float>(props.at("radius"));
 }

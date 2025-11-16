@@ -8,6 +8,7 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "UUID.h"
 
 //forward declatarions
 class Component;
@@ -27,9 +28,15 @@ public:
 	Component* AddComponent(Component* component);
 	Component* GetComponent(ComponentType type);
 
-	
+	UUID GetUUID() const { return m_UUID; }
+	void SetUUID(UUID uuid) { m_UUID = uuid; }
+
+	UUID GetParentUUID() const { return m_ParentUUID; }
+	void SetParentUUID(UUID uuid) { m_ParentUUID = uuid; }
+
 	GameObject* parent;
 	std::string name;
+	bool active = true;
 
 	ComponentTransform* transform;
 	ComponentMesh* mesh;
@@ -40,4 +47,9 @@ public:
 
 	float distanceToCamera = 0.0f;
 	std::string meshPath;
+	int meshIndexInFBX = 0; 
+
+private:
+	UUID m_UUID;
+	UUID m_ParentUUID;
 };

@@ -11,6 +11,8 @@
 #include "ComponentTransform.h"
 #include "LoadFBX.h"
 #include "PrimitiveGenerator.h"
+#include "SceneSerializer.h"
+#include "FileSystemManager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
@@ -20,12 +22,13 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <filesystem>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/type_ptr.hpp>  
-#include <ImGuizmo.h>        
+#include <ImGuizmo.h>     
 
 
 ModuleEditor* g_Editor = nullptr;
@@ -212,10 +215,64 @@ void ModuleEditor::DrawMenuBar()
 
     ImGui::Begin("Main Menu");
 
-    if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen ))
+    if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        if (ImGui::Button("New Scene"))
+        {
+            if (sceneModified && !currentScenePath.empty())
+            {
+                LOG_WARNING("Current scene has unsaved changes!");
+            }
+
+            // Clear current scene
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            if (opengl)
+            {
+                for (GameObject* go : opengl->gameObjects)
+                {
+                    delete go;
+                }
+                opengl->gameObjects.clear();
+                selectedGameObject = nullptr;
+                opengl->selectedGameObject = nullptr;
+
+                currentScenePath = "";
+                sceneModified = false;
+                LOG("New scene created");
+            }
+        }
+
+        if (ImGui::Button("Save Scene"))
+        {
+            if (currentScenePath.empty())
+            {
+                SaveSceneDialog();
+            }
+            else
+            {
+                SaveScene(currentScenePath);
+            }
+        }
+
+        if (ImGui::Button("Save Scene As..."))
+        {
+            SaveSceneDialog();
+        }
+
+        if (ImGui::Button("Load Scene"))
+        {
+            LoadSceneDialog();
+        }
+
+        ImGui::Separator();
+
         if (ImGui::Button("Exit"))
         {
+            if (sceneModified)
+            {
+                LOG_WARNING("Scene has unsaved changes!");
+            }
+
             SDL_Event quitEvent;
             quitEvent.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&quitEvent);
@@ -236,14 +293,17 @@ void ModuleEditor::DrawMenuBar()
         {
             LOG("Creating cube primitive");
 
+            float size = 2.0f;
             // Generate the cube mesh and get its index
-            int meshIndex = PrimitiveGenerator::GenerateCube(2.0f);
+            int meshIndex = PrimitiveGenerator::GenerateCube(size);
 
             // Create GameObject
             GameObject* cube = new GameObject();
 
             int index = CountNames("Cube_");
             cube->name = "Cube_" + std::to_string(index);
+            cube->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::CUBE, size, 0, 0, 0);
+            cube->meshIndexInFBX = 0; 
 
             // Set transform
             cube->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -259,6 +319,8 @@ void ModuleEditor::DrawMenuBar()
             // Add to gameObjects list
             Application::GetInstance().opengl->gameObjects.push_back(cube);
 
+            sceneModified = true;
+
             LOG("Created GameObject: " + cube->name + " with meshIndex: " + std::to_string(meshIndex));
             LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
         }
@@ -267,14 +329,20 @@ void ModuleEditor::DrawMenuBar()
         {
             LOG("Creating sphere primitive");
 
+            float radius = 1.0f;
+            int segments = 32;
+            int rings = 16;
+
             // Generate the sphere mesh and get its index
-            int meshIndex = PrimitiveGenerator::GenerateSphere(1.0f, 32, 16);
+            int meshIndex = PrimitiveGenerator::GenerateSphere(radius, segments, rings);
 
             // Create GameObject
             GameObject* sphere = new GameObject();
 
             int index = CountNames("Sphere_");
             sphere->name = "Sphere_" + std::to_string(index);
+            sphere->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::SPHERE, radius, 0, segments, rings);
+            sphere->meshIndexInFBX = 0;
 
             // Set transform
             sphere->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -290,6 +358,8 @@ void ModuleEditor::DrawMenuBar()
             // Add to gameObjects list
             Application::GetInstance().opengl->gameObjects.push_back(sphere);
 
+            sceneModified = true;
+
             LOG("Created GameObject: " + sphere->name + " with meshIndex: " + std::to_string(meshIndex));
             LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
         }
@@ -298,14 +368,20 @@ void ModuleEditor::DrawMenuBar()
         {
             LOG("Creating cylinder primitive");
 
+            float radius = 0.5f;
+            float height = 2.0f;
+            int segments = 32;
+
             // Generate the cylinder mesh and get its index
-            int meshIndex = PrimitiveGenerator::GenerateCylinder(0.5f, 2.0f, 32);
+            int meshIndex = PrimitiveGenerator::GenerateCylinder(radius, height, segments);
 
             // Create GameObject
             GameObject* cylinder = new GameObject();
 
             int index = CountNames("Cylinder_");
             cylinder->name = "Cylinder_" + std::to_string(index);
+            cylinder->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::CYLINDER, radius, height, segments, 0);
+            cylinder->meshIndexInFBX = 0;
 
             // Set transform
             cylinder->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
@@ -321,6 +397,8 @@ void ModuleEditor::DrawMenuBar()
             // Add to gameObjects list
             Application::GetInstance().opengl->gameObjects.push_back(cylinder);
 
+            sceneModified = true;
+
             LOG("Created GameObject: " + cylinder->name + " with meshIndex: " + std::to_string(meshIndex));
             LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
         }
@@ -329,8 +407,13 @@ void ModuleEditor::DrawMenuBar()
         {
             LOG("Creating plane primitive");
 
+            float width = 5.0f;
+            float depth = 5.0f;
+            int widthSegments = 10;
+            int depthSegments = 10;
+
             // Generate the plane mesh and get its index
-            int meshIndex = PrimitiveGenerator::GeneratePlane(5.0f, 5.0f, 10, 10);
+            int meshIndex = PrimitiveGenerator::GeneratePlane(width, depth, widthSegments, depthSegments);
 
             // Create GameObject
             GameObject* plane = new GameObject();
@@ -342,6 +425,8 @@ void ModuleEditor::DrawMenuBar()
             plane->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
             plane->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
             plane->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+            plane->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::PLANE, width, depth, widthSegments, depthSegments);
+            plane->meshIndexInFBX = 0;
 
             // Assign mesh index
             plane->mesh->meshIndex = meshIndex;
@@ -351,6 +436,8 @@ void ModuleEditor::DrawMenuBar()
 
             // Add to gameObjects list
             Application::GetInstance().opengl->gameObjects.push_back(plane);
+
+            sceneModified = true;
 
             LOG("Created GameObject: " + plane->name + " with meshIndex: " + std::to_string(meshIndex));
             LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
@@ -385,6 +472,86 @@ void ModuleEditor::DrawMenuBar()
     }
 
     ImGui::End();
+
+    // Save Scene Dialog
+    if (showSaveDialog)
+    {
+        ImGui::OpenPopup("Save Scene");
+        showSaveDialog = false;
+    }
+
+    if (ImGui::BeginPopupModal("Save Scene", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Enter scene name:");
+        ImGui::InputText("##scenename", saveSceneNameBuffer, IM_ARRAYSIZE(saveSceneNameBuffer));
+
+        ImGui::Separator();
+
+        if (ImGui::Button("Save", ImVec2(120, 0)))
+        {
+            std::string sceneName = std::string(saveSceneNameBuffer);
+            if (!sceneName.empty())
+            {
+                std::string filepath = FileSystemManager::GetScenesDirectory() +
+                    sceneName +
+                    FileSystemManager::GetSceneExtension();
+                SaveScene(filepath);
+                ImGui::CloseCurrentPopup();
+            }
+            else
+            {
+                LOG_WARNING("Scene name cannot be empty");
+            }
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // Load Scene Dialog
+    if (showLoadDialog)
+    {
+        ImGui::OpenPopup("Load Scene");
+        showLoadDialog = false;
+    }
+
+    if (ImGui::BeginPopupModal("Load Scene", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Available scenes:");
+        ImGui::Separator();
+
+        if (availableScenes.empty())
+        {
+            ImGui::Text("No saved scenes found");
+        }
+        else
+        {
+            for (const auto& sceneName : availableScenes)
+            {
+                if (ImGui::Selectable(sceneName.c_str()))
+                {
+                    std::string filepath = FileSystemManager::GetScenesDirectory() + sceneName;
+                    LoadScene(filepath);
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
 }
 
 void ModuleEditor::DrawConsole()
@@ -672,6 +839,7 @@ void ModuleEditor::DrawInspector()
                     transform->translation.x = pos[0];
                     transform->translation.y = pos[1];
                     transform->translation.z = pos[2];
+					sceneModified = true;
                 }
 
                 float scale[3] = { transform->scaling.x, transform->scaling.y, transform->scaling.z };
@@ -680,6 +848,7 @@ void ModuleEditor::DrawInspector()
                     transform->scaling.x = scale[0];
                     transform->scaling.y = scale[1];
                     transform->scaling.z = scale[2];
+					sceneModified = true;
                 }
 
                 //method to normalize angles (361º -> 1º)
@@ -770,6 +939,7 @@ void ModuleEditor::DrawInspector()
                     transform->rotation.x = newQuat.x;
                     transform->rotation.y = newQuat.y;
                     transform->rotation.z = newQuat.z;
+					sceneModified = true;
                 }
 
                 //show quat (not editable)
@@ -1047,6 +1217,7 @@ void ModuleEditor::DrawGuizmo()
         selected->transform->scaling.z = newScale.z;
 
         updatedAngles = true;
+		sceneModified = true;
     }
     else
     {
@@ -1093,4 +1264,102 @@ int ModuleEditor::CountNames(std::string prefix)
     }
 
     return maxIndex + 1; //return the next num
+}
+
+void ModuleEditor::RefreshScenesList()
+{
+    availableScenes.clear();
+
+    std::string scenesDir = FileSystemManager::GetScenesDirectory();
+    std::string ext = FileSystemManager::GetSceneExtension();
+
+    if (!std::filesystem::exists(scenesDir))
+    {
+        std::filesystem::create_directories(scenesDir);
+        return;
+    }
+
+    for (const auto& entry : std::filesystem::directory_iterator(scenesDir))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ext)
+        {
+            availableScenes.push_back(entry.path().filename().string());
+        }
+    }
+}
+
+void ModuleEditor::SaveSceneDialog()
+{
+    showSaveDialog = true;
+}
+
+void ModuleEditor::LoadSceneDialog()
+{
+    showLoadDialog = true;
+    RefreshScenesList();
+}
+
+bool ModuleEditor::SaveScene(const std::string& filepath)
+{
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl)
+    {
+        LOG_ERROR("Failed to save scene: OpenGL module not available");
+        return false;
+    }
+
+    if (SceneSerializer::SaveScene(filepath, opengl->gameObjects))
+    {
+        currentScenePath = filepath;
+        sceneModified = false;
+        LOG("Scene saved successfully: " + filepath);
+        return true;
+    }
+
+    LOG_ERROR("Failed to save scene: " + filepath);
+    return false;
+}
+
+bool ModuleEditor::LoadScene(const std::string& filepath)
+{
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl)
+    {
+        LOG_ERROR("Failed to load scene: OpenGL module not available");
+        return false;
+    }
+
+    // Ask user to save current scene if modified
+    if (sceneModified && !currentScenePath.empty())
+    {
+        // In a real implementation, you would show a dialog here
+        LOG_WARNING("Current scene has unsaved changes");
+    }
+
+    std::vector<GameObject*> loadedGameObjects;
+    if (SceneSerializer::LoadScene(filepath, loadedGameObjects))
+    {
+        // Clear current scene
+        for (GameObject* go : opengl->gameObjects)
+        {
+            delete go;
+        }
+        opengl->gameObjects.clear();
+
+        // Set loaded GameObjects
+        opengl->gameObjects = loadedGameObjects;
+
+        // Clear selection
+        selectedGameObject = nullptr;
+        opengl->selectedGameObject = nullptr;
+
+        currentScenePath = filepath;
+        sceneModified = false;
+
+        LOG("Scene loaded successfully: " + filepath);
+        return true;
+    }
+
+    LOG_ERROR("Failed to load scene: " + filepath);
+    return false;
 }

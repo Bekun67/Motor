@@ -321,6 +321,7 @@ bool OpenGL::Start()
         GameObject* house = new GameObject();
         house->meshPath = fbxPath;
         house->name = "BakerHouse";
+        house->meshIndexInFBX = 0;
         std::cout << "Created GameObject " << house->name << std::endl;
 
         house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
@@ -395,6 +396,7 @@ bool OpenGL::Start()
         GameObject* cannon1 = new GameObject();
         cannon1->meshPath = cannonPath;
         cannon1->name = "Cannon_Left";
+        cannon1->meshIndexInFBX = 0;
         std::cout << "Created GameObject " << cannon1->name << std::endl;
 
         cannon1->transform->translation = aiVector3D(-5.0f, 0.0f, 0.0f);
@@ -419,6 +421,7 @@ bool OpenGL::Start()
         GameObject* cannon2 = new GameObject();
         cannon2->meshPath = cannonPath;
         cannon2->name = "Cannon_Right";
+        cannon2->meshIndexInFBX = 0;
         std::cout << "Created GameObject " << cannon2->name << std::endl;
 
         cannon2->transform->translation = aiVector3D(5.0f, 0.0f, 0.0f);

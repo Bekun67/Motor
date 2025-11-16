@@ -14,4 +14,8 @@ namespace FileSystemManager {
 
     // Check if FBX needs reimport (compare with custom file)
     bool NeedsReimport(const std::string& fbxPath, const std::string& customPath);
+
+    // Scene file operations
+    std::string GetSceneExtension();
+    std::string GetScenesDirectory();
 }

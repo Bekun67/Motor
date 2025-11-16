@@ -11,11 +11,15 @@ public:
 	ComponentMesh(GameObject* gameObject);
 	virtual ~ComponentMesh();
 
-	void Update();
+	void Update() override;
 	void Draw(Camera* camera);
 	void DrawVertexNormals(Camera* camera, float length = 0.3f);
 	void DrawFaceNormals(Camera* camera, float length = 0.5f);
 	void DrawAABB(Camera* camera);
+
+	// Serialization
+	PropertyMap Serialize() const override;
+	void Deserialize(const PropertyMap& props) override;
 
 public:
 	int meshIndex = -1;

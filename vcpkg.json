@@ -13,7 +13,8 @@
         "sdl3-binding"
       ]
     },
+    "imguizmo",
     "sdl3",
-    "imguizmo"
+    "nlohmann-json"
   ]
 }

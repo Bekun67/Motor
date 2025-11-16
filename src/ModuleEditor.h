@@ -5,6 +5,7 @@
 #include <deque>
 #include <imgui.h>
 #include <ImGuizmo.h>
+#include "PrimitiveGenerator.h"
 
 class GameObject;
 
@@ -39,6 +40,12 @@ public:
     void AddLog(const std::string& message, LogType type = LogType::INFO);
     void ClearLog();
 
+    // Scene Serialization
+    void SaveSceneDialog();
+    void LoadSceneDialog();
+    bool SaveScene(const std::string& filepath);
+    bool LoadScene(const std::string& filepath);
+
     // ImGuizmo
     void DrawGuizmo();
     ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
@@ -69,6 +76,10 @@ public:
     bool showAllVertexNormals = false;
     bool showAllFaceNormals = false;
 
+    // Scene management
+    std::string currentScenePath = "";
+    bool sceneModified = false;
+
 private:
     void DrawMenuBar();
     void DrawConsole();
@@ -92,11 +103,18 @@ private:
 
     // About window info
     const char* motorName = "Ilium Engine";
-    const char* version = "v0.1.5";
+    const char* version = "v0.5.0";
     const char* team = "Team Hutao";
     const char* repoURL = "https://github.com/Bekun67/Motor";
 
     bool firstTimeSetup = true;
+
+    // Save/Load dialog state
+    char saveSceneNameBuffer[256] = "NewScene";
+    bool showSaveDialog = false;
+    bool showLoadDialog = false;
+    std::vector<std::string> availableScenes;
+    void RefreshScenesList();
 };
 
 // Global logging functions

@@ -534,3 +534,21 @@ void ComponentMesh::DrawAABB(Camera* camera)
     glDeleteBuffers(1, &aabbVBO);
     glDeleteVertexArrays(1, &aabbVAO);
 }
+
+PropertyMap ComponentMesh::Serialize() const
+{
+    PropertyMap props;
+    props["meshIndex"] = meshIndex;
+    props["showVertexNormals"] = showVertexNormals;
+    props["showFaceNormals"] = showFaceNormals;
+    props["showAABB"] = showAABB;
+    return props;
+}
+
+void ComponentMesh::Deserialize(const PropertyMap& props)
+{
+    if (props.count("meshIndex")) meshIndex = std::get<int>(props.at("meshIndex"));
+    if (props.count("showVertexNormals")) showVertexNormals = std::get<bool>(props.at("showVertexNormals"));
+    if (props.count("showFaceNormals")) showFaceNormals = std::get<bool>(props.at("showFaceNormals"));
+    if (props.count("showAABB")) showAABB = std::get<bool>(props.at("showAABB"));
+}

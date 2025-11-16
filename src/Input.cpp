@@ -133,6 +133,7 @@ bool Input::PreUpdate()
                 ModuleEditor* editor = app.editor.get();
                 if (editor) {
                     editor->selectedGameObject = nullptr;
+                    editor->sceneModified = true;
                 }
             }
 
@@ -293,6 +294,7 @@ bool Input::PreUpdate()
 							int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
                             go->meshPath = path;
+                            go->meshIndexInFBX = (int)(i - meshCountBefore); 
 
                             //change the translation to match the obtained coordinates
                             go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);
@@ -353,6 +355,9 @@ bool Input::PreUpdate()
                             Application::GetInstance().opengl->gameObjects.push_back(go);
                             std::cout << "Created GameObject " << go->name << std::endl;
                             LOG("Created GameObject " + go->name + " with mesh " + path);
+
+                            ModuleEditor* editor = Application::GetInstance().editor.get();
+                            if (editor) editor->sceneModified = true;
                         }
 
                         std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;

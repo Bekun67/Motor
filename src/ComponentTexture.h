@@ -21,9 +21,15 @@ public:
 
     bool LoadTextureFromCustomFormat(const std::string& path);
 
+    // Serialization
+    PropertyMap Serialize() const override;
+    void Deserialize(const PropertyMap& props) override;
+
 public:
     TextureData* texturedata;
     std::string texturePath;
     bool hasTexture;
     bool hasTransparency = false;
+
+	void CreateCheckerboardTexture();
 };

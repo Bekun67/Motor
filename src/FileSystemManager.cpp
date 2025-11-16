@@ -10,8 +10,10 @@ namespace FileSystemManager {
             "Assets",
             "Assets/Models",
             "Assets/Textures",
+            "Assets/Scenes",
             "Library",
             "Library/Meshes",
+			"Library/Meshes/Primitives",
             "Library/Materials",
             "Library/Models"
         };
@@ -44,5 +46,13 @@ namespace FileSystemManager {
         auto customTime = GetFileModificationTime(customPath);
 
         return fbxTime > customTime; // FBX is newer than custom file
+    }
+
+    std::string GetSceneExtension() {
+        return ".ilscene";
+    }
+
+    std::string GetScenesDirectory() {
+        return "Assets/Scenes/";
     }
 }

@@ -1,10 +1,163 @@
 ﻿#include "PrimitiveGenerator.h"
+#include "MeshImporter.h"
+#include "FileSystemManager.h"
 #include <cmath>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+std::string PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType type, float param1, float param2, int param3, int param4)
+{
+    std::stringstream ss;
+    ss << "Library/Meshes/Primitives/";
+
+    switch (type)
+    {
+    case PrimitiveType::CUBE:
+        ss << "Cube_" << std::fixed << std::setprecision(2) << param1 << ".ilmesh";
+        break;
+    case PrimitiveType::SPHERE:
+        ss << "Sphere_r" << std::fixed << std::setprecision(2) << param1
+            << "_seg" << param3 << "_rings" << param4 << ".ilmesh";
+        break;
+    case PrimitiveType::CYLINDER:
+        ss << "Cylinder_r" << std::fixed << std::setprecision(2) << param1
+            << "_h" << std::fixed << std::setprecision(2) << param2
+            << "_seg" << param3 << ".ilmesh";
+        break;
+    case PrimitiveType::PLANE:
+        ss << "Plane_w" << std::fixed << std::setprecision(2) << param1
+            << "_d" << std::fixed << std::setprecision(2) << param2
+            << "_wseg" << param3 << "_dseg" << param4 << ".ilmesh";
+        break;
+    default:
+        ss << "Unknown.ilmesh";
+        break;
+    }
+
+    return ss.str();
+}
+
+bool PrimitiveGenerator::SavePrimitiveMesh(PrimitiveType type, const std::vector<float>& vertices, const std::vector<unsigned int>& indices, float param1, float param2, int param3, int param4)
+{
+    // Create primitives directory if it doesn't exist
+    std::string primitivesDir = "Library/Meshes/Primitives/";
+    if (!std::filesystem::exists(primitivesDir))
+    {
+        std::filesystem::create_directories(primitivesDir);
+    }
+
+    std::string path = GetPrimitiveMeshPath(type, param1, param2, param3, param4);
+
+    // Check if already exists
+    if (FileSystemManager::FileExists(path))
+    {
+        std::cout << "[PrimitiveGenerator] Primitive mesh already exists: " << path << std::endl;
+        return true;
+    }
+
+    // Convert to CustomMesh format
+    CustomMesh customMesh;
+    customMesh.vertices = vertices;
+    customMesh.indices = indices;
+    customMesh.numVertices = vertices.size() / 8; // 8 floats per vertex
+    customMesh.numIndices = indices.size();
+
+    // Calculate AABB
+    customMesh.aabbMinX = std::numeric_limits<float>::max();
+    customMesh.aabbMinY = std::numeric_limits<float>::max();
+    customMesh.aabbMinZ = std::numeric_limits<float>::max();
+    customMesh.aabbMaxX = std::numeric_limits<float>::lowest();
+    customMesh.aabbMaxY = std::numeric_limits<float>::lowest();
+    customMesh.aabbMaxZ = std::numeric_limits<float>::lowest();
+
+    for (size_t i = 0; i < vertices.size(); i += 8)
+    {
+        float x = vertices[i];
+        float y = vertices[i + 1];
+        float z = vertices[i + 2];
+
+        customMesh.aabbMinX = std::min(customMesh.aabbMinX, x);
+        customMesh.aabbMinY = std::min(customMesh.aabbMinY, y);
+        customMesh.aabbMinZ = std::min(customMesh.aabbMinZ, z);
+
+        customMesh.aabbMaxX = std::max(customMesh.aabbMaxX, x);
+        customMesh.aabbMaxY = std::max(customMesh.aabbMaxY, y);
+        customMesh.aabbMaxZ = std::max(customMesh.aabbMaxZ, z);
+    }
+
+    // Save using MeshImporter
+    if (MeshImporter::SaveMesh(customMesh, path))
+    {
+        std::cout << "[PrimitiveGenerator] Primitive mesh saved: " << path << std::endl;
+        return true;
+    }
+
+    std::cerr << "[PrimitiveGenerator] Failed to save primitive mesh: " << path << std::endl;
+    return false;
+}
+
+int PrimitiveGenerator::LoadPrimitiveMesh(const std::string& primitivePath)
+{
+    CustomMesh mesh;
+    if (!MeshImporter::LoadMesh(mesh, primitivePath))
+    {
+        std::cerr << "[PrimitiveGenerator] Failed to load primitive mesh: " << primitivePath << std::endl;
+        return -1;
+    }
+
+    // Create MeshData and upload to GPU
+    MeshData md;
+
+    md.aabbMin = glm::vec3(mesh.aabbMinX, mesh.aabbMinY, mesh.aabbMinZ);
+    md.aabbMax = glm::vec3(mesh.aabbMaxX, mesh.aabbMaxY, mesh.aabbMaxZ);
+
+    // Create VAO and VBO
+    glGenVertexArrays(1, &md.VAO);
+    glBindVertexArray(md.VAO);
+
+    glGenBuffers(1, &md.VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, md.VBO);
+    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(float),
+        mesh.vertices.data(), GL_STATIC_DRAW);
+
+    // Create EBO
+    glGenBuffers(1, &md.EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, md.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(unsigned int),
+        mesh.indices.data(), GL_STATIC_DRAW);
+
+    GLsizei vertexSize = 8 * sizeof(float);
+
+    // Position
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(0));
+
+    // Normals
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(3 * sizeof(float)));
+
+    // UVs
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)(6 * sizeof(float)));
+
+    md.numIndices = mesh.numIndices;
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // Add to global mesh list
+    int meshIndex = (int)g_Meshes.size();
+    g_Meshes.push_back(md);
+
+    std::cout << "[PrimitiveGenerator] Primitive mesh loaded to engine at index: " << meshIndex << std::endl;
+    return meshIndex;
+}
 
 int PrimitiveGenerator::CreateMeshData(const std::vector<float>& vertices, const std::vector<unsigned int>& indices)
 {
@@ -47,7 +200,7 @@ int PrimitiveGenerator::CreateMeshData(const std::vector<float>& vertices, const
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, md.EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    GLsizei vertexSize = 8 * sizeof(float); 
+    GLsizei vertexSize = 8 * sizeof(float);
 
     // Position attribute
     glEnableVertexAttribArray(0);
@@ -78,6 +231,15 @@ int PrimitiveGenerator::CreateMeshData(const std::vector<float>& vertices, const
         << " (meshIndex: " << meshIndex << ")" << std::endl;
 
     return meshIndex;
+}
+
+int PrimitiveGenerator::CreateAndSaveMeshData(PrimitiveType type, const std::vector<float>& vertices, const std::vector<unsigned int>& indices, float param1, float param2, int param3, int param4)
+{
+    // Save to file
+    SavePrimitiveMesh(type, vertices, indices, param1, param2, param3, param4);
+
+    // Create and return engine index
+    return CreateMeshData(vertices, indices);
 }
 
 int PrimitiveGenerator::GenerateCube(float size)
@@ -132,7 +294,7 @@ int PrimitiveGenerator::GenerateCube(float size)
         20, 21, 22,  20, 22, 23   // Bottom
     };
 
-    return CreateMeshData(vertices, indices);
+    return CreateAndSaveMeshData(PrimitiveType::CUBE, vertices, indices, size, 0, 0, 0);
 }
 
 int PrimitiveGenerator::GenerateSphere(float radius, int segments, int rings)
@@ -191,7 +353,7 @@ int PrimitiveGenerator::GenerateSphere(float radius, int segments, int rings)
         }
     }
 
-    return CreateMeshData(vertices, indices);
+    return CreateAndSaveMeshData(PrimitiveType::SPHERE, vertices, indices, radius, 0, segments, rings);
 }
 
 int PrimitiveGenerator::GenerateCylinder(float radius, float height, int segments)
@@ -322,7 +484,7 @@ int PrimitiveGenerator::GenerateCylinder(float radius, float height, int segment
         indices.push_back(bottomCenterIndex + i + 1);
     }
 
-    return CreateMeshData(vertices, indices);
+    return CreateAndSaveMeshData(PrimitiveType::CYLINDER, vertices, indices, radius, height, segments, 0);
 }
 
 int PrimitiveGenerator::GeneratePlane(float width, float depth, int widthSegments, int depthSegments)
@@ -382,5 +544,5 @@ int PrimitiveGenerator::GeneratePlane(float width, float depth, int widthSegment
         }
     }
 
-    return CreateMeshData(vertices, indices);
+    return CreateAndSaveMeshData(PrimitiveType::PLANE, vertices, indices, width, depth, widthSegments, depthSegments);
 }
