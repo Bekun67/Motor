@@ -62,6 +62,32 @@ ModuleEditor::~ModuleEditor()
     g_Editor = nullptr;
 }
 
+void ModuleEditor::UpdateLayout(int windowWidth, int windowHeight)
+{
+    // Only update if window size actually changed
+    if (windowWidth == lastWindowWidth && windowHeight == lastWindowHeight && !firstTimeSetup)
+    {
+        return;
+    }
+
+    lastWindowWidth = windowWidth;
+    lastWindowHeight = windowHeight;
+
+    // Disable adaptive layout during first time setup
+    if (firstTimeSetup)
+    {
+        return;
+    }
+
+    LOG("Updating layout for window size: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
+}
+
+void ModuleEditor::ResetLayout()
+{
+    firstTimeSetup = true;
+    LOG("Layout reset - will recalculate on next frame");
+}
+
 bool ModuleEditor::Start()
 {
     LOG("ModuleEditor initialized successfully");
@@ -187,16 +213,34 @@ void ModuleEditor::ClearLog()
 
 void ModuleEditor::DrawSceneViewport()
 {
+    Window* window = Application::GetInstance().window.get();
+    int windowWidth, windowHeight;
+    window->GetWindowSize(windowWidth, windowHeight);
+
     if (firstTimeSetup)
     {
-        ImGui::SetNextWindowPos(ImVec2(170, 20), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(810, 540), ImGuiCond_Always);
+        float x = windowWidth * layout.sceneXPercent + layout.marginX;
+        float y = layout.marginY;
+        float width = windowWidth * layout.sceneWidthPercent - layout.marginX;
+        float height = windowHeight * layout.sceneHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+    }
+    else if (useAdaptiveLayout)
+    {
+        float x = windowWidth * layout.sceneXPercent + layout.marginX;
+        float y = layout.marginY;
+        float width = windowWidth * layout.sceneWidthPercent - layout.marginX;
+        float height = windowHeight * layout.sceneHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
 
-    // Get scale
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     ImVec2 viewportPos = ImGui::GetCursorScreenPos();
 
@@ -210,11 +254,31 @@ void ModuleEditor::DrawSceneViewport()
 void ModuleEditor::DrawMenuBar()
 {
 
+    Window* window = Application::GetInstance().window.get();
+    int windowWidth, windowHeight;
+    window->GetWindowSize(windowWidth, windowHeight);
+
     if (firstTimeSetup)
     {
-        ImGui::SetNextWindowPos(ImVec2(10, 20), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(150, 320), ImGuiCond_Always);
-        firstTimeSetup = false;
+        float width = windowWidth * layout.menuWidthPercent;
+        float height = windowHeight * layout.menuHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(layout.marginX, layout.marginY), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+
+        // Disable first time setup after first frame
+        if (ImGui::GetFrameCount() > 2)
+        {
+            firstTimeSetup = false;
+        }
+    }
+    else if (useAdaptiveLayout)
+    {
+        float width = windowWidth * layout.menuWidthPercent;
+        float height = windowHeight * layout.menuHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(layout.marginX, layout.marginY), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
 
     ImGui::Begin("Main Menu");
@@ -561,11 +625,29 @@ void ModuleEditor::DrawMenuBar()
 void ModuleEditor::DrawConsole()
 {
 
+    Window* window = Application::GetInstance().window.get();
+    int windowWidth, windowHeight;
+    window->GetWindowSize(windowWidth, windowHeight);
+
     if (firstTimeSetup)
     {
-        // Posicionar en la parte inferior, ocupando todo el ancho
-        ImGui::SetNextWindowPos(ImVec2(170, 570), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(810, 140), ImGuiCond_Always);
+        float x = windowWidth * layout.consoleXPercent + layout.marginX;
+        float y = windowHeight * layout.consoleYPercent;
+        float width = windowWidth * layout.consoleWidthPercent - layout.marginX;
+        float height = windowHeight * layout.consoleHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+    }
+    else if (useAdaptiveLayout)
+    {
+        float x = windowWidth * layout.consoleXPercent + layout.marginX;
+        float y = windowHeight * layout.consoleYPercent;
+        float width = windowWidth * layout.consoleWidthPercent - layout.marginX;
+        float height = windowHeight * layout.consoleHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
 
     ImGui::Begin("Console", &showConsole);
@@ -614,15 +696,23 @@ void ModuleEditor::DrawConfiguration()
     }
 
     ImGui::Begin("Configuration", &showConfiguration);
-    if (ImGui::CollapsingHeader("Editor Layout", ImGuiTreeNodeFlags_DefaultOpen ))
+
+    if (ImGui::CollapsingHeader("Editor Layout", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::TextWrapped("Reset all ImGui windows to their default positions and sizes.");
         ImGui::Spacing();
 
-        if (ImGui::Button("Default Editor", ImVec2(-1, 0)))
+        if (ImGui::Button("Reset Layout", ImVec2(-1, 0)))
         {
-            firstTimeSetup = true;
+            ResetLayout();
             LOG("Resetting editor layout to default positions");
+        }
+
+        ImGui::Spacing();
+        ImGui::Checkbox("Adaptive Layout", &useAdaptiveLayout);
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Automatically adjust layout when window is resized");
         }
 
         ImGui::Spacing();
@@ -753,14 +843,32 @@ void ModuleEditor::DrawConfiguration()
 void ModuleEditor::DrawHierarchy()
 {
 
+    Window* window = Application::GetInstance().window.get();
+    int windowWidth, windowHeight;
+    window->GetWindowSize(windowWidth, windowHeight);
+
     if (firstTimeSetup)
     {
-        // Posicionar en la parte derecha, arriba
-        ImGui::SetNextWindowPos(ImVec2(10, 350), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(150, 360), ImGuiCond_Always);
+        float x = layout.marginX;
+        float y = windowHeight * layout.hierarchyYPercent;
+        float width = windowWidth * layout.hierarchyWidthPercent;
+        float height = windowHeight * layout.hierarchyHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+    }
+    else if (useAdaptiveLayout)
+    {
+        float x = layout.marginX;
+        float y = windowHeight * layout.hierarchyYPercent;
+        float width = windowWidth * layout.hierarchyWidthPercent;
+        float height = windowHeight * layout.hierarchyHeightPercent;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
 
-    ImGui::Begin("Hierarchy", &showHierarchy, ImGuiWindowFlags_HorizontalScrollbar );
+    ImGui::Begin("Hierarchy", &showHierarchy, ImGuiWindowFlags_HorizontalScrollbar);
 
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (opengl)
@@ -787,11 +895,29 @@ void ModuleEditor::DrawHierarchy()
 void ModuleEditor::DrawInspector()
 {
 
+    Window* window = Application::GetInstance().window.get();
+    int windowWidth, windowHeight;
+    window->GetWindowSize(windowWidth, windowHeight);
+
     if (firstTimeSetup)
     {
-        // Posicionar debajo de Hierarchy
-        ImGui::SetNextWindowPos(ImVec2(990, 20), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(280, 690), ImGuiCond_Always);
+        float x = windowWidth * layout.inspectorXPercent;
+        float y = layout.marginY;
+        float width = windowWidth * layout.inspectorWidthPercent;
+        float height = windowHeight * layout.inspectorHeightPercent - layout.marginY;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+    }
+    else if (useAdaptiveLayout)
+    {
+        float x = windowWidth * layout.inspectorXPercent;
+        float y = layout.marginY;
+        float width = windowWidth * layout.inspectorWidthPercent;
+        float height = windowHeight * layout.inspectorHeightPercent - layout.marginY;
+
+        ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
 
     ImGui::Begin("Inspector", &showInspector);

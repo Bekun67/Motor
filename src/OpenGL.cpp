@@ -485,6 +485,22 @@ bool OpenGL::Update()
     // Use camera input handling
     camera.HandleInput(deltaTime);
 
+    // Check if window was resized
+    Window* window = Application::GetInstance().window.get();
+    if (window->WasResized())
+    {
+        int windowWidth, windowHeight;
+        window->GetWindowSize(windowWidth, windowHeight);
+        LOG("OpenGL: Adapting to new window size: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
+
+        // Update editor layout
+        ModuleEditor* editor = Application::GetInstance().editor.get();
+        if (editor)
+        {
+            editor->UpdateLayout(windowWidth, windowHeight);
+        }
+    }
+
     glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

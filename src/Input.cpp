@@ -494,6 +494,11 @@ bool Input::PreUpdate()
             }
             break;
         }
+        case SDL_EVENT_WINDOW_RESIZED:
+        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+        {
+            break;
+        }
 		}
 	}
 	return true;

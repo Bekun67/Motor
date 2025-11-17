@@ -46,7 +46,11 @@ public:
     bool SaveScene(const std::string& filepath);
     bool LoadScene(const std::string& filepath);
 
-	static void SetupImGuiStyle();
+    static void SetupImGuiStyle();
+
+    // Layout management
+    void UpdateLayout(int windowWidth, int windowHeight);
+    void ResetLayout();
 
     // ImGuizmo
     void DrawGuizmo();
@@ -65,7 +69,7 @@ public:
 
     ImVec2 sceneViewportPos;
     ImVec2 sceneViewportSize;
-    
+
     // Selected GameObject
     GameObject* selectedGameObject = nullptr;
     int CountNames(std::string prefix);
@@ -91,7 +95,6 @@ private:
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
     void DrawSceneViewport();
-    
 
     // Console
     std::deque<LogEntry> logs;
@@ -110,6 +113,45 @@ private:
     const char* repoURL = "https://github.com/Bekun67/Motor";
 
     bool firstTimeSetup = true;
+    bool useAdaptiveLayout = true;
+
+    // Layout percentages (relative to window size)
+    struct LayoutConfig
+    {
+        // Menu
+        float menuWidthPercent = 0.12f;  // 12% of width
+        float menuHeightPercent = 0.44f; // 44% of height
+
+        // Scene
+        float sceneXPercent = 0.13f;      // Starting at 13% from left
+        float sceneWidthPercent = 0.64f;  // 64% of width
+        float sceneHeightPercent = 0.76f; // 76% of height
+
+        // Hierarchy
+        float hierarchyXPercent = 0.0f;
+        float hierarchyYPercent = 0.48f;
+        float hierarchyWidthPercent = 0.12f;
+        float hierarchyHeightPercent = 0.52f;
+
+        // Inspector
+        float inspectorXPercent = 0.78f;
+        float inspectorWidthPercent = 0.22f;
+        float inspectorHeightPercent = 1.0f;
+
+        // Console
+        float consoleYPercent = 0.78f;
+        float consoleXPercent = 0.13f;
+        float consoleWidthPercent = 0.64f;
+        float consoleHeightPercent = 0.22f;
+
+        // Margins
+        float marginX = 10.0f;
+        float marginY = 20.0f;
+    };
+
+    LayoutConfig layout;
+    int lastWindowWidth = 0;
+    int lastWindowHeight = 0;
 
     // Save/Load dialog state
     char saveSceneNameBuffer[256] = "NewScene";
