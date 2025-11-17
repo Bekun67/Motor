@@ -118,35 +118,34 @@ private:
     // Layout percentages (relative to window size)
     struct LayoutConfig
     {
-        // Menu
-        float menuWidthPercent = 0.12f;  // 12% of width
-        float menuHeightPercent = 0.44f; // 44% of height
+        // Menu Bar
+        float menuBarHeight = 25.0f;  
 
         // Scene
-        float sceneXPercent = 0.13f;      // Starting at 13% from left
-        float sceneWidthPercent = 0.64f;  // 64% of width
-        float sceneHeightPercent = 0.76f; // 76% of height
+        float sceneXPercent = 0.15f;     
+        float sceneWidthPercent = 0.70f;  
+        float sceneHeightPercent = 0.80f; 
 
         // Hierarchy
         float hierarchyXPercent = 0.0f;
-        float hierarchyYPercent = 0.48f;
-        float hierarchyWidthPercent = 0.12f;
-        float hierarchyHeightPercent = 0.52f;
+        float hierarchyYPercent = 0.0f;   
+        float hierarchyWidthPercent = 0.15f;
+        float hierarchyHeightPercent = 1.0f; 
 
         // Inspector
-        float inspectorXPercent = 0.78f;
-        float inspectorWidthPercent = 0.22f;
+        float inspectorXPercent = 0.85f;  
+        float inspectorWidthPercent = 0.15f; 
         float inspectorHeightPercent = 1.0f;
 
         // Console
-        float consoleYPercent = 0.78f;
-        float consoleXPercent = 0.13f;
-        float consoleWidthPercent = 0.64f;
-        float consoleHeightPercent = 0.22f;
+        float consoleYPercent = 0.80f;    
+        float consoleXPercent = 0.f;
+        float consoleWidthPercent = 0.85f;
+        float consoleHeightPercent = 0.20f; 
 
         // Margins
-        float marginX = 10.0f;
-        float marginY = 20.0f;
+        float marginX = 5.0f;
+        float marginY = 5.0f;
     };
 
     LayoutConfig layout;

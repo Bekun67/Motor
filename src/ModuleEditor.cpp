@@ -219,27 +219,29 @@ void ModuleEditor::DrawSceneViewport()
 
     if (firstTimeSetup)
     {
-        float x = windowWidth * layout.sceneXPercent + layout.marginX;
-        float y = layout.marginY;
-        float width = windowWidth * layout.sceneWidthPercent - layout.marginX;
-        float height = windowHeight * layout.sceneHeightPercent;
+        float x = windowWidth * layout.sceneXPercent;
+        float y = layout.menuBarHeight + layout.marginY;
+        float width = windowWidth * layout.sceneWidthPercent;
+        float height = windowHeight * layout.sceneHeightPercent - layout.menuBarHeight;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
     else if (useAdaptiveLayout)
     {
-        float x = windowWidth * layout.sceneXPercent + layout.marginX;
-        float y = layout.marginY;
-        float width = windowWidth * layout.sceneWidthPercent - layout.marginX;
-        float height = windowHeight * layout.sceneHeightPercent;
+        float x = windowWidth * layout.sceneXPercent;
+        float y = layout.menuBarHeight + layout.marginY;
+        float width = windowWidth * layout.sceneWidthPercent;
+        float height = windowHeight * layout.sceneHeightPercent - layout.menuBarHeight;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
 
+    std::string windowTitle = "Scene - " + currentScenePath;
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+    ImGui::Begin(windowTitle.c_str(), nullptr, ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
 
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     ImVec2 viewportPos = ImGui::GetCursorScreenPos();
@@ -253,293 +255,246 @@ void ModuleEditor::DrawSceneViewport()
 
 void ModuleEditor::DrawMenuBar()
 {
-
     Window* window = Application::GetInstance().window.get();
     int windowWidth, windowHeight;
     window->GetWindowSize(windowWidth, windowHeight);
 
-    if (firstTimeSetup)
+    // Menu bar horizontal estilo Unity
+    if (ImGui::BeginMainMenuBar())
     {
-        float width = windowWidth * layout.menuWidthPercent;
-        float height = windowHeight * layout.menuHeightPercent;
+        float menuBarHeight = ImGui::GetWindowSize().y;
+        layout.menuBarHeight = menuBarHeight;
 
-        ImGui::SetNextWindowPos(ImVec2(layout.marginX, layout.marginY), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-
-        // Disable first time setup after first frame
-        if (ImGui::GetFrameCount() > 2)
+        // File Menu
+        if (ImGui::BeginMenu("File"))
         {
-            firstTimeSetup = false;
-        }
-    }
-    else if (useAdaptiveLayout)
-    {
-        float width = windowWidth * layout.menuWidthPercent;
-        float height = windowHeight * layout.menuHeightPercent;
-
-        ImGui::SetNextWindowPos(ImVec2(layout.marginX, layout.marginY), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-    }
-
-    ImGui::Begin("Main Menu");
-
-    if (ImGui::CollapsingHeader("File", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (ImGui::Button("New Scene"))
-        {
-            if (sceneModified && !currentScenePath.empty())
+            if (ImGui::MenuItem("New Scene"))
             {
-                LOG_WARNING("Current scene has unsaved changes!");
-            }
-
-            // Clear current scene
-            OpenGL* opengl = Application::GetInstance().opengl.get();
-            if (opengl)
-            {
-                for (GameObject* go : opengl->gameObjects)
+                if (sceneModified && !currentScenePath.empty())
                 {
-                    delete go;
+                    LOG_WARNING("Current scene has unsaved changes!");
                 }
-                opengl->gameObjects.clear();
-                selectedGameObject = nullptr;
-                opengl->selectedGameObject = nullptr;
 
-                currentScenePath = "";
-                sceneModified = false;
-                LOG("New scene created");
+                // Clear current scene
+                OpenGL* opengl = Application::GetInstance().opengl.get();
+                if (opengl)
+                {
+                    for (GameObject* go : opengl->gameObjects)
+                    {
+                        delete go;
+                    }
+                    opengl->gameObjects.clear();
+                    selectedGameObject = nullptr;
+                    opengl->selectedGameObject = nullptr;
+
+                    currentScenePath = "";
+                    sceneModified = false;
+                    LOG("New scene created");
+                }
             }
-        }
 
-        if (ImGui::Button("Save Scene"))
-        {
-            if (currentScenePath.empty())
+            if (ImGui::MenuItem("Save Scene"))
+            {
+                if (currentScenePath.empty())
+                {
+                    SaveSceneDialog();
+                }
+                else
+                {
+                    SaveScene(currentScenePath);
+                }
+            }
+
+            if (ImGui::MenuItem("Save Scene As..."))
             {
                 SaveSceneDialog();
             }
-            else
+
+            if (ImGui::MenuItem("Load Scene"))
             {
-                SaveScene(currentScenePath);
-            }
-        }
-
-        if (ImGui::Button("Save Scene As..."))
-        {
-            SaveSceneDialog();
-        }
-
-        if (ImGui::Button("Load Scene"))
-        {
-            LoadSceneDialog();
-        }
-
-        ImGui::Separator();
-
-        if (ImGui::Button("Exit"))
-        {
-            if (sceneModified)
-            {
-                LOG_WARNING("Scene has unsaved changes!");
+                LoadSceneDialog();
             }
 
-            SDL_Event quitEvent;
-            quitEvent.type = SDL_EVENT_QUIT;
-            SDL_PushEvent(&quitEvent);
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Exit"))
+            {
+                if (sceneModified)
+                {
+                    LOG_WARNING("Scene has unsaved changes!");
+                }
+
+                SDL_Event quitEvent;
+                quitEvent.type = SDL_EVENT_QUIT;
+                SDL_PushEvent(&quitEvent);
+            }
+
+            ImGui::EndMenu();
         }
+
+        // View Menu
+        if (ImGui::BeginMenu("View"))
+        {
+            ImGui::MenuItem("Console", nullptr, &showConsole);
+            ImGui::MenuItem("Configuration", nullptr, &showConfiguration);
+            ImGui::MenuItem("Hierarchy", nullptr, &showHierarchy);
+            ImGui::MenuItem("Inspector", nullptr, &showInspector);
+
+            ImGui::EndMenu();
+        }
+
+        // GameObject Menu
+        if (ImGui::BeginMenu("GameObject"))
+        {
+            if (ImGui::MenuItem("Create Cube"))
+            {
+                LOG("Creating cube primitive");
+
+                float size = 2.0f;
+                int meshIndex = PrimitiveGenerator::GenerateCube(size);
+
+                GameObject* cube = new GameObject();
+                int index = CountNames("Cube_");
+                cube->name = "Cube_" + std::to_string(index);
+                cube->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::CUBE, size, 0, 0, 0);
+                cube->meshIndexInFBX = 0;
+
+                cube->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
+                cube->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                cube->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                cube->mesh->meshIndex = meshIndex;
+                AssignCheckerboardTexture(cube);
+
+                Application::GetInstance().opengl->gameObjects.push_back(cube);
+                sceneModified = true;
+
+                LOG("Created GameObject: " + cube->name + " with meshIndex: " + std::to_string(meshIndex));
+            }
+
+            if (ImGui::MenuItem("Create Sphere"))
+            {
+                LOG("Creating sphere primitive");
+
+                float radius = 1.0f;
+                int segments = 32;
+                int rings = 16;
+
+                int meshIndex = PrimitiveGenerator::GenerateSphere(radius, segments, rings);
+
+                GameObject* sphere = new GameObject();
+                int index = CountNames("Sphere_");
+                sphere->name = "Sphere_" + std::to_string(index);
+                sphere->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::SPHERE, radius, 0, segments, rings);
+                sphere->meshIndexInFBX = 0;
+
+                sphere->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
+                sphere->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                sphere->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                sphere->mesh->meshIndex = meshIndex;
+                AssignCheckerboardTexture(sphere);
+
+                Application::GetInstance().opengl->gameObjects.push_back(sphere);
+                sceneModified = true;
+
+                LOG("Created GameObject: " + sphere->name + " with meshIndex: " + std::to_string(meshIndex));
+            }
+
+            if (ImGui::MenuItem("Create Cylinder"))
+            {
+                LOG("Creating cylinder primitive");
+
+                float radius = 0.5f;
+                float height = 2.0f;
+                int segments = 32;
+
+                int meshIndex = PrimitiveGenerator::GenerateCylinder(radius, height, segments);
+
+                GameObject* cylinder = new GameObject();
+                int index = CountNames("Cylinder_");
+                cylinder->name = "Cylinder_" + std::to_string(index);
+                cylinder->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::CYLINDER, radius, height, segments, 0);
+                cylinder->meshIndexInFBX = 0;
+
+                cylinder->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
+                cylinder->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                cylinder->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                cylinder->mesh->meshIndex = meshIndex;
+                AssignCheckerboardTexture(cylinder);
+
+                Application::GetInstance().opengl->gameObjects.push_back(cylinder);
+                sceneModified = true;
+
+                LOG("Created GameObject: " + cylinder->name + " with meshIndex: " + std::to_string(meshIndex));
+            }
+
+            if (ImGui::MenuItem("Create Plane"))
+            {
+                LOG("Creating plane primitive");
+
+                float width = 5.0f;
+                float depth = 5.0f;
+                int widthSegments = 10;
+                int depthSegments = 10;
+
+                int meshIndex = PrimitiveGenerator::GeneratePlane(width, depth, widthSegments, depthSegments);
+
+                GameObject* plane = new GameObject();
+                int index = CountNames("Plane_");
+                plane->name = "Plane_" + std::to_string(index);
+
+                plane->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                plane->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                plane->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+                plane->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::PLANE, width, depth, widthSegments, depthSegments);
+                plane->meshIndexInFBX = 0;
+
+                plane->mesh->meshIndex = meshIndex;
+                AssignCheckerboardTexture(plane);
+
+                Application::GetInstance().opengl->gameObjects.push_back(plane);
+                sceneModified = true;
+
+                LOG("Created GameObject: " + plane->name + " with meshIndex: " + std::to_string(meshIndex));
+            }
+
+            ImGui::EndMenu();
+        }
+
+        // Help Menu
+        if (ImGui::BeginMenu("Help"))
+        {
+            if (ImGui::MenuItem("Documentation"))
+            {
+                std::string url = std::string(repoURL) + "/blob/main/README.md";
+                SDL_OpenURL(url.c_str());
+                LOG("Opening documentation: " + url);
+            }
+            if (ImGui::MenuItem("Report a Bug"))
+            {
+                std::string url = std::string(repoURL);
+                SDL_OpenURL(url.c_str());
+                LOG("Opening issues page: " + url);
+            }
+            if (ImGui::MenuItem("Download Latest"))
+            {
+                std::string url = std::string(repoURL) + "/releases";
+                SDL_OpenURL(url.c_str());
+                LOG("Opening releases page: " + url);
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("About"))
+            {
+                showAbout = true;
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
     }
-
-    if (ImGui::CollapsingHeader("View", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Checkbox("Console", &showConsole);
-        ImGui::Checkbox("Configuration", &showConfiguration);
-        ImGui::Checkbox("Hierarchy", &showHierarchy);
-        ImGui::Checkbox("Inspector", &showInspector);
-    }
-
-    if (ImGui::CollapsingHeader("GameObject"))
-    {
-        if (ImGui::Button("Create Cube"))
-        {
-            LOG("Creating cube primitive");
-
-            float size = 2.0f;
-            // Generate the cube mesh and get its index
-            int meshIndex = PrimitiveGenerator::GenerateCube(size);
-
-            // Create GameObject
-            GameObject* cube = new GameObject();
-
-            int index = CountNames("Cube_");
-            cube->name = "Cube_" + std::to_string(index);
-            cube->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::CUBE, size, 0, 0, 0);
-            cube->meshIndexInFBX = 0; 
-
-            // Set transform
-            cube->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
-            cube->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-            cube->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-
-            // Assign mesh index
-            cube->mesh->meshIndex = meshIndex;
-
-            // Assign checkerboard texture
-            AssignCheckerboardTexture(cube);
-
-            // Add to gameObjects list
-            Application::GetInstance().opengl->gameObjects.push_back(cube);
-
-            sceneModified = true;
-
-            LOG("Created GameObject: " + cube->name + " with meshIndex: " + std::to_string(meshIndex));
-            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
-        }
-
-        if (ImGui::Button("Create Sphere"))
-        {
-            LOG("Creating sphere primitive");
-
-            float radius = 1.0f;
-            int segments = 32;
-            int rings = 16;
-
-            // Generate the sphere mesh and get its index
-            int meshIndex = PrimitiveGenerator::GenerateSphere(radius, segments, rings);
-
-            // Create GameObject
-            GameObject* sphere = new GameObject();
-
-            int index = CountNames("Sphere_");
-            sphere->name = "Sphere_" + std::to_string(index);
-            sphere->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::SPHERE, radius, 0, segments, rings);
-            sphere->meshIndexInFBX = 0;
-
-            // Set transform
-            sphere->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
-            sphere->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-            sphere->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-
-            // Assign mesh index
-            sphere->mesh->meshIndex = meshIndex;
-
-            // Assign checkerboard texture
-            AssignCheckerboardTexture(sphere);
-
-            // Add to gameObjects list
-            Application::GetInstance().opengl->gameObjects.push_back(sphere);
-
-            sceneModified = true;
-
-            LOG("Created GameObject: " + sphere->name + " with meshIndex: " + std::to_string(meshIndex));
-            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
-        }
-
-        if (ImGui::Button("Create Cylinder"))
-        {
-            LOG("Creating cylinder primitive");
-
-            float radius = 0.5f;
-            float height = 2.0f;
-            int segments = 32;
-
-            // Generate the cylinder mesh and get its index
-            int meshIndex = PrimitiveGenerator::GenerateCylinder(radius, height, segments);
-
-            // Create GameObject
-            GameObject* cylinder = new GameObject();
-
-            int index = CountNames("Cylinder_");
-            cylinder->name = "Cylinder_" + std::to_string(index);
-            cylinder->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::CYLINDER, radius, height, segments, 0);
-            cylinder->meshIndexInFBX = 0;
-
-            // Set transform
-            cylinder->transform->translation = aiVector3D(0.0f, 1.0f, 0.0f);
-            cylinder->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-            cylinder->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-
-            // Assign mesh index
-            cylinder->mesh->meshIndex = meshIndex;
-
-            // Assign checkerboard texture
-            AssignCheckerboardTexture(cylinder);
-
-            // Add to gameObjects list
-            Application::GetInstance().opengl->gameObjects.push_back(cylinder);
-
-            sceneModified = true;
-
-            LOG("Created GameObject: " + cylinder->name + " with meshIndex: " + std::to_string(meshIndex));
-            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
-        }
-
-        if (ImGui::Button("Create Plane"))
-        {
-            LOG("Creating plane primitive");
-
-            float width = 5.0f;
-            float depth = 5.0f;
-            int widthSegments = 10;
-            int depthSegments = 10;
-
-            // Generate the plane mesh and get its index
-            int meshIndex = PrimitiveGenerator::GeneratePlane(width, depth, widthSegments, depthSegments);
-
-            // Create GameObject
-            GameObject* plane = new GameObject();
-
-            int index = CountNames("Plane_");
-            plane->name = "Plane_" + std::to_string(index);
-
-            // Set transform
-            plane->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
-            plane->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-            plane->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-            plane->meshPath = PrimitiveGenerator::GetPrimitiveMeshPath(PrimitiveType::PLANE, width, depth, widthSegments, depthSegments);
-            plane->meshIndexInFBX = 0;
-
-            // Assign mesh index
-            plane->mesh->meshIndex = meshIndex;
-
-            // Assign checkerboard texture
-            AssignCheckerboardTexture(plane);
-
-            // Add to gameObjects list
-            Application::GetInstance().opengl->gameObjects.push_back(plane);
-
-            sceneModified = true;
-
-            LOG("Created GameObject: " + plane->name + " with meshIndex: " + std::to_string(meshIndex));
-            LOG("Total GameObjects in scene: " + std::to_string(Application::GetInstance().opengl->gameObjects.size()));
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Help"))
-    {
-        if (ImGui::Button("Documentation"))
-        {
-            std::string url = std::string(repoURL) + "/blob/main/README.md";
-            SDL_OpenURL(url.c_str());
-            LOG("Opening documentation: " + url);
-        }
-        if (ImGui::Button("Report a Bug"))
-        {
-            std::string url = std::string(repoURL);
-            SDL_OpenURL(url.c_str());
-            LOG("Opening issues page: " + url);
-        }
-        if (ImGui::Button("Download Latest"))
-        {
-            std::string url = std::string(repoURL) + "/releases";
-            SDL_OpenURL(url.c_str());
-            LOG("Opening releases page: " + url);
-        }
-        ImGui::Separator();
-        if (ImGui::Button("About"))
-        {
-            showAbout = true;
-        }
-    }
-
-    ImGui::End();
 
     // Save Scene Dialog
     if (showSaveDialog)
@@ -633,18 +588,18 @@ void ModuleEditor::DrawConsole()
     {
         float x = windowWidth * layout.consoleXPercent + layout.marginX;
         float y = windowHeight * layout.consoleYPercent;
-        float width = windowWidth * layout.consoleWidthPercent - layout.marginX;
-        float height = windowHeight * layout.consoleHeightPercent;
+        float width = windowWidth * layout.consoleWidthPercent;
+        float height = windowHeight * layout.consoleHeightPercent - layout.marginY;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
     else if (useAdaptiveLayout)
     {
-        float x = windowWidth * layout.consoleXPercent + layout.marginX;
+        float x = windowWidth * layout.consoleXPercent;
         float y = windowHeight * layout.consoleYPercent;
-        float width = windowWidth * layout.consoleWidthPercent - layout.marginX;
-        float height = windowHeight * layout.consoleHeightPercent;
+        float width = windowWidth * layout.consoleWidthPercent;
+        float height = windowHeight * layout.consoleHeightPercent - layout.marginY;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
@@ -842,7 +797,6 @@ void ModuleEditor::DrawConfiguration()
 
 void ModuleEditor::DrawHierarchy()
 {
-
     Window* window = Application::GetInstance().window.get();
     int windowWidth, windowHeight;
     window->GetWindowSize(windowWidth, windowHeight);
@@ -850,9 +804,9 @@ void ModuleEditor::DrawHierarchy()
     if (firstTimeSetup)
     {
         float x = layout.marginX;
-        float y = windowHeight * layout.hierarchyYPercent;
-        float width = windowWidth * layout.hierarchyWidthPercent;
-        float height = windowHeight * layout.hierarchyHeightPercent;
+        float y = layout.menuBarHeight + layout.marginY;
+        float width = windowWidth * layout.hierarchyWidthPercent - layout.marginX;
+        float height = windowHeight - layout.menuBarHeight - layout.marginY * 2;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
@@ -860,9 +814,9 @@ void ModuleEditor::DrawHierarchy()
     else if (useAdaptiveLayout)
     {
         float x = layout.marginX;
-        float y = windowHeight * layout.hierarchyYPercent;
-        float width = windowWidth * layout.hierarchyWidthPercent;
-        float height = windowHeight * layout.hierarchyHeightPercent;
+        float y = layout.menuBarHeight + layout.marginY;
+        float width = windowWidth * layout.hierarchyWidthPercent - layout.marginX;
+        float height = windowHeight - layout.menuBarHeight - layout.marginY * 2;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
@@ -902,9 +856,9 @@ void ModuleEditor::DrawInspector()
     if (firstTimeSetup)
     {
         float x = windowWidth * layout.inspectorXPercent;
-        float y = layout.marginY;
-        float width = windowWidth * layout.inspectorWidthPercent;
-        float height = windowHeight * layout.inspectorHeightPercent - layout.marginY;
+        float y = layout.menuBarHeight + layout.marginY;
+        float width = windowWidth * layout.inspectorWidthPercent - layout.marginX;
+        float height = windowHeight - layout.menuBarHeight - layout.marginY * 2;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
@@ -912,9 +866,9 @@ void ModuleEditor::DrawInspector()
     else if (useAdaptiveLayout)
     {
         float x = windowWidth * layout.inspectorXPercent;
-        float y = layout.marginY;
-        float width = windowWidth * layout.inspectorWidthPercent;
-        float height = windowHeight * layout.inspectorHeightPercent - layout.marginY;
+        float y = layout.menuBarHeight + layout.marginY;
+        float width = windowWidth * layout.inspectorWidthPercent - layout.marginX;
+        float height = windowHeight - layout.menuBarHeight - layout.marginY * 2;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
