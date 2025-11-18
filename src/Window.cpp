@@ -1,7 +1,7 @@
 #include "Window.h"
 #include <iostream>
 
-Window::Window() : window(nullptr), width(1920), height(1080), scale(1), wasResized(false)
+Window::Window() : window(nullptr), width(1280), height(720), scale(1), wasResized(false)
 {
     std::cout << "Window Constructor" << std::endl;
 }

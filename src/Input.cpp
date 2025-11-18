@@ -218,11 +218,15 @@ bool Input::PreUpdate()
                 mouseInsideScene = true;
             }
 
-            if (moduleEditor->showInspector &&       
-                moduleEditor->selectedGameObject != nullptr &&   
-                moduleEditor->isMouseOverTextureDropZone)        
+            if (moduleEditor->showInspector)        
             {
-                mouseInsideTextureInspector = true;
+                if (moduleEditor->selectedGameObject == nullptr) LOG("WARNING: No GameObject selected!");
+                //texture drag area;
+                else if (mouseX >= moduleEditor->textureDropPos.x && mouseX <= moduleEditor->textureDropPos.x + moduleEditor->textureDropSize.x &&
+                    mouseY >= moduleEditor->textureDropPos.y && mouseY <= moduleEditor->textureDropPos.y + moduleEditor->textureDropSize.y)
+                {
+                    mouseInsideTextureInspector = true;
+                }
             }
 
             if (droppedFile) {
@@ -368,7 +372,7 @@ bool Input::PreUpdate()
                     //get mouse pos
                     if (!mouseInsideScene && !mouseInsideTextureInspector)
                     {
-                        LOG("WARNING: Drop texture over a GameObject or in the Inspector tab!");
+                        if (moduleEditor->selectedGameObject != nullptr) LOG("WARNING: Drop texture over a GameObject or in the Inspector tab!");
                         break;
                     }
                     std::cout << "========TEXTURE==========" << std::endl;

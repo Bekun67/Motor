@@ -1101,7 +1101,6 @@ void ModuleEditor::HandleHierarchyDragDrop(GameObject* target)
 
 void ModuleEditor::DrawInspector()
 {
-
     Window* window = Application::GetInstance().window.get();
     int windowWidth, windowHeight;
     window->GetWindowSize(windowWidth, windowHeight);
@@ -1135,6 +1134,9 @@ void ModuleEditor::DrawInspector()
     }
     else
     {
+        textureDropPos = ImGui::GetWindowPos();
+        textureDropSize = ImGui::GetWindowSize();
+
         //editable name
         static GameObject* lastSelectedGO = nullptr;
         if (lastSelectedGO != selectedGameObject) {
@@ -1392,19 +1394,9 @@ void ModuleEditor::DrawInspector()
 
             //Drag adn Drop Area for textures
             ImGui::Separator();
-            ImGui::Text("Drag new texture here:");
-
-            //we change isMouseOverTextureDropZone, and input.cpp uses this to drop the texture there
-            ImVec2 dropZoneSize(256, 28);
-            ImGui::Button(" ", dropZoneSize);
-
-            isMouseOverTextureDropZone = ImGui::IsItemHovered();
-
-            textureDropZoneMin = ImGui::GetItemRectMin();
-            textureDropZoneMax = ImGui::GetItemRectMax();
+            ImGui::Text("Drag new texture in \ninspector tab to change it!");
         }
     }
-
     ImGui::End();
 }
 

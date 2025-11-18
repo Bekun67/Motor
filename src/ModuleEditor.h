@@ -75,8 +75,8 @@ public:
     int CountNames(std::string prefix);
 
     bool isMouseOverTextureDropZone = false;
-    ImVec2 textureDropZoneMin;
-    ImVec2 textureDropZoneMax;
+    ImVec2 textureDropPos;
+    ImVec2 textureDropSize;
 
     bool showAllAABBs = false;
     bool showAllVertexNormals = false;
