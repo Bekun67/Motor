@@ -34,6 +34,17 @@ public:
 	UUID GetParentUUID() const { return m_ParentUUID; }
 	void SetParentUUID(UUID uuid) { m_ParentUUID = uuid; }
 
+	// Hierarchy management
+	void SetParent(GameObject* newParent);
+	void RemoveChild(GameObject* child);
+	void AddChild(GameObject* child);
+	int GetChildIndex() const; 
+	void MoveUp(); 
+	void MoveDown(); 
+
+	// Helper to check if this is an empty GameObject (no mesh)
+	bool IsEmpty() const { return mesh == nullptr || mesh->meshIndex < 0; }
+
 	GameObject* parent;
 	std::string name;
 	bool active = true;
@@ -47,7 +58,7 @@ public:
 
 	float distanceToCamera = 0.0f;
 	std::string meshPath;
-	int meshIndexInFBX = 0; 
+	int meshIndexInFBX = 0;
 
 private:
 	UUID m_UUID;

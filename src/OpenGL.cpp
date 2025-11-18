@@ -554,6 +554,12 @@ bool OpenGL::Update()
     //we split game objects depending on their transaparency
     for (GameObject* go : gameObjects)
     {
+        // Skip empty GameObjects (no mesh)
+        if (go == nullptr || go->mesh == nullptr || go->mesh->meshIndex < 0 || go->IsEmpty())
+        {
+            continue;
+        }
+
         if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
         {
             //calculate distance
@@ -627,12 +633,16 @@ bool OpenGL::CleanUp()
     ImGui::DestroyContext();
     LOG("ImGui cleaned up");
 
-    // Delete all GameObjects
-    for (GameObject* go : gameObjects)
+    // Delete all GameObjects safely
+    while (!gameObjects.empty())
     {
-        delete go;
+        GameObject* go = gameObjects.back();
+        gameObjects.pop_back();
+        if (go != nullptr)
+        {
+            delete go;
+        }
     }
-    gameObjects.clear();
 
     // Delete loaded resources by LoadFBX
     for (MeshData& md : g_Meshes) {
@@ -669,7 +679,6 @@ bool OpenGL::CleanUp()
         SDL_GL_DestroyContext(glContext);
         glContext = nullptr;
     }
-
 
     return true;
 }

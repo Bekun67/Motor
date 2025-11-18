@@ -128,9 +128,9 @@ private:
 
         // Hierarchy
         float hierarchyXPercent = 0.0f;
-        float hierarchyYPercent = 0.0f;   
+        float hierarchyYPercent = 0.5f;   
         float hierarchyWidthPercent = 0.15f;
-        float hierarchyHeightPercent = 1.0f; 
+        float hierarchyHeightPercent = 0.8f; 
 
         // Inspector
         float inspectorXPercent = 0.85f;  
@@ -158,6 +158,14 @@ private:
     bool showLoadDialog = false;
     std::vector<std::string> availableScenes;
     void RefreshScenesList();
+
+    // Hierarchy drag & drop
+    GameObject* draggedGameObject = nullptr;
+    bool isDragging = false;
+
+    // Helper functions for hierarchy
+    void DrawGameObjectNode(GameObject* go);
+    void HandleHierarchyDragDrop(GameObject* go);
 };
 
 // Global logging functions

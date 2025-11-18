@@ -117,12 +117,19 @@ json SceneSerializer::SerializeGameObject(const GameObject* go)
 	j["Active"] = go->active;
 	j["MeshPath"] = go->meshPath;
 
+	// Mark if this is an empty GameObject
+	j["IsEmpty"] = go->IsEmpty();
+
 	// Serialize mesh index in FBX (not engine index)
 	if (go->mesh && go->mesh->meshIndex >= 0 && !go->meshPath.empty())
 	{
 		// Store the mesh index within its FBX file
-		// This is typically 0 for single-mesh FBXs
-		j["MeshIndexInFBX"] = 0; // You might need to store this in GameObject
+		j["MeshIndexInFBX"] = go->meshIndexInFBX;
+	}
+	else
+	{
+		// Empty GameObject
+		j["MeshIndexInFBX"] = -1;
 	}
 
 	// Serialize Transform
@@ -162,7 +169,7 @@ json SceneSerializer::SerializeGameObject(const GameObject* go)
 	}
 
 	// Serialize Texture
-	if (go->texture)
+	if (go->texture && !go->IsEmpty())
 	{
 		PropertyMap textureProps = go->texture->Serialize();
 		json textureJson;
@@ -238,8 +245,10 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 	{
 		try
 		{
-			// Check if this is a primitive (has meshPath starting with Library/Meshes/Primitives/) or an FBX model
-			if (!go->meshPath.empty())
+			// Check if this is an empty GameObject (no mesh)
+			bool isEmpty = go->meshPath.empty() || go->meshPath == "";
+
+			if (!isEmpty)
 			{
 				int meshIndexInFBX = 0;
 				if (j.contains("MeshIndexInFBX"))
@@ -248,7 +257,7 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 					go->meshIndexInFBX = meshIndexInFBX;
 				}
 
-				// Try to load mesh using ResourceManager (works for both primitives and FBX)
+				// Try to load mesh using ResourceManager
 				int engineMeshIndex = -1;
 				if (ResourceManager::EnsureMeshExists(go->meshPath, meshIndexInFBX, engineMeshIndex))
 				{
@@ -258,16 +267,17 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 				else
 				{
 					LOG_ERROR("Failed to load mesh for GameObject: " + go->name + " from path: " + go->meshPath);
-					delete go;
-					return nullptr;
+					// Don't fail completely, just make it an empty GameObject
+					go->mesh->meshIndex = -1;
+					go->meshPath = "";
+					LOG_WARNING("Converted " + go->name + " to empty GameObject due to missing mesh");
 				}
 			}
 			else
 			{
-				// This shouldn't happen anymore with the new system
-				LOG_ERROR("GameObject " + go->name + " has no meshPath - cannot load mesh");
-				delete go;
-				return nullptr;
+				// This is an empty GameObject
+				go->mesh->meshIndex = -1;
+				LOG("Loaded empty GameObject: " + go->name);
 			}
 
 			// Deserialize other mesh properties
@@ -280,7 +290,7 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 					meshProps[key] = value.get<bool>();
 			}
 
-			// Don't override meshIndex, we already set it from ResourceManager
+			// Don't override meshIndex if we already set it
 			meshProps.erase("meshIndex");
 
 			go->mesh->Deserialize(meshProps);
@@ -288,8 +298,10 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 		catch (const std::exception& e)
 		{
 			LOG_ERROR("Error deserializing Mesh for " + go->name + ": " + std::string(e.what()));
-			delete go;
-			return nullptr;
+			// Don't fail, just make it empty
+			go->mesh->meshIndex = -1;
+			go->meshPath = "";
+			LOG_WARNING("Converted " + go->name + " to empty GameObject due to deserialization error");
 		}
 	}
 
@@ -361,10 +373,16 @@ bool SceneSerializer::EnsureResourcesExist(const GameObject* go)
 {
 	bool success = true;
 
+	// Skip resource checking for empty GameObjects
+	if (go->IsEmpty())
+	{
+		return true;
+	}
+
 	// Ensure mesh resource exists
 	if (go->mesh && go->mesh->meshIndex >= 0 && !go->meshPath.empty())
 	{
-		int meshIndexInFBX = 0; // Assuming 0 for now, you might need to track this
+		int meshIndexInFBX = go->meshIndexInFBX;
 		int dummyIndex;
 		if (!ResourceManager::EnsureMeshExists(go->meshPath, meshIndexInFBX, dummyIndex))
 		{
@@ -379,7 +397,6 @@ bool SceneSerializer::EnsureResourcesExist(const GameObject* go)
 		if (!ResourceManager::EnsureTextureExists(go->texture->texturePath))
 		{
 			LOG_WARNING("Failed to ensure texture exists for: " + go->name);
-			// Not critical, texture will fall back to checkerboard
 		}
 	}
 

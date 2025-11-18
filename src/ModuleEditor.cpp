@@ -279,13 +279,17 @@ void ModuleEditor::DrawMenuBar()
                 OpenGL* opengl = Application::GetInstance().opengl.get();
                 if (opengl)
                 {
-                    for (GameObject* go : opengl->gameObjects)
-                    {
-                        delete go;
-                    }
-                    opengl->gameObjects.clear();
+                    // Clear selection first
                     selectedGameObject = nullptr;
                     opengl->selectedGameObject = nullptr;
+
+                    // Delete all GameObjects - IMPORTANT: delete in reverse order to avoid issues with children
+                    while (!opengl->gameObjects.empty())
+                    {
+                        GameObject* go = opengl->gameObjects.back();
+                        opengl->gameObjects.pop_back();
+                        delete go;
+                    }
 
                     currentScenePath = "";
                     sceneModified = false;
@@ -346,6 +350,29 @@ void ModuleEditor::DrawMenuBar()
         // GameObject Menu
         if (ImGui::BeginMenu("GameObject"))
         {
+            if (ImGui::MenuItem("Create Empty"))
+            {
+                LOG("Creating empty GameObject");
+
+                GameObject* emptyGO = new GameObject();
+                int index = CountNames("GameObject_");
+                emptyGO->name = "GameObject_" + std::to_string(index);
+
+                emptyGO->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                emptyGO->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                emptyGO->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                emptyGO->mesh->meshIndex = -1;
+                emptyGO->meshPath = "";
+
+                Application::GetInstance().opengl->gameObjects.push_back(emptyGO);
+                sceneModified = true;
+
+                LOG("Created empty GameObject: " + emptyGO->name);
+            }
+
+            ImGui::Separator();
+
             if (ImGui::MenuItem("Create Cube"))
             {
                 LOG("Creating cube primitive");
@@ -806,7 +833,7 @@ void ModuleEditor::DrawHierarchy()
         float x = layout.marginX;
         float y = layout.menuBarHeight + layout.marginY;
         float width = windowWidth * layout.hierarchyWidthPercent - layout.marginX;
-        float height = windowHeight - layout.menuBarHeight - layout.marginY * 2;
+        float height = windowHeight * layout.hierarchyHeightPercent - layout.menuBarHeight - layout.marginY * 2;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
@@ -816,34 +843,260 @@ void ModuleEditor::DrawHierarchy()
         float x = layout.marginX;
         float y = layout.menuBarHeight + layout.marginY;
         float width = windowWidth * layout.hierarchyWidthPercent - layout.marginX;
-        float height = windowHeight - layout.menuBarHeight - layout.marginY * 2;
+        float height = windowHeight * layout.hierarchyHeightPercent - layout.menuBarHeight - layout.marginY * 2;
 
         ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     }
 
     ImGui::Begin("Hierarchy", &showHierarchy, ImGuiWindowFlags_HorizontalScrollbar);
+    // Right-click on empty space to create empty GameObject
+    if (ImGui::BeginPopupContextWindow("HierarchyContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    {
+        if (ImGui::MenuItem("Create Empty GameObject"))
+        {
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            if (opengl)
+            {
+                GameObject* emptyGO = new GameObject();
+                int index = CountNames("GameObject_");
+                emptyGO->name = "GameObject_" + std::to_string(index);
+
+                // Set default transform
+                emptyGO->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                emptyGO->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                emptyGO->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                // Set mesh index to -1 to indicate empty GameObject
+                emptyGO->mesh->meshIndex = -1;
+                emptyGO->meshPath = "";
+
+                opengl->gameObjects.push_back(emptyGO);
+                sceneModified = true;
+
+                LOG("Created empty GameObject: " + emptyGO->name);
+            }
+        }
+        ImGui::EndPopup();
+    }
 
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (opengl)
     {
-        for (size_t i = 0; i < opengl->gameObjects.size(); ++i)
+        // Draw root level GameObjects (those without parent)
+        for (GameObject* go : opengl->gameObjects)
         {
-            GameObject* go = opengl->gameObjects[i];
-            if (go)
+            if (go != nullptr && go->parent == nullptr)
             {
-                bool isSelected = (go == selectedGameObject);
-                if (ImGui::Selectable(go->name.c_str(), isSelected))
-                {
-                    selectedGameObject = go;
-                    opengl->selectedGameObject = go;
-                    LOG("Selected GameObject: " + go->name);
-                }
+                DrawGameObjectNode(go);
             }
         }
     }
 
+    // Handle drag & drop to empty space (unparent)
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("GAMEOBJECT_DRAG"))
+        {
+            GameObject* draggedGO = *(GameObject**)payload->Data;
+            if (draggedGO != nullptr)
+            {
+                draggedGO->SetParent(nullptr);
+                sceneModified = true;
+                LOG("Unparented GameObject: " + draggedGO->name);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     ImGui::End();
+}
+
+void ModuleEditor::DrawGameObjectNode(GameObject* go)
+{
+    if (go == nullptr)
+        return;
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+
+    // If selected, add selected flag
+    if (go == selectedGameObject)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    // If no children, make it a leaf node
+    if (go->children.empty())
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    // Add icon for empty GameObjects
+    std::string displayName = go->IsEmpty() ? "[E] " + go->name : go->name;
+
+    bool nodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)go->GetUUID(), flags, "%s", displayName.c_str());
+
+    // Selection on click
+    if (ImGui::IsItemClicked())
+    {
+        selectedGameObject = go;
+        OpenGL* opengl = Application::GetInstance().opengl.get();
+        if (opengl)
+            opengl->selectedGameObject = go;
+        LOG("Selected GameObject: " + go->name);
+    }
+
+    // Context menu (right-click)
+    if (ImGui::BeginPopupContextItem())
+    {
+        if (ImGui::MenuItem("Create Empty Child"))
+        {
+            GameObject* child = new GameObject(go);
+            int index = CountNames("GameObject_");
+            child->name = "GameObject_" + std::to_string(index);
+
+            child->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+            child->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+            child->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+            child->mesh->meshIndex = -1;
+            child->meshPath = "";
+
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            if (opengl)
+            {
+                opengl->gameObjects.push_back(child);
+                sceneModified = true;
+                LOG("Created empty child GameObject: " + child->name);
+            }
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Move Up"))
+        {
+            go->MoveUp();
+            sceneModified = true;
+        }
+
+        if (ImGui::MenuItem("Move Down"))
+        {
+            go->MoveDown();
+            sceneModified = true;
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Delete"))
+        {
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            if (opengl)
+            {
+                // Unselect if selected
+                if (selectedGameObject == go)
+                {
+                    selectedGameObject = nullptr;
+                    opengl->selectedGameObject = nullptr;
+                }
+
+                // Remove from gameObjects vector
+                auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
+                if (it != opengl->gameObjects.end())
+                {
+                    opengl->gameObjects.erase(it);
+                }
+
+                // Delete the GameObject (this will also delete children)
+                LOG("Deleted GameObject: " + go->name);
+                delete go;
+                sceneModified = true;
+
+                ImGui::EndPopup();
+                if (nodeOpen)
+                    ImGui::TreePop();
+                return; // Exit early since we deleted the object
+            }
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // Drag source
+    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+    {
+        ImGui::SetDragDropPayload("GAMEOBJECT_DRAG", &go, sizeof(GameObject*));
+        ImGui::Text("Move: %s", go->name.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Drop target
+    HandleHierarchyDragDrop(go);
+
+    // Draw children recursively
+    if (nodeOpen)
+    {
+        for (GameObject* child : go->children)
+        {
+            DrawGameObjectNode(child);
+        }
+        ImGui::TreePop();
+    }
+}
+
+void ModuleEditor::HandleHierarchyDragDrop(GameObject* target)
+{
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("GAMEOBJECT_DRAG"))
+        {
+            GameObject* draggedGO = *(GameObject**)payload->Data;
+
+            if (draggedGO != nullptr && draggedGO != target)
+            {
+                // Check that we're not trying to parent to a descendant (would create cycle)
+                bool isCyclic = false;
+                GameObject* checkParent = target;
+                while (checkParent != nullptr)
+                {
+                    if (checkParent == draggedGO)
+                    {
+                        isCyclic = true;
+                        LOG_WARNING("Cannot parent GameObject to its own descendant!");
+                        break;
+                    }
+                    checkParent = checkParent->parent;
+                }
+
+                if (!isCyclic)
+                {
+                    // Calculate the transform offset to maintain world position
+                    // Get current world position
+                    glm::vec3 worldPos(
+                        draggedGO->transform->translation.x,
+                        draggedGO->transform->translation.y,
+                        draggedGO->transform->translation.z
+                    );
+
+                    // If we have a parent, transform to world space
+                    if (draggedGO->parent != nullptr)
+                    {
+                        // TODO: Implement proper world space transformation
+                        // For now, we'll just keep the local transform as-is
+                    }
+
+                    // Set new parent
+                    draggedGO->SetParent(target);
+
+                    // Recalculate local transform to maintain world position
+                    if (target != nullptr)
+                    {
+                        // TODO: Calculate inverse of parent's transform and apply
+                        // For now, keeping simple local transform
+                    }
+
+                    sceneModified = true;
+                    LOG("Reparented " + draggedGO->name + " to " + target->name);
+                }
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
 }
 
 void ModuleEditor::DrawInspector()
@@ -909,6 +1162,21 @@ void ModuleEditor::DrawInspector()
                 nameBuffer[sizeof(nameBuffer) - 1] = '\0';
             }
         }
+        ImGui::Separator();
+
+        // Show parent information
+        if (selectedGameObject->parent != nullptr)
+        {
+            ImGui::Text("Parent: %s", selectedGameObject->parent->name.c_str());
+        }
+        else
+        {
+            ImGui::Text("Parent: None (Root)");
+        }
+
+        // Show children count
+        ImGui::Text("Children: %d", (int)selectedGameObject->children.size());
+
         ImGui::Separator();
 
         // Transform Component

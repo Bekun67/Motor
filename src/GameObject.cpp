@@ -1,10 +1,11 @@
 #include "GameObject.h"
 #include "Component.h"
+#include <algorithm>
 
 GameObject::GameObject()
 {
 	m_UUID = UUID();
-	m_ParentUUID = UUID(0); 
+	m_ParentUUID = UUID(0);
 	name = "gameObject";
 	parent = nullptr;
 
@@ -35,29 +36,43 @@ GameObject::GameObject(GameObject* parent)
 
 GameObject::~GameObject()
 {
+	// Delete components first
 	for (int i = 0; i < components.size(); i++)
 	{
-		delete components[i];
+		if (components[i] != nullptr)
+		{
+			delete components[i];
+			components[i] = nullptr;
+		}
 	}
 	components.clear();
 
-	if (parent != nullptr) {
-
+	// Remove from parent's children list
+	if (parent != nullptr)
+	{
 		for (int i = 0; i < parent->children.size(); i++)
 		{
-			if (parent->children[i] == this) {
+			if (parent->children[i] == this)
+			{
 				parent->children.erase(parent->children.begin() + i);
+				break;
 			}
-			break;
+		}
+		parent = nullptr;
+	}
+
+	// Delete all children
+	std::vector<GameObject*> childrenCopy = children;
+	children.clear();
+
+	for (GameObject* child : childrenCopy)
+	{
+		if (child != nullptr)
+		{
+			child->parent = nullptr;
+			delete child;
 		}
 	}
-	parent = nullptr;
-
-	while (!children.empty())
-	{
-		delete children[0];
-	}
-	children.clear();
 }
 
 Component* GameObject::AddComponent(Component* component)
@@ -76,4 +91,85 @@ Component* GameObject::GetComponent(ComponentType type)
 	}
 
 	return nullptr;
+}
+
+void GameObject::SetParent(GameObject* newParent)
+{
+	// Remove from old parent
+	if (parent != nullptr)
+	{
+		parent->RemoveChild(this);
+	}
+
+	// Set new parent
+	parent = newParent;
+
+	if (newParent != nullptr)
+	{
+		m_ParentUUID = newParent->GetUUID();
+		newParent->AddChild(this);
+	}
+	else
+	{
+		m_ParentUUID = UUID(0);
+	}
+}
+
+void GameObject::RemoveChild(GameObject* child)
+{
+	auto it = std::find(children.begin(), children.end(), child);
+	if (it != children.end())
+	{
+		children.erase(it);
+	}
+}
+
+void GameObject::AddChild(GameObject* child)
+{
+	// Check if already a child
+	auto it = std::find(children.begin(), children.end(), child);
+	if (it == children.end())
+	{
+		children.push_back(child);
+	}
+}
+
+int GameObject::GetChildIndex() const
+{
+	if (parent == nullptr)
+		return -1;
+
+	for (int i = 0; i < parent->children.size(); i++)
+	{
+		if (parent->children[i] == this)
+			return i;
+	}
+
+	return -1;
+}
+
+void GameObject::MoveUp()
+{
+	if (parent == nullptr)
+		return;
+
+	int index = GetChildIndex();
+	if (index > 0)
+	{
+		// Swap with previous sibling
+		std::swap(parent->children[index], parent->children[index - 1]);
+	}
+}
+
+void GameObject::MoveDown()
+{
+	if (parent == nullptr)
+		return;
+
+	int index = GetChildIndex();
+	if (index >= 0 && index < parent->children.size() - 1)
+	{
+		// Swap with next sibling
+		std::swap(parent->children[index], parent->children[index + 1]);
+	}
 }
