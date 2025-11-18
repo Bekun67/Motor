@@ -9,7 +9,7 @@ public:
     Window();
     ~Window();
 
-    bool Start() override; 
+    bool Start() override;
 
     // Handle events (returns false if quit requested)
     bool Update() override;
@@ -28,10 +28,15 @@ public:
 
     SDL_Window* GetWindow() const { return window; }
 
+    // Check if window was resized this frame
+    bool WasResized() const { return wasResized; }
+    void ResetResizeFlag() { wasResized = false; }
+
 private:
     SDL_Window* window;
 
     int width;
     int height;
     int scale;
+    bool wasResized = false;
 };

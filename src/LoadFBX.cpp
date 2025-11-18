@@ -56,6 +56,10 @@ bool LoadFile(const char* file_path) {
         vertexData.reserve(mesh->mNumVertices * 8); //vertexs
         indices.reserve(mesh->mNumFaces * 3); //faces
 
+        //aabb
+        glm::vec3 meshMin(FLT_MAX);
+        glm::vec3 meshMax(-FLT_MAX);
+
         for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
             const aiVector3D& pos = mesh->mVertices[v];
             minBound.x = std::min(minBound.x, pos.x);
@@ -64,6 +68,14 @@ bool LoadFile(const char* file_path) {
             maxBound.x = std::max(maxBound.x, pos.x);
             maxBound.y = std::max(maxBound.y, pos.y);
             maxBound.z = std::max(maxBound.z, pos.z);
+
+            //aabb
+            meshMin.x = std::min(meshMin.x, pos.x);
+            meshMin.y = std::min(meshMin.y, pos.y);
+            meshMin.z = std::min(meshMin.z, pos.z);
+            meshMax.x = std::max(meshMax.x, pos.x);
+            meshMax.y = std::max(meshMax.y, pos.y);
+            meshMax.z = std::max(meshMax.z, pos.z);
 
             vertexData.push_back(pos.x);
             vertexData.push_back(pos.y);
@@ -101,6 +113,9 @@ bool LoadFile(const char* file_path) {
         }
 
         MeshData md;
+
+        md.aabbMin = meshMin;
+        md.aabbMax = meshMax;
 
         //create vao and vbo to associate them
         glGenVertexArrays(1, &md.VAO);
@@ -213,6 +228,10 @@ bool LoadFileCustomFormat(const char* file_path) {
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)(6 * sizeof(float)));
 
         md.numIndices = customMesh.numIndices;
+
+        //aabb
+        md.aabbMin = glm::vec3(customMesh.aabbMinX, customMesh.aabbMinY, customMesh.aabbMinZ);
+        md.aabbMax = glm::vec3(customMesh.aabbMaxX, customMesh.aabbMaxY, customMesh.aabbMaxZ);
 
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);

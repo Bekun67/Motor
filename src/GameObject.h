@@ -7,6 +7,7 @@
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
 #include "Ray.h" 
+#include "UUID.h"
 
 class Component;
 class ComponentTransform;
@@ -27,9 +28,15 @@ public:
 	void UpdateAABB();
 
 	AABB GetWorldAABB() const;
+	UUID GetUUID() const { return m_UUID; }
+	void SetUUID(UUID uuid) { m_UUID = uuid; }
+
+	UUID GetParentUUID() const { return m_ParentUUID; }
+	void SetParentUUID(UUID uuid) { m_ParentUUID = uuid; }
 
 	GameObject* parent;
 	std::string name;
+	bool active = true;
 
 	ComponentTransform* transform;
 	ComponentMesh* mesh;
@@ -40,4 +47,11 @@ public:
 
 	AABB localAABB;
 	bool hasAABB = false;
+	float distanceToCamera = 0.0f;
+	std::string meshPath;
+	int meshIndexInFBX = 0; 
+
+private:
+	UUID m_UUID;
+	UUID m_ParentUUID;
 };

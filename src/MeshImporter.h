@@ -15,7 +15,12 @@ struct CustomMesh {
     unsigned int numVertices;
     unsigned int numIndices;
 
-    CustomMesh() : numVertices(0), numIndices(0) {}
+    float aabbMinX, aabbMinY, aabbMinZ;
+    float aabbMaxX, aabbMaxY, aabbMaxZ;
+
+    CustomMesh() : numVertices(0), numIndices(0),
+        aabbMinX(0), aabbMinY(0), aabbMinZ(0),
+        aabbMaxX(0), aabbMaxY(0), aabbMaxZ(0) {}
 };
 
 namespace MeshImporter {

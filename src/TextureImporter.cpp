@@ -5,6 +5,8 @@
 #include <fstream>
 #include <chrono>
 #include <filesystem>
+#include <sstream>
+#include <limits>
 
 namespace fs = std::filesystem;
 
@@ -34,6 +36,8 @@ namespace TextureImporter {
             ilDeleteImages(1, &imageID);
             return texture;
         }
+
+        iluFlipImage();
 
         // Convert to RGBA
         ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);

@@ -8,11 +8,15 @@
 #include <vector>
 #include "LoadFBX.h" 
 #include <glm/glm.hpp>
+#include <cmath>
+#include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Texture.h"
 #include "GameObject.h"
 #include "MeshImporter.h"
+#include "TextureImporter.h"
+#include <chrono>
 
 
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
@@ -178,8 +182,7 @@ bool OpenGL::Start()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-
-    ImGui::StyleColorsClassic();
+    ModuleEditor::SetupImGuiStyle();
 
     ImGui_ImplSDL3_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL3_Init("#version 330");
@@ -212,10 +215,10 @@ bool OpenGL::Start()
         "out vec4 FragColor;\n"
         "uniform sampler2D uTexture;\n"
         "void main() {\n"
-        "vec3 n = normalize(fragNormal);\n"
-        "float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
-        "vec3 texColor = texture(uTexture, fragUV).rgb;\n"
-        "FragColor = vec4(texColor * lambert, 1.0);\n"
+        "    vec3 n = normalize(fragNormal);\n"
+        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "    vec4 texColor = texture(uTexture, fragUV);\n"
+        "    FragColor = vec4(texColor.rgb * lambert, texColor.a);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -242,31 +245,82 @@ bool OpenGL::Start()
 
     lastTicks = SDL_GetTicks();
 
-    //load house fbx
     const char* fbxPath = "Assets/Models/BakerHouse.fbx";
+    const char* texturePath = "Assets/Textures/Baker_house.png";
 
-    // Check if we need to reimport
-    std::string customPath0 = MeshImporter::GetCustomMeshPath(fbxPath, 0);
-    if (FileSystemManager::NeedsReimport(fbxPath, customPath0)) {
-        std::cout << "First time loading or FBX modified, using Import->Save->Load workflow..." << std::endl;
-        if (!ImportSaveLoad(fbxPath)) {
-            std::cerr << "Failed to import model: " << fbxPath << std::endl;
+    // Check if we need to reimport MESH
+    std::string customMeshPath = MeshImporter::GetCustomMeshPath(fbxPath, 0);
+    bool needsMeshReimport = FileSystemManager::NeedsReimport(fbxPath, customMeshPath);
+
+    // Check if we need to reimport TEXTURE
+    std::string customTexturePath = TextureImporter::GetCustomTexturePath(texturePath);
+    bool needsTextureReimport = FileSystemManager::NeedsReimport(texturePath, customTexturePath);
+
+    // MESH IMPORT
+    if (needsMeshReimport) {
+        std::cout << "\n========================================" << std::endl;
+        std::cout << "BAKER HOUSE - First time or FBX modified" << std::endl;
+        std::cout << "========================================" << std::endl;
+
+        // Import from FBX
+        std::cout << "[BakerHouse] Importing from FBX..." << std::endl;
+        auto importStart = std::chrono::high_resolution_clock::now();
+        std::vector<CustomMesh> meshes = MeshImporter::ImportFBX(fbxPath);
+        auto importEnd = std::chrono::high_resolution_clock::now();
+        auto importDuration = std::chrono::duration_cast<std::chrono::milliseconds>(importEnd - importStart);
+
+        if (meshes.empty()) {
+            std::cerr << "[BakerHouse] Failed to import FBX" << std::endl;
         }
-    }
-    else {
-        std::cout << "Loading from custom format (fast path)..." << std::endl;
-        if (!LoadFileCustomFormat(fbxPath)) {
-            std::cerr << "Failed to load custom format, trying import..." << std::endl;
-            if (!ImportSaveLoad(fbxPath)) {
-                std::cerr << "Failed to import model: " << fbxPath << std::endl;
+        else {
+            std::cout << "[BakerHouse] Import completed in " << importDuration.count() << " ms" << std::endl;
+
+            // Save to custom format
+            std::cout << "[BakerHouse] Saving to custom format..." << std::endl;
+            for (size_t i = 0; i < meshes.size(); ++i) {
+                std::string savePath = MeshImporter::GetCustomMeshPath(fbxPath, i);
+                if (!MeshImporter::SaveMesh(meshes[i], savePath)) {
+                    std::cerr << "[BakerHouse] Failed to save mesh " << i << std::endl;
+                }
             }
         }
     }
 
-    // Rest of the BakerHouse GameObject creation code stays the same
+    // TEXTURE IMPORT
+    if (needsTextureReimport) {
+        std::cout << "\n[BakerHouse] Texture needs reimport" << std::endl;
+
+        // Import texture
+        auto texImportStart = std::chrono::high_resolution_clock::now();
+        CustomTexture customTex = TextureImporter::ImportTexture(texturePath);
+        auto texImportEnd = std::chrono::high_resolution_clock::now();
+        auto texImportDuration = std::chrono::duration_cast<std::chrono::milliseconds>(texImportEnd - texImportStart);
+
+        if (customTex.width > 0 && customTex.height > 0) {
+            std::cout << "[BakerHouse] Texture imported in " << texImportDuration.count() << " ms" << std::endl;
+
+            // Save to custom format
+            if (TextureImporter::SaveTexture(customTex, customTexturePath)) {
+                std::cout << "[BakerHouse] Texture saved to custom format" << std::endl;
+            }
+        }
+        else {
+            std::cerr << "[BakerHouse] Failed to import texture" << std::endl;
+        }
+    }
+
+    // NOW LOAD MESH FROM CUSTOM FORMAT
+    std::cout << "\n[BakerHouse] Loading mesh from custom format..." << std::endl;
+    if (!LoadFileCustomFormat(fbxPath)) {
+        std::cerr << "[BakerHouse] Failed to load mesh from custom format" << std::endl;
+    }
+
+    // CREATE GAME OBJECT
     if (!g_Meshes.empty()) {
         GameObject* house = new GameObject();
+        house->meshPath = fbxPath;
         house->name = "BakerHouse";
+        house->meshIndexInFBX = 0;
         std::cout << "Created GameObject " << house->name << std::endl;
 
         house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
@@ -274,16 +328,59 @@ bool OpenGL::Start()
         house->transform->rotation = rotX;
         house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
 
-        if (!g_Meshes.empty()) {
-            house->mesh->meshIndex = 0;
-        }
+        house->mesh->meshIndex = 0;
 
-        if (house->texture->LoadTexture("Assets/Textures/Baker_house.png")) {
+        // LOAD TEXTURE FROM CUSTOM FORMAT
+        CustomTexture loadedTexture;
+        if (TextureImporter::LoadTexture(loadedTexture, customTexturePath)) {
+            std::cout << "[BakerHouse] Loading texture from custom format..." << std::endl;
+
+            // Create OpenGL texture from custom data
+            GLuint textureID;
+            glGenTextures(1, &textureID);
+            glBindTexture(GL_TEXTURE_2D, textureID);
+
+            // Upload texture data
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+                loadedTexture.width, loadedTexture.height, 0,
+                GL_RGBA, GL_UNSIGNED_BYTE, loadedTexture.data.data());
+
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            // Assign to GameObject
+            house->texture->hasTexture = true;
+            if (house->texture->texturedata == nullptr) {
+                house->texture->texturedata = new TextureData();
+            }
+            house->texture->texturedata->id = textureID;
+            house->texture->texturedata->type = "diffuse";
+            house->texture->texturedata->path = customTexturePath;
+            house->texture->texturePath = customTexturePath;
+
+            std::cout << "[BakerHouse] Texture loaded from custom format (ID: " << textureID << ")" << std::endl;
+        }
+        else {
+            std::cerr << "[BakerHouse] Failed to load texture from custom format, using fallback" << std::endl;
+            // Fallback to loading original texture
+            if (!house->texture->LoadTexture(texturePath)) {
+                std::cerr << "[BakerHouse] Failed to load original texture" << std::endl;
+            }
         }
 
         gameObjects.push_back(house);
+        std::cout << "[BakerHouse] Added to scene" << std::endl;
+    }
+    else {
+        std::cerr << "[BakerHouse] No meshes loaded!" << std::endl;
     }
 
+    std::cout << "\n========================================\n" << std::endl;
     //load cannon FBX
     const char* cannonPath = "Assets/Models/Cannon.fbx";
     size_t meshCountBefore = g_Meshes.size();
@@ -296,7 +393,9 @@ bool OpenGL::Start()
 
         //create the one that has texture
         GameObject* cannon1 = new GameObject();
+        cannon1->meshPath = cannonPath;
         cannon1->name = "Cannon_Left";
+        cannon1->meshIndexInFBX = 0;
         std::cout << "Created GameObject " << cannon1->name << std::endl;
 
         cannon1->transform->translation = aiVector3D(-5.0f, 0.0f, 0.0f);
@@ -319,7 +418,9 @@ bool OpenGL::Start()
 
         //create the one that has no texture
         GameObject* cannon2 = new GameObject();
+        cannon2->meshPath = cannonPath;
         cannon2->name = "Cannon_Right";
+        cannon2->meshIndexInFBX = 0;
         std::cout << "Created GameObject " << cannon2->name << std::endl;
 
         cannon2->transform->translation = aiVector3D(5.0f, 0.0f, 0.0f);
@@ -384,6 +485,22 @@ bool OpenGL::Update()
     // Use camera input handling
     camera.HandleInput(deltaTime);
 
+    // Check if window was resized
+    Window* window = Application::GetInstance().window.get();
+    if (window->WasResized())
+    {
+        int windowWidth, windowHeight;
+        window->GetWindowSize(windowWidth, windowHeight);
+        LOG("OpenGL: Adapting to new window size: " + std::to_string(windowWidth) + "x" + std::to_string(windowHeight));
+
+        // Update editor layout
+        ModuleEditor* editor = Application::GetInstance().editor.get();
+        if (editor)
+        {
+            editor->UpdateLayout(windowWidth, windowHeight);
+        }
+    }
+
     glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -429,14 +546,68 @@ bool OpenGL::Update()
     // Draw grid
     DrawGrid();
 
-    // Draw all GameObjects
+    std::vector<GameObject*> opaqueObjects;
+    std::vector<GameObject*> transparentObjects;
+
+    glm::vec3 cameraPos = camera.GetPosition();
+
+    //we split game objects depending on their transaparency
     for (GameObject* go : gameObjects)
     {
-        if (go != nullptr && go->mesh != nullptr)
+        if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
         {
-            go->mesh->Draw(&camera);
+            //calculate distance
+            float dx = cameraPos.x - go->transform->translation.x;
+            float dy = cameraPos.y - go->transform->translation.y;
+            float dz = cameraPos.z - go->transform->translation.z;
+            go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
+
+            //filter transparent and opaque
+            bool isTransparent = false;
+            if (go->texture != nullptr && go->texture->hasTexture)
+            {
+                isTransparent = go->texture->hasTransparency;
+            }
+
+            if (isTransparent)
+            {
+                transparentObjects.push_back(go);
+            }
+            else
+            {
+                opaqueObjects.push_back(go);
+            }
         }
     }
+
+    //order transparent obj based on distance (method given by #include <algorithm>)
+    std::sort(transparentObjects.begin(), transparentObjects.end(),
+        [](GameObject* a, GameObject* b) 
+        {
+            return a->distanceToCamera > b->distanceToCamera;
+        });
+
+    //first drawing opaque obj
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    for (GameObject* go : opaqueObjects)
+    {
+        go->mesh->Draw(&camera);
+    }
+
+    //then transparent obj
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+
+    for (GameObject* go : transparentObjects)
+    {
+        go->mesh->Draw(&camera);
+    }
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 
     return true;
 }

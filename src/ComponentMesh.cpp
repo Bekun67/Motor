@@ -149,6 +149,11 @@ void ComponentMesh::Draw(Camera* camera)
     {
         DrawFaceNormals(camera);
     }
+
+    if (showAABB)
+    {
+        DrawAABB(camera);
+    }
 }
 
 void ComponentMesh::DrawVertexNormals(Camera* camera, float length)
@@ -402,4 +407,159 @@ void ComponentMesh::DrawFaceNormals(Camera* camera, float length)
     glBindVertexArray(0);
     glDeleteBuffers(1, &faceNormalVBO);
     glDeleteVertexArrays(1, &faceNormalVAO);
+}
+
+void ComponentMesh::DrawAABB(Camera* camera)
+{
+    if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())
+    {
+        return;
+    }
+
+    MeshData& meshdata = g_Meshes[meshIndex];
+    ComponentTransform* transform = gameObject->transform;
+    if (transform == nullptr)
+    {
+        return;
+    }
+
+    //get transformation matrix
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(
+        transform->translation.x,
+        transform->translation.y,
+        transform->translation.z
+    ));
+
+    glm::quat quat(
+        transform->rotation.w,
+        transform->rotation.x,
+        transform->rotation.y,
+        transform->rotation.z
+    );
+    model *= glm::mat4_cast(quat);
+
+    model = glm::scale(model, glm::vec3(
+        transform->scaling.x,
+        transform->scaling.y,
+        transform->scaling.z
+    ));
+
+    //get the 8 corners of the aabb
+    glm::vec3 corners[8] = {
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMin.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMin.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMax.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMax.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMin.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMin.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMax.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMax.y, meshdata.aabbMax.z)
+    };
+
+    //tramsform
+    glm::vec3 worldCorners[8];
+    for (int i = 0; i < 8; ++i)
+    {
+        glm::vec4 worldPos = model * glm::vec4(corners[i], 1.0f);
+        worldCorners[i] = glm::vec3(worldPos);
+    }
+
+    //create 12 lines
+    std::vector<float> lineData;
+
+    //bottom face
+    lineData.insert(lineData.end(), { worldCorners[0].x, worldCorners[0].y, worldCorners[0].z });
+    lineData.insert(lineData.end(), { worldCorners[1].x, worldCorners[1].y, worldCorners[1].z });
+
+    lineData.insert(lineData.end(), { worldCorners[1].x, worldCorners[1].y, worldCorners[1].z });
+    lineData.insert(lineData.end(), { worldCorners[2].x, worldCorners[2].y, worldCorners[2].z });
+
+    lineData.insert(lineData.end(), { worldCorners[2].x, worldCorners[2].y, worldCorners[2].z });
+    lineData.insert(lineData.end(), { worldCorners[3].x, worldCorners[3].y, worldCorners[3].z });
+
+    lineData.insert(lineData.end(), { worldCorners[3].x, worldCorners[3].y, worldCorners[3].z });
+    lineData.insert(lineData.end(), { worldCorners[0].x, worldCorners[0].y, worldCorners[0].z });
+
+    //top face
+    lineData.insert(lineData.end(), { worldCorners[4].x, worldCorners[4].y, worldCorners[4].z });
+    lineData.insert(lineData.end(), { worldCorners[5].x, worldCorners[5].y, worldCorners[5].z });
+
+    lineData.insert(lineData.end(), { worldCorners[5].x, worldCorners[5].y, worldCorners[5].z });
+    lineData.insert(lineData.end(), { worldCorners[6].x, worldCorners[6].y, worldCorners[6].z });
+
+    lineData.insert(lineData.end(), { worldCorners[6].x, worldCorners[6].y, worldCorners[6].z });
+    lineData.insert(lineData.end(), { worldCorners[7].x, worldCorners[7].y, worldCorners[7].z });
+
+    lineData.insert(lineData.end(), { worldCorners[7].x, worldCorners[7].y, worldCorners[7].z });
+    lineData.insert(lineData.end(), { worldCorners[4].x, worldCorners[4].y, worldCorners[4].z });
+
+    //vertical edges
+    lineData.insert(lineData.end(), { worldCorners[0].x, worldCorners[0].y, worldCorners[0].z });
+    lineData.insert(lineData.end(), { worldCorners[4].x, worldCorners[4].y, worldCorners[4].z });
+
+    lineData.insert(lineData.end(), { worldCorners[1].x, worldCorners[1].y, worldCorners[1].z });
+    lineData.insert(lineData.end(), { worldCorners[5].x, worldCorners[5].y, worldCorners[5].z });
+
+    lineData.insert(lineData.end(), { worldCorners[2].x, worldCorners[2].y, worldCorners[2].z });
+    lineData.insert(lineData.end(), { worldCorners[6].x, worldCorners[6].y, worldCorners[6].z });
+
+    lineData.insert(lineData.end(), { worldCorners[3].x, worldCorners[3].y, worldCorners[3].z });
+    lineData.insert(lineData.end(), { worldCorners[7].x, worldCorners[7].y, worldCorners[7].z });
+
+    //vao / vbo
+    GLuint aabbVAO, aabbVBO;
+    glGenVertexArrays(1, &aabbVAO);
+    glGenBuffers(1, &aabbVBO);
+
+    glBindVertexArray(aabbVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, aabbVBO);
+    glBufferData(GL_ARRAY_BUFFER, lineData.size() * sizeof(float), lineData.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    //normal shader
+    unsigned int normalShader = Application::GetInstance().opengl->normalShaderProgram;
+    glUseProgram(normalShader);
+
+    glm::mat4 identityModel = glm::mat4(1.0f);
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+
+    GLint modelLoc = glGetUniformLocation(normalShader, "model_matrix");
+    GLint viewLoc = glGetUniformLocation(normalShader, "view");
+    GLint projLoc = glGetUniformLocation(normalShader, "projection");
+    GLint colorLoc = glGetUniformLocation(normalShader, "lineColor");
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(identityModel));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    //green
+    glUniform3f(colorLoc, 0.0f, 1.0f, 0.0f);
+
+    glDrawArrays(GL_LINES, 0, lineData.size() / 3);
+
+    glBindVertexArray(0);
+    glDeleteBuffers(1, &aabbVBO);
+    glDeleteVertexArrays(1, &aabbVAO);
+}
+
+PropertyMap ComponentMesh::Serialize() const
+{
+    PropertyMap props;
+    props["meshIndex"] = meshIndex;
+    props["showVertexNormals"] = showVertexNormals;
+    props["showFaceNormals"] = showFaceNormals;
+    props["showAABB"] = showAABB;
+    return props;
+}
+
+void ComponentMesh::Deserialize(const PropertyMap& props)
+{
+    if (props.count("meshIndex")) meshIndex = std::get<int>(props.at("meshIndex"));
+    if (props.count("showVertexNormals")) showVertexNormals = std::get<bool>(props.at("showVertexNormals"));
+    if (props.count("showFaceNormals")) showFaceNormals = std::get<bool>(props.at("showFaceNormals"));
+    if (props.count("showAABB")) showAABB = std::get<bool>(props.at("showAABB"));
 }

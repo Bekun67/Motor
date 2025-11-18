@@ -1,7 +1,7 @@
 #include "Window.h"
 #include <iostream>
 
-Window::Window() : window(nullptr), width(1280), height(720), scale(1)
+Window::Window() : window(nullptr), width(1920), height(1080), scale(1), wasResized(false)
 {
     std::cout << "Window Constructor" << std::endl;
 }
@@ -22,8 +22,8 @@ bool Window::Start()
     }
 
     // Set OpenGL version to 3.3
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3); 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);  
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
     // Use the core OpenGL profile (modern functions only)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -34,13 +34,12 @@ bool Window::Start()
     // Set depth buffer to 24 bits for proper 3D rendering
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-
     // Create window WITH OpenGL flag
     window = SDL_CreateWindow(
         "Ilium Engine",
         width,
         height,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE 
+        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
     );
 
     if (window == nullptr)
@@ -54,6 +53,21 @@ bool Window::Start()
 
 bool Window::Update()
 {
+    // Reset resize flag at the start of each frame
+    wasResized = false;
+
+    // Check for window resize
+    int currentWidth, currentHeight;
+    SDL_GetWindowSize(window, &currentWidth, &currentHeight);
+
+    if (currentWidth != width || currentHeight != height)
+    {
+        width = currentWidth;
+        height = currentHeight;
+        wasResized = true;
+        std::cout << "Window resized to: " << width << "x" << height << std::endl;
+    }
+
     return true;
 }
 

@@ -3,6 +3,8 @@
 
 GameObject::GameObject()
 {
+	m_UUID = UUID();
+	m_ParentUUID = UUID(0); 
 	name = "gameObject";
 	parent = nullptr;
 
@@ -14,12 +16,21 @@ GameObject::GameObject()
 
 GameObject::GameObject(GameObject* parent)
 {
+	m_UUID = UUID();
 	name = "gameObject";
 	this->parent = parent;
 
 	if (parent != nullptr) {
+		m_ParentUUID = parent->GetUUID();
 		parent->children.push_back(this);
 	}
+	else {
+		m_ParentUUID = UUID(0);
+	}
+
+	transform = new ComponentTransform(this);
+	mesh = new ComponentMesh(this);
+	texture = new ComponentTexture(this);
 }
 
 GameObject::~GameObject()

@@ -5,6 +5,7 @@
 #include <deque>
 #include <imgui.h>
 #include <ImGuizmo.h>
+#include "PrimitiveGenerator.h"
 
 class GameObject;
 
@@ -39,6 +40,18 @@ public:
     void AddLog(const std::string& message, LogType type = LogType::INFO);
     void ClearLog();
 
+    // Scene Serialization
+    void SaveSceneDialog();
+    void LoadSceneDialog();
+    bool SaveScene(const std::string& filepath);
+    bool LoadScene(const std::string& filepath);
+
+    static void SetupImGuiStyle();
+
+    // Layout management
+    void UpdateLayout(int windowWidth, int windowHeight);
+    void ResetLayout();
+
     // ImGuizmo
     void DrawGuizmo();
     ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
@@ -56,10 +69,22 @@ public:
 
     ImVec2 sceneViewportPos;
     ImVec2 sceneViewportSize;
-    
+
     // Selected GameObject
     GameObject* selectedGameObject = nullptr;
     int CountNames(std::string prefix);
+
+    bool isMouseOverTextureDropZone = false;
+    ImVec2 textureDropZoneMin;
+    ImVec2 textureDropZoneMax;
+
+    bool showAllAABBs = false;
+    bool showAllVertexNormals = false;
+    bool showAllFaceNormals = false;
+
+    // Scene management
+    std::string currentScenePath = "";
+    bool sceneModified = false;
 
 private:
     void DrawMenuBar();
@@ -70,7 +95,6 @@ private:
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
     void DrawSceneViewport();
-    
 
     // Console
     std::deque<LogEntry> logs;
@@ -84,11 +108,56 @@ private:
 
     // About window info
     const char* motorName = "Ilium Engine";
-    const char* version = "v0.1.5";
+    const char* version = "v0.5.0";
     const char* team = "Team Hutao";
     const char* repoURL = "https://github.com/Bekun67/Motor";
 
     bool firstTimeSetup = true;
+    bool useAdaptiveLayout = true;
+
+    // Layout percentages (relative to window size)
+    struct LayoutConfig
+    {
+        // Menu Bar
+        float menuBarHeight = 25.0f;  
+
+        // Scene
+        float sceneXPercent = 0.15f;     
+        float sceneWidthPercent = 0.70f;  
+        float sceneHeightPercent = 0.80f; 
+
+        // Hierarchy
+        float hierarchyXPercent = 0.0f;
+        float hierarchyYPercent = 0.0f;   
+        float hierarchyWidthPercent = 0.15f;
+        float hierarchyHeightPercent = 1.0f; 
+
+        // Inspector
+        float inspectorXPercent = 0.85f;  
+        float inspectorWidthPercent = 0.15f; 
+        float inspectorHeightPercent = 1.0f;
+
+        // Console
+        float consoleYPercent = 0.80f;    
+        float consoleXPercent = 0.f;
+        float consoleWidthPercent = 0.85f;
+        float consoleHeightPercent = 0.20f; 
+
+        // Margins
+        float marginX = 5.0f;
+        float marginY = 5.0f;
+    };
+
+    LayoutConfig layout;
+    int lastWindowWidth = 0;
+    int lastWindowHeight = 0;
+
+    // Save/Load dialog state
+    char saveSceneNameBuffer[256] = "NewScene";
+    bool showSaveDialog = false;
+    bool showLoadDialog = false;
+    std::vector<std::string> availableScenes;
+    void RefreshScenesList();
 };
 
 // Global logging functions
