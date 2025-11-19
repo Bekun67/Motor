@@ -173,3 +173,23 @@ void GameObject::MoveDown()
 		std::swap(parent->children[index], parent->children[index + 1]);
 	}
 }
+
+void GameObject::GetAllDescendants(std::vector<GameObject*>& descendants)
+{
+	for (GameObject* child : children)
+	{
+		descendants.push_back(child);
+		child->GetAllDescendants(descendants); 
+	}
+}
+
+bool GameObject::IsDescendantOf(GameObject* potentialAncestor) const
+{
+	if (parent == nullptr)
+		return false;
+
+	if (parent == potentialAncestor)
+		return true;
+
+	return parent->IsDescendantOf(potentialAncestor);
+}

@@ -12,188 +12,185 @@
 
 Input::Input() : Module()
 {
-	keyboard = new KeyState[MAX_KEYS];
-	memset(keyboard, KEY_IDLE, sizeof(KeyState) * MAX_KEYS);
-	memset(mouseButtons, KEY_IDLE, sizeof(KeyState) * NUM_MOUSE_BUTTONS);
+    keyboard = new KeyState[MAX_KEYS];
+    memset(keyboard, KEY_IDLE, sizeof(KeyState) * MAX_KEYS);
+    memset(mouseButtons, KEY_IDLE, sizeof(KeyState) * NUM_MOUSE_BUTTONS);
 }
 
 Input::~Input()
 {
-	delete[] keyboard;
+    delete[] keyboard;
 }
 
 bool Input::Awake()
 {
-	bool ret = true;
-	SDL_Init(0);
+    bool ret = true;
+    SDL_Init(0);
 
-	if (SDL_InitSubSystem(SDL_INIT_EVENTS) < 0)
-	{
-		ret = false;
-	}
+    if (SDL_InitSubSystem(SDL_INIT_EVENTS) < 0)
+    {
+        ret = false;
+    }
 
-	return ret;
+    return ret;
 }
 
 bool Input::Start()
 {
-	return true;
+    return true;
 }
 
 bool Input::PreUpdate()
 {
-	static SDL_Event event;
+    static SDL_Event event;
 
-	mouseWheelX = 0;
-	mouseWheelY = 0;
+    mouseWheelX = 0;
+    mouseWheelY = 0;
 
-	const bool* keys = SDL_GetKeyboardState(NULL);
-	for (int i = 0; i < MAX_KEYS; ++i)
-	{
-		if (keys[i])
-		{
-			if (keyboard[i] == KEY_IDLE)
-				keyboard[i] = KEY_DOWN;
-			else
-				keyboard[i] = KEY_REPEAT;
-		}
-		else
-		{
-			if (keyboard[i] == KEY_REPEAT || keyboard[i] == KEY_DOWN)
-				keyboard[i] = KEY_UP;
-			else
-				keyboard[i] = KEY_IDLE;
-		}
-	}
-
-	for (int i = 0; i < NUM_MOUSE_BUTTONS; ++i)
-	{
-		if (mouseButtons[i] == KEY_DOWN)
-			mouseButtons[i] = KEY_REPEAT;
-		if (mouseButtons[i] == KEY_UP)
-			mouseButtons[i] = KEY_IDLE;
-	}
-	ModuleEditor* moduleEditor = Application::GetInstance().editor.get();
-
-	OpenGL* opengl = Application::GetInstance().opengl.get();
-	float scaleFactor = 0.1f;
-	Application& app = Application::GetInstance();
-	ModuleEditor* editor = app.editor.get();
-
-	if (!moduleEditor->editing) {
-		// GameObject deletion
-		if (keyboard[SDLK_DELETE] == KEY_DOWN) {
-			// GameObject selection with number keys 1-9
-			if (keyboard[SDL_SCANCODE_DELETE] == KEY_DOWN && opengl->selectedGameObject != nullptr) {
-				std::cout << "Deleted GameObject " << opengl->selectedGameObject->name << std::endl;
-
-			}
-		}
-
-		if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN || keyboard[SDL_SCANCODE_F2] == KEY_DOWN)
-		{
-			int index = -1;
-			if (opengl->gameObjects.size() > 0) {
-
-				for (int i = 0; i < opengl->gameObjects.size(); i++)
-				{
-					if (opengl->selectedGameObject == opengl->gameObjects[i]) index = i;
-				}
-				if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < opengl->gameObjects.size() - 1) {
-					opengl->selectedGameObject = opengl->gameObjects[index + 1];
-					LOG("Selecting next Game Object, " + opengl->selectedGameObject->name);
-				}
-				if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
-					opengl->selectedGameObject = opengl->gameObjects[index - 1];
-					LOG("Selecting previous Game Object, " + opengl->selectedGameObject->name);
-				}
-				editor->selectedGameObject = opengl->selectedGameObject;
-			}
-			else LOG("No Game Objects in scene to select");
-		}
-
-		if (keyboard[SDL_SCANCODE_F3] == KEY_DOWN && opengl->selectedGameObject != nullptr)
-		{
-			LOG("Deselecting GameObject: " + opengl->selectedGameObject->name);
-			opengl->selectedGameObject = nullptr;
-			editor->selectedGameObject = nullptr;
-		}
-	}
-
-    //deleting gamebojects
-    if (keyboard[SDL_SCANCODE_DELETE] == KEY_DOWN) {
-        if (opengl->selectedGameObject != nullptr) {
-            LOG("Deleting GameObject: " + opengl->selectedGameObject->name);
-
-            GameObject* toDelete = opengl->selectedGameObject;
-            opengl->selectedGameObject = nullptr;  //remove from selected
-
-            Application& app = Application::GetInstance();
-            if (app.editor) {
-                ModuleEditor* editor = app.editor.get();
-                if (editor) {
-                    editor->selectedGameObject = nullptr;
-                    editor->sceneModified = true;
-                }
-            }
-
-            //find and remove selcted gameobjects from gameobjects vector
-            auto& gameObjects = opengl->gameObjects;
-            for (auto it = gameObjects.begin(); it != gameObjects.end(); ++it) {
-                if (*it == toDelete) {
-                    delete* it;  //delete obj
-                    gameObjects.erase(it);  //remove from vector
-                    break;
-                }
-            }
+    const bool* keys = SDL_GetKeyboardState(NULL);
+    for (int i = 0; i < MAX_KEYS; ++i)
+    {
+        if (keys[i])
+        {
+            if (keyboard[i] == KEY_IDLE)
+                keyboard[i] = KEY_DOWN;
+            else
+                keyboard[i] = KEY_REPEAT;
         }
-        else {
-            LOG("No GameObject selected to delete");
+        else
+        {
+            if (keyboard[i] == KEY_REPEAT || keyboard[i] == KEY_DOWN)
+                keyboard[i] = KEY_UP;
+            else
+                keyboard[i] = KEY_IDLE;
         }
     }
 
-	while (SDL_PollEvent(&event))
-	{
+    for (int i = 0; i < NUM_MOUSE_BUTTONS; ++i)
+    {
+        if (mouseButtons[i] == KEY_DOWN)
+            mouseButtons[i] = KEY_REPEAT;
+        if (mouseButtons[i] == KEY_UP)
+            mouseButtons[i] = KEY_IDLE;
+    }
+    ModuleEditor* moduleEditor = Application::GetInstance().editor.get();
 
-		ImGui_ImplSDL3_ProcessEvent(&event);
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    float scaleFactor = 0.1f;
+    Application& app = Application::GetInstance();
+    ModuleEditor* editor = app.editor.get();
 
-		switch (event.type)
-		{
-		case SDL_EVENT_QUIT:
-			windowEvents[WE_QUIT] = true;
-			break;
-		case SDL_EVENT_WINDOW_HIDDEN:
-		case SDL_EVENT_WINDOW_MINIMIZED:
-		case SDL_EVENT_WINDOW_FOCUS_LOST:
-			windowEvents[WE_HIDE] = true;
-			break;
-		case SDL_EVENT_WINDOW_SHOWN:
-		case SDL_EVENT_WINDOW_FOCUS_GAINED:
-		case SDL_EVENT_WINDOW_MAXIMIZED:
-		case SDL_EVENT_WINDOW_RESTORED:
-			windowEvents[WE_SHOW] = true;
-			break;
-		case SDL_EVENT_MOUSE_BUTTON_DOWN:
-			mouseButtons[event.button.button - 1] = KEY_DOWN;
-			break;
-		case SDL_EVENT_MOUSE_BUTTON_UP:
-			mouseButtons[event.button.button - 1] = KEY_UP;
-			break;
-		case SDL_EVENT_MOUSE_MOTION:
-		{
-			int scale = Application::GetInstance().window.get()->GetScale();
-			mouseMotionX = event.motion.xrel / scale;
-			mouseMotionY = event.motion.yrel / scale;
-			mouseX = event.motion.x / scale;
-			mouseY = event.motion.y / scale;
-			break;
-		}
-		case SDL_EVENT_MOUSE_WHEEL:
+    if (!moduleEditor->editing) {
+        // GameObject deletion with DELETE key
+        if (keyboard[SDL_SCANCODE_DELETE] == KEY_DOWN) {
+            if (!editor->selectedGameObjects.empty()) {
+                LOG("Deleting " + std::to_string(editor->selectedGameObjects.size()) + " GameObject(s)");
+
+                // Copy the list because we're going to modify it
+                std::vector<GameObject*> toDelete = editor->selectedGameObjects;
+
+                editor->DeselectAll();
+
+                for (GameObject* go : toDelete)
+                {
+                    auto& gameObjects = opengl->gameObjects;
+                    for (auto it = gameObjects.begin(); it != gameObjects.end(); ++it) {
+                        if (*it == go) {
+                            delete* it;
+                            gameObjects.erase(it);
+                            break;
+                        }
+                    }
+                }
+
+                editor->sceneModified = true;
+            }
+            else {
+                LOG("No GameObject selected to delete");
+            }
+        }
+
+        // GameObject selection with F1/F2
+        if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN || keyboard[SDL_SCANCODE_F2] == KEY_DOWN)
         {
-			mouseWheelX = event.wheel.x;
-			mouseWheelY = event.wheel.y;
-			break;
-		}
+            int index = -1;
+            if (opengl->gameObjects.size() > 0) {
+                GameObject* currentSelection = editor->selectedGameObjects.empty() ? nullptr : editor->selectedGameObjects[0];
+
+                for (int i = 0; i < opengl->gameObjects.size(); i++)
+                {
+                    if (currentSelection == opengl->gameObjects[i]) index = i;
+                }
+
+                if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < opengl->gameObjects.size() - 1) {
+                    GameObject* nextObject = opengl->gameObjects[index + 1];
+                    editor->SelectGameObject(nextObject, false);
+                    opengl->selectedGameObject = nextObject;
+                    LOG("Selecting next Game Object, " + nextObject->name);
+                }
+                if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
+                    GameObject* prevObject = opengl->gameObjects[index - 1];
+                    editor->SelectGameObject(prevObject, false);
+                    opengl->selectedGameObject = prevObject;
+                    LOG("Selecting previous Game Object, " + prevObject->name);
+                }
+            }
+            else {
+                LOG("No Game Objects in scene to select");
+            }
+        }
+
+        // Deselect with F3
+        if (keyboard[SDL_SCANCODE_F3] == KEY_DOWN && !editor->selectedGameObjects.empty())
+        {
+            LOG("Deselecting all GameObjects");
+            editor->DeselectAll();
+            opengl->selectedGameObject = nullptr;
+        }
+    }
+
+    while (SDL_PollEvent(&event))
+    {
+
+        ImGui_ImplSDL3_ProcessEvent(&event);
+
+        switch (event.type)
+        {
+        case SDL_EVENT_QUIT:
+            windowEvents[WE_QUIT] = true;
+            break;
+        case SDL_EVENT_WINDOW_HIDDEN:
+        case SDL_EVENT_WINDOW_MINIMIZED:
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            windowEvents[WE_HIDE] = true;
+            break;
+        case SDL_EVENT_WINDOW_SHOWN:
+        case SDL_EVENT_WINDOW_FOCUS_GAINED:
+        case SDL_EVENT_WINDOW_MAXIMIZED:
+        case SDL_EVENT_WINDOW_RESTORED:
+            windowEvents[WE_SHOW] = true;
+            break;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            mouseButtons[event.button.button - 1] = KEY_DOWN;
+            break;
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+            mouseButtons[event.button.button - 1] = KEY_UP;
+            break;
+        case SDL_EVENT_MOUSE_MOTION:
+        {
+            int scale = Application::GetInstance().window.get()->GetScale();
+            mouseMotionX = event.motion.xrel / scale;
+            mouseMotionY = event.motion.yrel / scale;
+            mouseX = event.motion.x / scale;
+            mouseY = event.motion.y / scale;
+            break;
+        }
+        case SDL_EVENT_MOUSE_WHEEL:
+        {
+            mouseWheelX = event.wheel.x;
+            mouseWheelY = event.wheel.y;
+            break;
+        }
         case SDL_EVENT_DROP_FILE:
         {
             SDL_DropEvent drop = event.drop;
@@ -218,9 +215,10 @@ bool Input::PreUpdate()
                 mouseInsideScene = true;
             }
 
-            if (moduleEditor->showInspector)        
+            if (moduleEditor->showInspector)
             {
-                if (moduleEditor->selectedGameObject == nullptr) LOG("WARNING: No GameObject selected!");
+                if (moduleEditor->selectedGameObjects.empty())
+                    LOG("WARNING: No GameObject selected!");
                 //texture drag area;
                 else if (mouseX >= moduleEditor->textureDropPos.x && mouseX <= moduleEditor->textureDropPos.x + moduleEditor->textureDropSize.x &&
                     mouseY >= moduleEditor->textureDropPos.y && mouseY <= moduleEditor->textureDropPos.y + moduleEditor->textureDropSize.y)
@@ -252,7 +250,7 @@ bool Input::PreUpdate()
                 }
 
                 if (extension == ".fbx") {
-                    if (!mouseInsideScene) 
+                    if (!mouseInsideScene)
                     {
                         LOG("WARNING: Drop mesh in scene");
                         break;
@@ -295,10 +293,10 @@ bool Input::PreUpdate()
                         {
                             //create gameobject with mesh
                             GameObject* go = new GameObject();
-							int index = moduleEditor->CountNames("DroppedMesh_");
+                            int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
                             go->meshPath = path;
-                            go->meshIndexInFBX = (int)(i - meshCountBefore); 
+                            go->meshIndexInFBX = (int)(i - meshCountBefore);
 
                             //change the translation to match the obtained coordinates
                             go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);
@@ -372,7 +370,8 @@ bool Input::PreUpdate()
                     //get mouse pos
                     if (!mouseInsideScene && !mouseInsideTextureInspector)
                     {
-                        if (moduleEditor->selectedGameObject != nullptr) LOG("WARNING: Drop texture over a GameObject or in the Inspector tab!");
+                        if (!moduleEditor->selectedGameObjects.empty())
+                            LOG("WARNING: Drop texture over a GameObject or in the Inspector tab!");
                         break;
                     }
                     std::cout << "========TEXTURE==========" << std::endl;
@@ -401,10 +400,11 @@ bool Input::PreUpdate()
                     float maxSelectionDistance = 2.0f; //max radius of search
 
                     //if we are hovering inside the "Drag new texture here:" panel we change the selectedGameObject's texture
-                    if (mouseInsideTextureInspector) closestObject = moduleEditor->selectedGameObject;
+                    if (mouseInsideTextureInspector && !moduleEditor->selectedGameObjects.empty())
+                        closestObject = moduleEditor->selectedGameObjects[0];
 
                     //if we are hovering over the scene we find the closest game object
-                    else 
+                    else
                     {
                         float closestDistance = FLT_MAX;
 
@@ -452,10 +452,10 @@ bool Input::PreUpdate()
                     }
 
                     //bind texture to the closest game object or inspector object
-                    if (closestObject != nullptr) 
+                    if (closestObject != nullptr)
                     {
                         //new texture data (delete the previous)
-                        if (closestObject->texture->texturedata != nullptr) 
+                        if (closestObject->texture->texturedata != nullptr)
                         {
                             delete closestObject->texture->texturedata;
                             closestObject->texture->texturedata = nullptr;
@@ -465,33 +465,33 @@ bool Input::PreUpdate()
                             std::cout << "Texture assigned successfully to " << closestObject->name << std::endl;
                             LOG("Texture " + path + " assigned to " + closestObject->name);
 
-                            for (GameObject* go : Application::GetInstance().opengl->gameObjects) 
+                            for (GameObject* go : Application::GetInstance().opengl->gameObjects)
                             {
-                                if (go->texture->texturedata != nullptr) 
+                                if (go->texture->texturedata != nullptr)
                                 {
                                     if (go == closestObject) {
                                     }
                                     std::cout << std::endl;
                                 }
-                                else 
+                                else
                                 {
                                     std::cout << "  " << go->name << " -> No texture" << std::endl;
                                 }
                             }
                         }
-                        else 
+                        else
                         {
                             std::cerr << "Failed to load texture for " << closestObject->name << std::endl;
                         }
                     }
-                    else 
+                    else
                     {
                         //if there is no close object
                         std::cout << "No object found under cursor (within " << maxSelectionDistance << " units)" << std::endl;
                         LOG("WARNING: No GameObject in that position");
                     }
                 }
-                else 
+                else
                 {
                     LOG("WARNING: Unknown file format");
                 }
@@ -503,57 +503,57 @@ bool Input::PreUpdate()
         {
             break;
         }
-		}
-	}
-	return true;
+        }
+    }
+    return true;
 }
 
 std::string Input::GetTexturePathFromFBX(const char* fbxPath, int meshIndex)
 {
-	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fbxPath,
-		aiProcess_Triangulate | aiProcess_FlipUVs);
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(fbxPath,
+        aiProcess_Triangulate | aiProcess_FlipUVs);
 
-	if (!scene || meshIndex >= (int)scene->mNumMeshes) {
-		return "";
-	}
+    if (!scene || meshIndex >= (int)scene->mNumMeshes) {
+        return "";
+    }
 
-	aiMesh* mesh = scene->mMeshes[meshIndex];
-	if (mesh->mMaterialIndex >= 0 && mesh->mMaterialIndex < (int)scene->mNumMaterials) {
-		aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+    aiMesh* mesh = scene->mMeshes[meshIndex];
+    if (mesh->mMaterialIndex >= 0 && mesh->mMaterialIndex < (int)scene->mNumMaterials) {
+        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-		if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
-			aiString texPath;
-			material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
+        if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
+            aiString texPath;
+            material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
 
-			std::string fullPath = texPath.C_Str();
+            std::string fullPath = texPath.C_Str();
 
-			//get the directory
-			std::string fbxDir = fbxPath;
-			size_t lastSlash = fbxDir.find_last_of("/\\");
-			if (lastSlash != std::string::npos) {
-				fbxDir = fbxDir.substr(0, lastSlash + 1);
-			}
+            //get the directory
+            std::string fbxDir = fbxPath;
+            size_t lastSlash = fbxDir.find_last_of("/\\");
+            if (lastSlash != std::string::npos) {
+                fbxDir = fbxDir.substr(0, lastSlash + 1);
+            }
 
-			if (fullPath.find(":") == std::string::npos &&
-				fullPath[0] != '/' && fullPath[0] != '\\') {
-				fullPath = fbxDir + fullPath;
-			}
+            if (fullPath.find(":") == std::string::npos &&
+                fullPath[0] != '/' && fullPath[0] != '\\') {
+                fullPath = fbxDir + fullPath;
+            }
 
-			return fullPath;
-		}
-	}
+            return fullPath;
+        }
+    }
 
-	return "";
+    return "";
 }
 
 bool Input::CleanUp()
 {
-	SDL_QuitSubSystem(SDL_INIT_EVENTS);
-	return true;
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    return true;
 }
 
 bool Input::GetWindowEvent(EventWindow ev)
 {
-	return windowEvents[ev];
+    return windowEvents[ev];
 }

@@ -45,6 +45,12 @@ public:
 	// Helper to check if this is an empty GameObject (no mesh)
 	bool IsEmpty() const { return mesh == nullptr || mesh->meshIndex < 0; }
 
+	// Get all descendants (children, grandchildren, etc.)
+	void GetAllDescendants(std::vector<GameObject*>& descendants);
+
+	// Check if this GameObject is a descendant of another
+	bool IsDescendantOf(GameObject* potentialAncestor) const;
+
 	GameObject* parent;
 	std::string name;
 	bool active = true;

@@ -70,8 +70,18 @@ public:
     ImVec2 sceneViewportPos;
     ImVec2 sceneViewportSize;
 
-    // Selected GameObject
-    GameObject* selectedGameObject = nullptr;
+
+
+    // Selected GameObjects 
+    std::vector<GameObject*> selectedGameObjects;
+
+    // Helper para verificar si un objeto está seleccionado
+    bool IsSelected(GameObject* go) const;
+
+    // Métodos para manejo de selección
+    void SelectGameObject(GameObject* go, bool includeDescendants = true);
+    void DeselectAll();
+    glm::vec3 GetSelectionCenter() const;
     int CountNames(std::string prefix);
 
     bool isMouseOverTextureDropZone = false;

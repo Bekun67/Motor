@@ -280,7 +280,7 @@ void ModuleEditor::DrawMenuBar()
                 if (opengl)
                 {
                     // Clear selection first
-                    selectedGameObject = nullptr;
+                    selectedGameObjects.empty();
                     opengl->selectedGameObject = nullptr;
 
                     // Delete all GameObjects - IMPORTANT: delete in reverse order to avoid issues with children
@@ -919,27 +919,27 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 
-    // If selected, add selected flag
-    if (go == selectedGameObject)
+    if (IsSelected(go))
         flags |= ImGuiTreeNodeFlags_Selected;
 
-    // If no children, make it a leaf node
     if (go->children.empty())
         flags |= ImGuiTreeNodeFlags_Leaf;
 
-    // Add icon for empty GameObjects
     std::string displayName = go->IsEmpty() ? "[E] " + go->name : go->name;
 
     bool nodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)go->GetUUID(), flags, "%s", displayName.c_str());
 
-    // Selection on click
-    if (ImGui::IsItemClicked())
+    // Click: select with childs
+    if (ImGui::IsItemClicked() && !ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
-        selectedGameObject = go;
-        OpenGL* opengl = Application::GetInstance().opengl.get();
-        if (opengl)
-            opengl->selectedGameObject = go;
-        LOG("Selected GameObject: " + go->name);
+        SelectGameObject(go, true); 
+    }
+
+    // Double click: select just that object
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    {
+        SelectGameObject(go, false);
+        LOG("Double-clicked: Selecting only " + go->name);
     }
 
     // Context menu (right-click)
@@ -988,21 +988,19 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
             OpenGL* opengl = Application::GetInstance().opengl.get();
             if (opengl)
             {
-                // Unselect if selected
-                if (selectedGameObject == go)
+                // Deseleccionar si está seleccionado
+                if (IsSelected(go))
                 {
-                    selectedGameObject = nullptr;
-                    opengl->selectedGameObject = nullptr;
+                    DeselectAll();
                 }
 
-                // Remove from gameObjects vector
+                // Eliminar del vector de gameObjects
                 auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
                 if (it != opengl->gameObjects.end())
                 {
                     opengl->gameObjects.erase(it);
                 }
 
-                // Delete the GameObject (this will also delete children)
                 LOG("Deleted GameObject: " + go->name);
                 delete go;
                 sceneModified = true;
@@ -1010,7 +1008,7 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
                 ImGui::EndPopup();
                 if (nodeOpen)
                     ImGui::TreePop();
-                return; // Exit early since we deleted the object
+                return;
             }
         }
 
@@ -1028,7 +1026,7 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
     // Drop target
     HandleHierarchyDragDrop(go);
 
-    // Draw children recursively
+    // Dibujar hijos recursivamente
     if (nodeOpen)
     {
         for (GameObject* child : go->children)
@@ -1073,22 +1071,8 @@ void ModuleEditor::HandleHierarchyDragDrop(GameObject* target)
                         draggedGO->transform->translation.z
                     );
 
-                    // If we have a parent, transform to world space
-                    if (draggedGO->parent != nullptr)
-                    {
-                        // TODO: Implement proper world space transformation
-                        // For now, we'll just keep the local transform as-is
-                    }
-
                     // Set new parent
                     draggedGO->SetParent(target);
-
-                    // Recalculate local transform to maintain world position
-                    if (target != nullptr)
-                    {
-                        // TODO: Calculate inverse of parent's transform and apply
-                        // For now, keeping simple local transform
-                    }
 
                     sceneModified = true;
                     LOG("Reparented " + draggedGO->name + " to " + target->name);
@@ -1128,16 +1112,19 @@ void ModuleEditor::DrawInspector()
 
     ImGui::Begin("Inspector", &showInspector);
 
-    if (selectedGameObject == nullptr)
+    if (selectedGameObjects.empty())
     {
         ImGui::Text("No GameObject selected");
     }
-    else
+    else if (selectedGameObjects.size() == 1)
     {
+        // Show inspector for only one object
+        GameObject* selectedGameObject = selectedGameObjects[0];
+
         textureDropPos = ImGui::GetWindowPos();
         textureDropSize = ImGui::GetWindowSize();
 
-        //editable name
+        // editable name
         static GameObject* lastSelectedGO = nullptr;
         if (lastSelectedGO != selectedGameObject) {
             strncpy_s(nameBuffer, selectedGameObject->name.c_str(), sizeof(nameBuffer) - 1);
@@ -1148,18 +1135,14 @@ void ModuleEditor::DrawInspector()
 
         ImGui::InputText("GameObject", nameBuffer, IM_ARRAYSIZE(nameBuffer));
 
-        //we do this to prevent using keyboard controls while editing the name
         if (ImGui::IsItemActive()) editing = true;
 
-        //when we deselect the name input
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-            //if we have modified the name input we change de object's name
             editing = false;
             if (strlen(nameBuffer) > 0) {
                 selectedGameObject->name = std::string(nameBuffer);
             }
             else {
-                //if the name is "" we revert, as if we don't do this the engine crashes
                 strncpy_s(nameBuffer, selectedGameObject->name.c_str(), sizeof(nameBuffer) - 1);
                 nameBuffer[sizeof(nameBuffer) - 1] = '\0';
             }
@@ -1397,6 +1380,23 @@ void ModuleEditor::DrawInspector()
             ImGui::Text("Drag new texture in \ninspector tab to change it!");
         }
     }
+    else
+    {
+        // more than one object selected
+        ImGui::Text("Multiple objects selected (%d)", (int)selectedGameObjects.size());
+        ImGui::Separator();
+
+        ImGui::Text("Selected GameObjects:");
+        for (GameObject* go : selectedGameObjects)
+        {
+            ImGui::BulletText("%s", go->name.c_str());
+        }
+
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),
+            "Multi-object editing not yet implemented");
+        ImGui::Text("Use Gizmo to move all objects together");
+    }
     ImGui::End();
 }
 
@@ -1478,97 +1478,146 @@ void ModuleEditor::AssignCheckerboardTexture(GameObject* go)
 
 void ModuleEditor::DrawGuizmo()
 {
+    if (selectedGameObjects.empty())
+        return;
+
     OpenGL* opengl = Application::GetInstance().opengl.get();
-    if (!opengl || !opengl->selectedGameObject)
+    if (!opengl)
         return;
 
-    GameObject* selected = opengl->selectedGameObject;
-    if (!selected->transform)
-        return;
-
-    // Get camera matrices
+    // Obtener matrices de cámara
     Camera* camera = &opengl->camera;
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
 
-    // Create model matrix from transform
-    glm::mat4 model = glm::mat4(1.0f);
-
-    // Apply translation
-    model = glm::translate(model, glm::vec3(
-        selected->transform->translation.x,
-        selected->transform->translation.y,
-        selected->transform->translation.z
-    ));
-
-    // Apply rotation
-    glm::quat quat(
-        selected->transform->rotation.w,
-        selected->transform->rotation.x,
-        selected->transform->rotation.y,
-        selected->transform->rotation.z
-    );
-    model *= glm::mat4_cast(quat);
-
-    // Apply scale
-    model = glm::scale(model, glm::vec3(
-        selected->transform->scaling.x,
-        selected->transform->scaling.y,
-        selected->transform->scaling.z
-    ));
-
-    // Set ImGuizmo rect to full window
-    ImGuizmo::SetRect(
-        sceneViewportPos.x,
-        sceneViewportPos.y,
-        sceneViewportSize.x,
-        sceneViewportSize.y
-    );
-
-    // Draw and manipulate
-    glm::mat4 deltaMatrix = glm::mat4(1.0f);
-
-    if (ImGuizmo::Manipulate(
-        glm::value_ptr(view),
-        glm::value_ptr(projection),
-        currentGizmoOperation,
-        currentGizmoMode,
-        glm::value_ptr(model),
-        glm::value_ptr(deltaMatrix)))
+    // Si hay un solo objeto, usar su transformada directamente
+    if (selectedGameObjects.size() == 1)
     {
-		// If we are manipulating
-        editing = true;
+        GameObject* selected = selectedGameObjects[0];
+        if (!selected->transform)
+            return;
 
-        // Decompose the model matrix back to transform components
-        glm::vec3 newTranslation, newScale;
-        glm::quat newRotation;
+        // [Mantener el código original del Gizmo para un solo objeto]
 
-        // Decompose matrix
-        selected->transform->Decompose(model, newTranslation, newRotation, newScale);
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(
+            selected->transform->translation.x,
+            selected->transform->translation.y,
+            selected->transform->translation.z
+        ));
 
-        // Update transform
-        selected->transform->translation.x = newTranslation.x;
-        selected->transform->translation.y = newTranslation.y;
-        selected->transform->translation.z = newTranslation.z;
+        glm::quat quat(
+            selected->transform->rotation.w,
+            selected->transform->rotation.x,
+            selected->transform->rotation.y,
+            selected->transform->rotation.z
+        );
+        model *= glm::mat4_cast(quat);
 
-        selected->transform->rotation.w = newRotation.w;
-        selected->transform->rotation.x = newRotation.x;
-        selected->transform->rotation.y = newRotation.y;
-        selected->transform->rotation.z = newRotation.z;
+        model = glm::scale(model, glm::vec3(
+            selected->transform->scaling.x,
+            selected->transform->scaling.y,
+            selected->transform->scaling.z
+        ));
 
-        selected->transform->scaling.x = newScale.x;
-        selected->transform->scaling.y = newScale.y;
-        selected->transform->scaling.z = newScale.z;
+        ImGuizmo::SetRect(
+            sceneViewportPos.x,
+            sceneViewportPos.y,
+            sceneViewportSize.x,
+            sceneViewportSize.y
+        );
 
-        updatedAngles = true;
-		sceneModified = true;
+        glm::mat4 deltaMatrix = glm::mat4(1.0f);
+
+        if (ImGuizmo::Manipulate(
+            glm::value_ptr(view),
+            glm::value_ptr(projection),
+            currentGizmoOperation,
+            currentGizmoMode,
+            glm::value_ptr(model),
+            glm::value_ptr(deltaMatrix)))
+        {
+            editing = true;
+
+            glm::vec3 newTranslation, newScale;
+            glm::quat newRotation;
+
+            selected->transform->Decompose(model, newTranslation, newRotation, newScale);
+
+            selected->transform->translation.x = newTranslation.x;
+            selected->transform->translation.y = newTranslation.y;
+            selected->transform->translation.z = newTranslation.z;
+
+            selected->transform->rotation.w = newRotation.w;
+            selected->transform->rotation.x = newRotation.x;
+            selected->transform->rotation.y = newRotation.y;
+            selected->transform->rotation.z = newRotation.z;
+
+            selected->transform->scaling.x = newScale.x;
+            selected->transform->scaling.y = newScale.y;
+            selected->transform->scaling.z = newScale.z;
+
+            updatedAngles = true;
+            sceneModified = true;
+        }
+        else
+        {
+            if (editing)
+            {
+                editing = false;
+            }
+        }
     }
     else
     {
-		// Not using the Guizmo
-        if (editing)
+        // MÚLTIPLES OBJETOS: usar el centro de selección
+        glm::vec3 selectionCenter = GetSelectionCenter();
+
+        // Crear matriz identidad en el centro de la selección
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), selectionCenter);
+
+        ImGuizmo::SetRect(
+            sceneViewportPos.x,
+            sceneViewportPos.y,
+            sceneViewportSize.x,
+            sceneViewportSize.y
+        );
+
+        glm::mat4 deltaMatrix = glm::mat4(1.0f);
+
+        if (ImGuizmo::Manipulate(
+            glm::value_ptr(view),
+            glm::value_ptr(projection),
+            currentGizmoOperation,
+            currentGizmoMode,
+            glm::value_ptr(model),
+            glm::value_ptr(deltaMatrix)))
         {
-            editing = false;
+            editing = true;
+
+            // Calcular el nuevo centro después de la manipulación
+            glm::vec3 newCenter = glm::vec3(model[3]);
+            glm::vec3 offset = newCenter - selectionCenter;
+
+            // Aplicar el offset a todos los objetos seleccionados
+            for (GameObject* go : selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    go->transform->translation.x += offset.x;
+                    go->transform->translation.y += offset.y;
+                    go->transform->translation.z += offset.z;
+                }
+            }
+
+            sceneModified = true;
+        }
+        else
+        {
+            if (editing)
+            {
+                editing = false;
+            }
         }
     }
 }
@@ -1694,7 +1743,7 @@ bool ModuleEditor::LoadScene(const std::string& filepath)
         opengl->gameObjects = loadedGameObjects;
 
         // Clear selection
-        selectedGameObject = nullptr;
+        selectedGameObjects.empty();
         opengl->selectedGameObject = nullptr;
 
         currentScenePath = filepath;
@@ -1763,4 +1812,74 @@ void ModuleEditor::SetupImGuiStyle()
     style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.25f, 1.00f, 0.00f, 1.00f);
     style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.25f, 1.00f, 0.00f, 0.43f);
     style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1.00f, 0.98f, 0.95f, 0.73f);
+}
+
+bool ModuleEditor::IsSelected(GameObject* go) const
+{
+    return std::find(selectedGameObjects.begin(), selectedGameObjects.end(), go) != selectedGameObjects.end();
+}
+
+void ModuleEditor::SelectGameObject(GameObject* go, bool includeDescendants)
+{
+    if (go == nullptr)
+        return;
+
+    // Limpiar selección anterior
+    selectedGameObjects.clear();
+
+    // Añadir el objeto principal
+    selectedGameObjects.push_back(go);
+
+    // Si incluimos descendientes, añadirlos también
+    if (includeDescendants)
+    {
+        std::vector<GameObject*> descendants;
+        go->GetAllDescendants(descendants);
+
+        for (GameObject* descendant : descendants)
+        {
+            selectedGameObjects.push_back(descendant);
+        }
+    }
+
+    // Actualizar selección en OpenGL
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (opengl && !selectedGameObjects.empty())
+    {
+        opengl->selectedGameObject = selectedGameObjects[0];
+    }
+
+    LOG("Selected " + std::to_string(selectedGameObjects.size()) + " GameObject(s)");
+}
+
+void ModuleEditor::DeselectAll()
+{
+    selectedGameObjects.clear();
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (opengl)
+    {
+        opengl->selectedGameObject = nullptr;
+    }
+}
+
+glm::vec3 ModuleEditor::GetSelectionCenter() const
+{
+    if (selectedGameObjects.empty())
+        return glm::vec3(0.0f);
+
+    glm::vec3 center(0.0f);
+
+    for (GameObject* go : selectedGameObjects)
+    {
+        if (go && go->transform)
+        {
+            center.x += go->transform->translation.x;
+            center.y += go->transform->translation.y;
+            center.z += go->transform->translation.z;
+        }
+    }
+
+    float count = static_cast<float>(selectedGameObjects.size());
+    return center / count;
 }
