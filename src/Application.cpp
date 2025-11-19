@@ -14,7 +14,7 @@ Application::Application() : isRunning(true)
     camera = std::make_shared<Camera>();
 	texture = std::make_shared<Texture>();
     editor = std::make_shared<ModuleEditor>();
-    mousePicking = std::make_shared<ModuleMousePicking>();
+    /*mousePicking = std::make_shared<ModuleMousePicking>();*/
 
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Input>(input));
@@ -22,7 +22,7 @@ Application::Application() : isRunning(true)
     AddModule(std::static_pointer_cast<Camera>(camera));
 	AddModule(std::static_pointer_cast<Texture>(texture));
     AddModule(std::static_pointer_cast<ModuleEditor>(editor));
-    AddModule(std::static_pointer_cast<ModuleMousePicking>(mousePicking));
+    /*AddModule(std::static_pointer_cast<ModuleMousePicking>(mousePicking));*/
 }
 
 Application& Application::GetInstance()
