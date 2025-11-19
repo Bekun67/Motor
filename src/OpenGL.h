@@ -40,9 +40,13 @@ public:
 
 	static OpenGL& GetInstance();
 	Camera camera;
+	ComponentCamera* editorCam = nullptr;
 
 	char *buf;
 	float f;
+
+	int culledCount = 0;
+	int renderedCount = 0;
 
 private:
 	bool Start() override;

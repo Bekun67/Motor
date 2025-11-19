@@ -528,12 +528,24 @@ bool OpenGL::Update()
     // Draw grid
     DrawGrid();
 
+    //frustum
+    const Frustum* frustum = nullptr;
+
+    if (camera.frustumCullingEnabled && editorCam)
+    {
+        frustum = &editorCam->GetFrustum();
+    }
+
+    //reset culling stats for showing
+    culledCount = 0;
+    renderedCount = 0;
+
     std::vector<GameObject*> opaqueObjects;
     std::vector<GameObject*> transparentObjects;
 
     glm::vec3 cameraPos = camera.GetPosition();
 
-    //we split game objects depending on their transaparency
+    //split objects by transparency and apply frustum culling
     for (GameObject* go : gameObjects)
     {
         if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
@@ -544,7 +556,42 @@ bool OpenGL::Update()
             float dz = cameraPos.z - go->transform->translation.z;
             go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
 
-            //filter transparent and opaque
+            //check frustum
+            go->isVisibleInFrustum = true;
+
+            if (frustum != nullptr && go->mesh->meshIndex < (int)g_Meshes.size())
+            {
+                MeshData& meshData = g_Meshes[go->mesh->meshIndex];
+
+                //get aabb
+                glm::vec3 scale(go->transform->scaling.x, go->transform->scaling.y, go->transform->scaling.z);
+                glm::vec3 translation(go->transform->translation.x, go->transform->translation.y, go->transform->translation.z);
+
+                glm::vec3 worldMin = meshData.aabbMin * scale + translation;
+                glm::vec3 worldMax = meshData.aabbMax * scale + translation;
+
+                //test in frustum
+                FrustumIntersection result = frustum->ContainsAABB(worldMin, worldMax);
+
+                if (result == FrustumIntersection::OUT)
+                {
+                    go->isVisibleInFrustum = false;
+                    go->culledLastFrame = true;
+                    culledCount++;
+                    continue;  // Skip this object
+                }
+                else
+                {
+                    go->culledLastFrame = false;
+                    renderedCount++;
+                }
+            }
+            else
+            {
+                renderedCount++;
+            }
+
+            //check transparency
             bool isTransparent = false;
             if (go->texture != nullptr && go->texture->hasTexture)
             {
@@ -562,14 +609,14 @@ bool OpenGL::Update()
         }
     }
 
-    //order transparent obj based on distance (method given by #include <algorithm>)
+    //order transparent obj
     std::sort(transparentObjects.begin(), transparentObjects.end(),
-        [](GameObject* a, GameObject* b) 
+        [](GameObject* a, GameObject* b)
         {
             return a->distanceToCamera > b->distanceToCamera;
         });
 
-    //first drawing opaque obj
+    //first we draw opaque
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
@@ -578,7 +625,7 @@ bool OpenGL::Update()
         go->mesh->Draw(&camera);
     }
 
-    //then transparent obj
+    //then transparent
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);

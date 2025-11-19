@@ -7,6 +7,7 @@ enum class ComponentType
     TRANSFORM,
     MESH,
     TEXTURE,
+    CAMERA,
     UNKNOWN
 };
 

@@ -34,10 +34,16 @@ public:
 	ComponentTransform* transform;
 	ComponentMesh* mesh;
 	ComponentTexture* texture;
+	ComponentCamera* camera;
 
 	std::vector<Component*> components;
 	std::vector<GameObject*> children;
 
 	float distanceToCamera = 0.0f;
 	std::string meshPath;
+	bool culled = false;
+
+	//Frustum culling
+	bool isVisibleInFrustum = true;
+	bool culledLastFrame = false;
 };

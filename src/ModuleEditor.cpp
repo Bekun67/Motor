@@ -477,6 +477,83 @@ void ModuleEditor::DrawConfiguration()
         ImGui::Text("Frame Time: %.3f ms", lastFrameTime * 1000.0f);
     }
 
+    //frustum culling
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        Camera* cam = nullptr;
+        ComponentCamera* editorCam = nullptr;
+
+        OpenGL* ogl = Application::GetInstance().opengl.get();
+        if (ogl)
+        {
+            cam = &ogl->camera;
+            editorCam = ogl->editorCam;
+        }
+
+        if (!cam || !editorCam)
+        {
+            ImGui::Text("Editor camera not initialized!");
+            return;
+        }
+
+        if (editorCam)
+        {
+            // FOV
+            float fov = editorCam->GetFOV();
+            if (ImGui::SliderFloat("FOV", &fov, 30.0f, 120.0f))
+            {
+                editorCam->SetFOV(fov);
+                LOG("Camera FOV changed to " + std::to_string(fov));
+            }
+
+            // Near Plane
+            float nearPlane = editorCam->GetNearPlane();
+            if (ImGui::DragFloat("Near Plane", &nearPlane, 0.1f, 0.1f, 10.0f))
+            {
+                editorCam->SetNearPlane(nearPlane);
+                LOG("Camera Near Plane changed to " + std::to_string(nearPlane));
+            }
+
+            // Far Plane
+            float farPlane = editorCam->GetFarPlane();
+            if (ImGui::DragFloat("Far Plane", &farPlane, 1.0f, 10.0f, 10000.0f))
+            {
+                editorCam->SetFarPlane(farPlane);
+                LOG("Camera Far Plane changed to " + std::to_string(farPlane));
+            }
+
+            ImGui::Separator();
+
+            // Frustum Culling Toggle
+            if (ImGui::Checkbox("Enable Frustum Culling", &cam->frustumCullingEnabled))
+            {
+                if (cam->frustumCullingEnabled)
+                {
+                    LOG("Frustum Culling ENABLED");
+                }
+                else
+                {
+                    LOG("Frustum Culling DISABLED");
+                }
+            }
+
+            // Statistics
+            if (cam->frustumCullingEnabled)
+            {
+                OpenGL* opengl = Application::GetInstance().opengl.get();
+                ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
+                ImGui::Text("Objects Culled: %d", opengl->culledCount);
+
+                int total = opengl->renderedCount + opengl->culledCount;
+                if (total > 0)
+                {
+                    float percentage = (float)opengl->culledCount / (float)total * 100.0f;
+                    ImGui::Text("Culling Efficiency: %.1f%%", percentage);
+                }
+            }
+        }
+    }
+
     if (ImGui::CollapsingHeader("Window"))
     {
         Window* window = Application::GetInstance().window.get();

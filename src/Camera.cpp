@@ -1,8 +1,13 @@
 #include "Camera.h"
 #include "Application.h"
+#include "GameObject.h"
+#include "ComponentTransform.h"
 #include <iostream>
-#include <imgui.h>     
-#include <ImGuizmo.h>  
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <imgui.h>
+#include <ImGuizmo.h>
 
 Camera::Camera(float fov, float aspect, float nearClip, float farClip)
     : position(0.0f, 1.0f, 3.0f),
@@ -19,8 +24,47 @@ Camera::Camera(float fov, float aspect, float nearClip, float farClip)
     lastX(0.0f),
     lastY(0.0f),
     distanceToFocus(3.0f),
-    orbitMode(false)
+    orbitMode(false),
+    editorCamera(nullptr),
+    editorCameraObject(nullptr),
+    frustumCullingEnabled(false)
 {
+}
+
+bool Camera::Start()
+{
+    // Create a GameObject for the editor camera
+    editorCameraObject = new GameObject();
+    editorCameraObject->name = "EditorCamera";
+
+    // Add camera component
+    editorCamera = new ComponentCamera(editorCameraObject);
+    editorCameraObject->camera = editorCamera;
+    editorCameraObject->AddComponent(editorCamera);
+
+    editorCamera->SetFOV(fov);
+    editorCamera->SetAspectRatio(aspect);
+    editorCamera->SetNearPlane(nearClip);
+    editorCamera->SetFarPlane(farClip);
+
+    OpenGL* ogl = Application::GetInstance().opengl.get();
+    if (ogl)
+    {
+        ogl->editorCam = editorCamera;
+    }
+
+    return true;
+}
+
+bool Camera::CleanUp()
+{
+    if (editorCameraObject)
+    {
+        delete editorCameraObject;
+        editorCameraObject = nullptr;
+        editorCamera = nullptr;
+    }
+    return true;
 }
 
 void Camera::HandleInput(float deltaTime)
@@ -134,6 +178,11 @@ void Camera::HandleInput(float deltaTime)
                 opengl->selectedGameObject->transform->translation.z),
                 radius);
         }
+    }
+    if (editorCamera)
+    {
+        editorCamera->SetAspectRatio(aspect);
+        editorCamera->UpdateFrustum();
     }
 }
 

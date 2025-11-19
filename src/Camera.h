@@ -1,5 +1,6 @@
 #pragma once
 #include "Module.h"
+#include "ComponentCamera.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <SDL3/SDL.h>
@@ -9,8 +10,11 @@ class Camera : public Module
 public:
     Camera(float fov = 60.0f, float aspect = 16.0f / 9.0f, float nearClip = 0.1f, float farClip = 100.0f);
 
+    bool Start() override;
+    bool CleanUp() override;
+
     void HandleInput(float deltaTime);  // Movement
-   void Zoom(float scrollY, float deltaTime); // Zoom input
+    void Zoom(float scrollY, float deltaTime); // Zoom input
     void FrameSelected(const glm::vec3& target, float distance = 5.0f); // Select focus point of an object with F
     glm::mat4 GetViewMatrix() const;
     glm::mat4 GetProjectionMatrix() const;
@@ -18,7 +22,10 @@ public:
     glm::vec3 GetPosition() const { return position; }
     glm::vec3 GetFocusPoint() const { return focusPoint; }
 
+    ComponentCamera* GetCameraComponent() { return editorCamera; }
+
     float aspect = 16.0f / 9.0f;
+    bool frustumCullingEnabled = false;
 
 private:
     glm::vec3 position;
@@ -41,4 +48,7 @@ private:
     float minZoomDistance = 1.0f;
     float maxZoomDistance = 50.0f;
     bool orbitMode;
+
+    ComponentCamera* editorCamera;
+    GameObject* editorCameraObject;
 };
