@@ -6,6 +6,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <imgui.h>
 #include <ImGuizmo.h>
 
@@ -31,6 +32,12 @@ Camera::Camera(float fov, float aspect, float nearClip, float farClip)
 {
 }
 
+Camera::~Camera()
+{
+    if (editorCameraObject)
+        delete editorCameraObject;
+}
+
 bool Camera::Start()
 {
     // Create a GameObject for the editor camera
@@ -39,19 +46,12 @@ bool Camera::Start()
 
     // Add camera component
     editorCamera = new ComponentCamera(editorCameraObject);
-    editorCameraObject->camera = editorCamera;
-    editorCameraObject->AddComponent(editorCamera);
+    editorCameraObject->camera = editorCamera; // si tienes pointer camera en GameObject
 
     editorCamera->SetFOV(fov);
     editorCamera->SetAspectRatio(aspect);
     editorCamera->SetNearPlane(nearClip);
     editorCamera->SetFarPlane(farClip);
-
-    OpenGL* ogl = Application::GetInstance().opengl.get();
-    if (ogl)
-    {
-        ogl->editorCam = editorCamera;
-    }
 
     return true;
 }
@@ -74,7 +74,7 @@ void Camera::HandleInput(float deltaTime)
     bool altPressed = state[SDL_SCANCODE_LALT] || state[SDL_SCANCODE_RALT];
     orbitMode = altPressed;
 
-	// Use shift to increase movement speed
+    // Use shift to increase movement speed
     bool shiftPressed = state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT];
     float currentSpeed = shiftPressed ? moveSpeed * 2.0f : moveSpeed;
 
@@ -109,9 +109,9 @@ void Camera::HandleInput(float deltaTime)
         front = glm::normalize(front);
         glm::vec3 right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
 
-		// Use currentSpeed and deltaTime to move camera
+        // Use currentSpeed and deltaTime to move camera
         if (state[SDL_SCANCODE_W] || buttons & SDL_BUTTON_LEFT) position += front * currentSpeed * deltaTime;
-        
+
         if (state[SDL_SCANCODE_S]) position -= front * currentSpeed * deltaTime;
         if (state[SDL_SCANCODE_A]) position -= right * currentSpeed * deltaTime;
         if (state[SDL_SCANCODE_D]) position += right * currentSpeed * deltaTime;
@@ -179,6 +179,39 @@ void Camera::HandleInput(float deltaTime)
                 radius);
         }
     }
+    //update editor camera
+    if (editorCameraObject && editorCameraObject->transform)
+    {
+        //transform
+        editorCameraObject->transform->translation.x = position.x;
+        editorCameraObject->transform->translation.y = position.y;
+        editorCameraObject->transform->translation.z = position.z;
+
+        //rotation
+        glm::vec3 front;
+        front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front.y = sin(glm::radians(pitch));
+        front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front = glm::normalize(front);
+
+        glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+        glm::vec3 right = glm::normalize(glm::cross(worldUp, front));
+        glm::vec3 up = glm::cross(front, right);
+
+        glm::mat3 rotMatrix;
+        rotMatrix[0] = right;
+        rotMatrix[1] = up;
+        rotMatrix[2] = front;
+
+        glm::quat rotation = glm::quat_cast(rotMatrix);
+
+        editorCameraObject->transform->rotation.w = rotation.w;
+        editorCameraObject->transform->rotation.x = rotation.x;
+        editorCameraObject->transform->rotation.y = rotation.y;
+        editorCameraObject->transform->rotation.z = rotation.z;
+    }
+
+    // Update camera component
     if (editorCamera)
     {
         editorCamera->SetAspectRatio(aspect);
@@ -240,6 +273,8 @@ void Camera::FrameSelected(const glm::vec3& target, float distance)
 
 glm::mat4 Camera::GetViewMatrix() const
 {
+    if (editorCamera) return editorCamera->GetViewMatrix();
+
     glm::vec3 front;
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     front.y = sin(glm::radians(pitch));
@@ -250,5 +285,7 @@ glm::mat4 Camera::GetViewMatrix() const
 
 glm::mat4 Camera::GetProjectionMatrix() const
 {
+    if (editorCamera) return editorCamera->GetProjectionMatrix();
+
     return glm::perspective(glm::radians(fov), aspect, nearClip, farClip);
 }

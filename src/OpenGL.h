@@ -40,11 +40,11 @@ public:
 
 	static OpenGL& GetInstance();
 	Camera camera;
-	ComponentCamera* editorCam = nullptr;
 
 	char *buf;
 	float f;
 
+	//frustum culling stats
 	int culledCount = 0;
 	int renderedCount = 0;
 
@@ -55,8 +55,6 @@ private:
 	bool Draw();
 
 	void MySaveFunction();
-
-
 
 	void CreateGrid(int size);
 	void DrawGrid();

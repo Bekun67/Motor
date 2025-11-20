@@ -480,21 +480,8 @@ void ModuleEditor::DrawConfiguration()
     //frustum culling
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        Camera* cam = nullptr;
-        ComponentCamera* editorCam = nullptr;
-
-        OpenGL* ogl = Application::GetInstance().opengl.get();
-        if (ogl)
-        {
-            cam = &ogl->camera;
-            editorCam = ogl->editorCam;
-        }
-
-        if (!cam || !editorCam)
-        {
-            ImGui::Text("Editor camera not initialized!");
-            return;
-        }
+        Camera* cam = &Application::GetInstance().opengl->camera;
+        ComponentCamera* editorCam = cam->GetCameraComponent();
 
         if (editorCam)
         {

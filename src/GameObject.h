@@ -26,7 +26,6 @@ public:
 
 	Component* AddComponent(Component* component);
 	Component* GetComponent(ComponentType type);
-
 	
 	GameObject* parent;
 	std::string name;
@@ -41,7 +40,6 @@ public:
 
 	float distanceToCamera = 0.0f;
 	std::string meshPath;
-	bool culled = false;
 
 	//Frustum culling
 	bool isVisibleInFrustum = true;

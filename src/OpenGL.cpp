@@ -29,7 +29,7 @@ OpenGL::~OpenGL()
 }
 
 OpenGL& OpenGL::GetInstance() {
-    static OpenGL instance; 
+    static OpenGL instance;
     return instance;
 }
 
@@ -97,26 +97,26 @@ void OpenGL::CreateGrid(int size)
 
     // Create lines (X axis)
     for (int z = -size; z <= size; ++z) {
-        
-        gridVertices.push_back(-size); 
-        gridVertices.push_back(0.0f);   
-        gridVertices.push_back(z);      
 
-        gridVertices.push_back(size);   
-        gridVertices.push_back(0.0f);   
-        gridVertices.push_back(z);      
+        gridVertices.push_back(-size);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(z);
+
+        gridVertices.push_back(size);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(z);
     }
 
     //Create lines (Z axis)
     for (int x = -size; x <= size; ++x) {
-        
-        gridVertices.push_back(x);    
-        gridVertices.push_back(0.0f);   
-        gridVertices.push_back(-size); 
 
-        gridVertices.push_back(x);     
-        gridVertices.push_back(0.0f);  
-        gridVertices.push_back(size);   
+        gridVertices.push_back(x);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(-size);
+
+        gridVertices.push_back(x);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(size);
     }
 
     gridLineCount = gridVertices.size() / 3;
@@ -467,6 +467,8 @@ bool OpenGL::Start()
     }
     std::cout << std::endl;
 
+    camera.Start();
+
     CreateGrid(50);
 
     std::cout << "OpenGL initialized successfully" << std::endl;
@@ -488,24 +490,20 @@ bool OpenGL::Update()
 
     ModuleEditor* editor = Application::GetInstance().editor.get();
 
-    // Configurar el viewport para que OpenGL solo renderice en el área de la escena
+    // Configure viewport for scene area
     if (editor)
     {
-        // Convertir coordenadas de ImGui a coordenadas de OpenGL (Y invertida)
         Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
 
-        // ImGui usa coordenadas desde arriba, OpenGL desde abajo
         int viewportX = (int)editor->sceneViewportPos.x;
         int viewportY = windowHeight - (int)(editor->sceneViewportPos.y + editor->sceneViewportSize.y);
         int viewportWidth = (int)editor->sceneViewportSize.x;
         int viewportHeight = (int)editor->sceneViewportSize.y;
 
-        // Establecer el viewport de OpenGL
         glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
 
-        // Actualizar el aspect ratio de la cámara basado en el viewport
         if (viewportHeight > 0)
         {
             camera.aspect = (float)viewportWidth / (float)viewportHeight;
@@ -513,22 +511,19 @@ bool OpenGL::Update()
     }
     else
     {
-        // Fallback: usar toda la ventana
         Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
         glViewport(0, 0, windowWidth, windowHeight);
     }
 
-    // Clear solo el área del viewport
     glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 
     // Draw grid
     DrawGrid();
 
-    //frustum
+    ComponentCamera* editorCam = camera.GetCameraComponent();
     const Frustum* frustum = nullptr;
 
     if (camera.frustumCullingEnabled && editorCam)
@@ -578,7 +573,8 @@ bool OpenGL::Update()
                     go->isVisibleInFrustum = false;
                     go->culledLastFrame = true;
                     culledCount++;
-                    continue;  // Skip this object
+                    //skip obj
+                    continue;
                 }
                 else
                 {
