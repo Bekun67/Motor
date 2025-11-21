@@ -38,7 +38,7 @@ public:
     std::shared_ptr<Camera> camera;
     std::shared_ptr<Texture> texture;
     std::shared_ptr<ModuleEditor> editor;
-    /*std::shared_ptr<ModuleMousePicking> mousePicking;*/
+    std::shared_ptr<ModuleMousePicking> mousePicking;
 
 private:
     // Private constructor for singleton
