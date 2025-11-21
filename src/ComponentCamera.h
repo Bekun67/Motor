@@ -32,18 +32,18 @@ struct Plane
 
     float SignedDistance(const glm::vec3& point) const
     {
-        return glm::dot(normal, point) - distance;
+        return glm::dot(normal, point) + distance;
     }
 
     bool IsOnPositiveSide(const glm::vec3& point) const
     {
-        return SignedDistance(point) > 0.0f;
+        return SignedDistance(point) >= 0.0f;
     }
 };
 
 struct Frustum
 {
-    Plane planes[6]; 
+    Plane planes[6];
 
     void ExtractFromMatrix(const glm::mat4& viewProjection);
     FrustumIntersection ContainsAABB(const glm::vec3& minPoint, const glm::vec3& maxPoint) const;

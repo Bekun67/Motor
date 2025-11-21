@@ -523,11 +523,13 @@ bool OpenGL::Update()
     // Draw grid
     DrawGrid();
 
+    //frustum culling and drawing
     ComponentCamera* editorCam = camera.GetCameraComponent();
     const Frustum* frustum = nullptr;
 
     if (camera.frustumCullingEnabled && editorCam)
     {
+        editorCam->UpdateFrustum();
         frustum = &editorCam->GetFrustum();
     }
 
@@ -543,69 +545,122 @@ bool OpenGL::Update()
     //split objects by transparency and apply frustum culling
     for (GameObject* go : gameObjects)
     {
-        if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        if (go == nullptr || go->mesh == nullptr || go->mesh->meshIndex < 0)
+            continue;
+
+        //calculate distance to camera
+        float dx = cameraPos.x - go->transform->translation.x;
+        float dy = cameraPos.y - go->transform->translation.y;
+        float dz = cameraPos.z - go->transform->translation.z;
+        go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
+
+        //assume visible by default
+        go->isVisibleInFrustum = true;
+
+        //test frustum
+        if (frustum != nullptr && go->mesh->meshIndex < (int)g_Meshes.size())
         {
-            //calculate distance
-            float dx = cameraPos.x - go->transform->translation.x;
-            float dy = cameraPos.y - go->transform->translation.y;
-            float dz = cameraPos.z - go->transform->translation.z;
-            go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
+            MeshData& meshData = g_Meshes[go->mesh->meshIndex];
 
-            //check frustum
-            go->isVisibleInFrustum = true;
+            //get aabb
+            glm::vec3 localMin = meshData.aabbMin;
+            glm::vec3 localMax = meshData.aabbMax;
 
-            if (frustum != nullptr && go->mesh->meshIndex < (int)g_Meshes.size())
+            glm::mat4 model = glm::mat4(1.0f);
+
+            //translation
+            model = glm::translate(model, glm::vec3(
+                go->transform->translation.x,
+                go->transform->translation.y,
+                go->transform->translation.z
+            ));
+
+            //rotation
+            glm::quat rotation(
+                go->transform->rotation.w,
+                go->transform->rotation.x,
+                go->transform->rotation.y,
+                go->transform->rotation.z
+            );
+            model *= glm::mat4_cast(rotation);
+
+            //scale
+            model = glm::scale(model, glm::vec3(
+                go->transform->scaling.x,
+                go->transform->scaling.y,
+                go->transform->scaling.z
+            ));
+
+            //transform 8 aabb corners
+            glm::vec3 corners[8] = {
+                glm::vec3(localMin.x, localMin.y, localMin.z),
+                glm::vec3(localMax.x, localMin.y, localMin.z),
+                glm::vec3(localMax.x, localMax.y, localMin.z),
+                glm::vec3(localMin.x, localMax.y, localMin.z),
+                glm::vec3(localMin.x, localMin.y, localMax.z),
+                glm::vec3(localMax.x, localMin.y, localMax.z),
+                glm::vec3(localMax.x, localMax.y, localMax.z),
+                glm::vec3(localMin.x, localMax.y, localMax.z)
+            };
+
+            glm::vec3 worldMin = glm::vec3(FLT_MAX);
+            glm::vec3 worldMax = glm::vec3(-FLT_MAX);
+
+            for (int i = 0; i < 8; ++i)
             {
-                MeshData& meshData = g_Meshes[go->mesh->meshIndex];
+                glm::vec4 worldCorner = model * glm::vec4(corners[i], 1.0f);
+                glm::vec3 corner3D = glm::vec3(worldCorner);
 
-                //get aabb
-                glm::vec3 scale(go->transform->scaling.x, go->transform->scaling.y, go->transform->scaling.z);
-                glm::vec3 translation(go->transform->translation.x, go->transform->translation.y, go->transform->translation.z);
+                worldMin.x = std::min(worldMin.x, corner3D.x);
+                worldMin.y = std::min(worldMin.y, corner3D.y);
+                worldMin.z = std::min(worldMin.z, corner3D.z);
 
-                glm::vec3 worldMin = meshData.aabbMin * scale + translation;
-                glm::vec3 worldMax = meshData.aabbMax * scale + translation;
+                worldMax.x = std::max(worldMax.x, corner3D.x);
+                worldMax.y = std::max(worldMax.y, corner3D.y);
+                worldMax.z = std::max(worldMax.z, corner3D.z);
+            }
 
-                //test in frustum
-                FrustumIntersection result = frustum->ContainsAABB(worldMin, worldMax);
+            //test aabb against frustum
+            FrustumIntersection result = frustum->ContainsAABB(worldMin, worldMax);
 
-                if (result == FrustumIntersection::OUT)
-                {
-                    go->isVisibleInFrustum = false;
-                    go->culledLastFrame = true;
-                    culledCount++;
-                    //skip obj
-                    continue;
-                }
-                else
-                {
-                    go->culledLastFrame = false;
-                    renderedCount++;
-                }
+            //if the object is OUT we skip it
+            if (result == FrustumIntersection::OUT)
+            {
+                go->isVisibleInFrustum = false;
+                go->culledLastFrame = true;
+                culledCount++;
+                continue; 
             }
             else
             {
+                go->culledLastFrame = false;
                 renderedCount++;
             }
+        }
+        else
+        {
+            //if the object is IN or INTERESECT we count it
+            renderedCount++;
+        }
 
-            //check transparency
-            bool isTransparent = false;
-            if (go->texture != nullptr && go->texture->hasTexture)
-            {
-                isTransparent = go->texture->hasTransparency;
-            }
+        //filter transparent and opaque
+        bool isTransparent = false;
+        if (go->texture != nullptr && go->texture->hasTexture)
+        {
+            isTransparent = go->texture->hasTransparency;
+        }
 
-            if (isTransparent)
-            {
-                transparentObjects.push_back(go);
-            }
-            else
-            {
-                opaqueObjects.push_back(go);
-            }
+        if (isTransparent)
+        {
+            transparentObjects.push_back(go);
+        }
+        else
+        {
+            opaqueObjects.push_back(go);
         }
     }
 
-    //order transparent obj
+    //order transparent obj (method given by #include <algorithm>)
     std::sort(transparentObjects.begin(), transparentObjects.end(),
         [](GameObject* a, GameObject* b)
         {

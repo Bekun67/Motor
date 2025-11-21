@@ -46,7 +46,7 @@ bool Camera::Start()
 
     // Add camera component
     editorCamera = new ComponentCamera(editorCameraObject);
-    editorCameraObject->camera = editorCamera; // si tienes pointer camera en GameObject
+    editorCameraObject->camera = editorCamera;
 
     editorCamera->SetFOV(fov);
     editorCamera->SetAspectRatio(aspect);
