@@ -26,6 +26,7 @@ public:
 	void DrawVertexNormals(Camera* camera, float length = 0.3f);
 	void DrawFaceNormals(Camera* camera, float length = 0.5f);
 	void DrawAABB(Camera* camera);
+	void DrawDebugRay(Camera* camera);
 
 	//method to get the previous aabb struct in the moduleEditor.cpp
 	WorldAABB GetWorldAABB() const;

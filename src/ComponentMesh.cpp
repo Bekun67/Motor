@@ -623,3 +623,57 @@ WorldAABB ComponentMesh::GetWorldAABB() const
 
     return worldAABB;
 }
+
+void ComponentMesh::DrawDebugRay(Camera* camera)
+{
+    if (!gameObject || !camera) return;
+
+    //center of the obj
+    glm::vec3 center = GetWorldAABB().center;
+
+    //cam pos
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    glm::vec3 camPos = opengl->camera.GetCameraComponent()->GetGameObject()->transform->position;
+
+    //line data
+    std::vector<float> lineData = {
+        center.x, center.y, center.z,
+        camPos.x, camPos.y, camPos.z
+    };
+
+    //drawing line
+    GLuint vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, lineData.size() * sizeof(float), lineData.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    unsigned int shader = Application::GetInstance().opengl->normalShaderProgram;
+    glUseProgram(shader);
+
+    glm::mat4 identity = glm::mat4(1.0f);
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+
+    glUniformMatrix4fv(glGetUniformLocation(shader, "model_matrix"), 1, GL_FALSE, glm::value_ptr(identity));
+    glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    if (opengl->debugZBuffer) glUniform3f(glGetUniformLocation(shader, "lineColor"), 0.5f, 0.5f, 0.5f);
+    else glUniform3f(glGetUniformLocation(shader, "lineColor"), 1.0f, 0.0f, 1.0f);
+
+    glLineWidth(2.0f);
+    glDisable(GL_DEPTH_TEST);
+    glDrawArrays(GL_LINES, 0, 2);
+    glEnable(GL_DEPTH_TEST);
+    glLineWidth(1.0f);
+
+    glBindVertexArray(0);
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
+}

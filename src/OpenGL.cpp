@@ -468,8 +468,87 @@ bool OpenGL::Start()
     std::cout << std::endl;
 
     camera.Start();
-
     CreateGrid(50);
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    //color texture for zbuffer
+    glGenTextures(1, &colorTexture);
+    glBindTexture(GL_TEXTURE_2D, colorTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 1024, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
+
+    //depth texture
+    glGenTextures(1, &depthTexture);
+    glBindTexture(GL_TEXTURE_2D, depthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+
+    GLuint attachments[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, attachments);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cerr << "ERROR: Framebuffer is not complete!" << std::endl;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    //vertex shader for z-buffer
+    const char* depthQuadVS = R"(
+        #version 330 core
+        layout(location = 0) in vec2 aPos;
+        layout(location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main() {
+            TexCoord = aTexCoord;
+            gl_Position = vec4(aPos, 0.0, 1.0);
+        }
+        )";
+
+    //fragment shader for z-buffer
+    const char* depthQuadFS = R"(
+        #version 330 core
+        out vec4 FragColor;
+        in vec2 TexCoord;
+        uniform sampler2D depthTex;
+        void main() {
+            float depth = texture(depthTex, TexCoord).r;
+            FragColor = vec4(vec3(1.0 - depth), 1.0);
+        }
+        )";
+
+    depthDebugShader = glCreateProgram();
+    GLuint quadVS = CompileShader(GL_VERTEX_SHADER, depthQuadVS);
+    GLuint quadFS = CompileShader(GL_FRAGMENT_SHADER, depthQuadFS);
+    glAttachShader(depthDebugShader, quadVS);
+    glAttachShader(depthDebugShader, quadFS);
+    glLinkProgram(depthDebugShader);
+    glDeleteShader(quadVS);
+    glDeleteShader(quadFS);
+
+    float quadVertices[] = 
+    {
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &fullscreenQuadVAO);
+    glGenBuffers(1, &fullscreenQuadVBO);
+    glBindVertexArray(fullscreenQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, fullscreenQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
 
     std::cout << "OpenGL initialized successfully" << std::endl;
     return true;
@@ -490,19 +569,21 @@ bool OpenGL::Update()
 
     ModuleEditor* editor = Application::GetInstance().editor.get();
 
-    // Configure viewport for scene area
+    int viewportWidth = 800;
+    int viewportHeight = 600;
+    int viewportX = 0;
+    int viewportY = 0;
+
     if (editor)
     {
         Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
 
-        int viewportX = (int)editor->sceneViewportPos.x;
-        int viewportY = windowHeight - (int)(editor->sceneViewportPos.y + editor->sceneViewportSize.y);
-        int viewportWidth = (int)editor->sceneViewportSize.x;
-        int viewportHeight = (int)editor->sceneViewportSize.y;
-
-        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+        viewportX = (int)editor->sceneViewportPos.x;
+        viewportY = windowHeight - (int)(editor->sceneViewportPos.y + editor->sceneViewportSize.y);
+        viewportWidth = (int)editor->sceneViewportSize.x;
+        viewportHeight = (int)editor->sceneViewportSize.y;
 
         if (viewportHeight > 0)
         {
@@ -514,16 +595,30 @@ bool OpenGL::Update()
         Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
-        glViewport(0, 0, windowWidth, windowHeight);
+        viewportWidth = windowWidth;
+        viewportHeight = windowHeight;
     }
 
+    glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
     glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Draw grid
-    DrawGrid();
+    //resize texture if we change the viewport
+    if (debugZBuffer)
+    {
+        if (depthTextureWidth != viewportWidth || depthTextureHeight != viewportHeight)
+        {
+            depthTextureWidth = viewportWidth;
+            depthTextureHeight = viewportHeight;
 
-    //frustum culling and drawing
+            glBindTexture(GL_TEXTURE_2D, depthTexture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, viewportWidth, viewportHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+            glBindTexture(GL_TEXTURE_2D, colorTexture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, viewportWidth, viewportHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        }
+    }
+
     ComponentCamera* editorCam = camera.GetCameraComponent();
     const Frustum* frustum = nullptr;
 
@@ -629,7 +724,7 @@ bool OpenGL::Update()
                 go->isVisibleInFrustum = false;
                 go->culledLastFrame = true;
                 culledCount++;
-                continue; 
+                continue;
             }
             else
             {
@@ -660,34 +755,76 @@ bool OpenGL::Update()
         }
     }
 
-    //order transparent obj (method given by #include <algorithm>)
-    std::sort(transparentObjects.begin(), transparentObjects.end(),
-        [](GameObject* a, GameObject* b)
+    if (!debugZBuffer) 
+    {
+        DrawGrid();
+
+        //first we draw opaque
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+
+        for (GameObject* go : opaqueObjects)
         {
-            return a->distanceToCamera > b->distanceToCamera;
-        });
+            go->mesh->Draw(&camera);
+            if (editorCam->debugRaycastEnabled) go->mesh->DrawDebugRay(&camera);
+        }
 
-    //first we draw opaque
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+        //then transparent
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
 
-    for (GameObject* go : opaqueObjects)
-    {
-        go->mesh->Draw(&camera);
+        for (GameObject* go : transparentObjects)
+        {
+            go->mesh->Draw(&camera);
+            if (editorCam->debugRaycastEnabled) go->mesh->DrawDebugRay(&camera);
+        }
+
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
     }
-
-    //then transparent
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
-
-    for (GameObject* go : transparentObjects)
+    else
     {
-        go->mesh->Draw(&camera);
-    }
+        //render with fbo (z-buffer)
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glViewport(0, 0, viewportWidth, viewportHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+        DrawGrid();
+
+        for (GameObject* go : opaqueObjects)
+        {
+            if (go && go->mesh) go->mesh->Draw(&camera);
+        }
+        for (GameObject* go : transparentObjects)
+        {
+            if (go && go->mesh) go->mesh->Draw(&camera);
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glUseProgram(depthDebugShader);
+        glBindVertexArray(fullscreenQuadVAO);
+        glDisable(GL_DEPTH_TEST);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthTexture);
+        glUniform1i(glGetUniformLocation(depthDebugShader, "depthTex"), 0);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glEnable(GL_DEPTH_TEST);
+
+        for (GameObject* go : opaqueObjects)
+        {
+            if (go && go->mesh && editorCam->debugRaycastEnabled)
+                go->mesh->DrawDebugRay(&camera);
+        }
+        for (GameObject* go : transparentObjects)
+        {
+            if (go && go->mesh && editorCam->debugRaycastEnabled)
+                go->mesh->DrawDebugRay(&camera);
+        }
+    }
 
     return true;
 }

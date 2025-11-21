@@ -82,6 +82,8 @@ public:
     // Background
     glm::vec3 backgroundColor;
 
+    bool debugRaycastEnabled = false;
+
 private:
     // Projection parameters
     float fov;

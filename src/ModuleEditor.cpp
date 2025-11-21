@@ -538,8 +538,31 @@ void ModuleEditor::DrawConfiguration()
                     ImGui::Text("Culling Efficiency: %.1f%%", percentage);
                 }
             }
+
+            if (ImGui::Checkbox("Show Raycast to Game Objects", &cam->GetCameraComponent()->debugRaycastEnabled))
+            {
+                if (cam->GetCameraComponent()->debugRaycastEnabled)
+                {
+                    LOG("Raycast to Game Objects ENABLED");
+                }
+                else 
+                {
+                    LOG("Raycast to Game Objects DISABLED");
+                }
+            }
+
             OpenGL* opengl = Application::GetInstance().opengl.get();
-            ImGui::Checkbox("Show Depth Debug", &opengl->debugZBuffer);
+            if (ImGui::Checkbox("Show Z-Buffer Depth Debug", &opengl->debugZBuffer))
+            {
+                if (opengl->debugZBuffer)
+                {
+                    LOG("Z-Buffer ENABLED");
+                }
+                else
+                {
+                    LOG("Z-Buffer DISABLED");
+                }
+            }
         }
     }
 
