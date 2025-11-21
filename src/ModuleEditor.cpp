@@ -988,21 +988,32 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
             OpenGL* opengl = Application::GetInstance().opengl.get();
             if (opengl)
             {
-                // Deseleccionar si está seleccionado
+                // Deselect if selected
                 if (IsSelected(go))
                 {
                     DeselectAll();
                 }
 
-                // Eliminar del vector de gameObjects
-                auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
-                if (it != opengl->gameObjects.end())
+                // Important: Collect ALL objects to remove (parent and ALL descendants)
+                std::vector<GameObject*> objectsToRemove;
+                objectsToRemove.push_back(go);
+                go->GetAllDescendants(objectsToRemove);
+
+                // Remove ALL objects from the gameObjects vector first (don't delete yet)
+                for (GameObject* obj : objectsToRemove)
                 {
-                    opengl->gameObjects.erase(it);
+                    auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), obj);
+                    if (it != opengl->gameObjects.end())
+                    {
+                        opengl->gameObjects.erase(it);
+                    }
                 }
 
-                LOG("Deleted GameObject: " + go->name);
+                LOG("Deleted GameObject: " + go->name + " and " + std::to_string(objectsToRemove.size() - 1) + " descendants");
+
+                // Now delete ONLY the root - its destructor will handle the children
                 delete go;
+
                 sceneModified = true;
 
                 ImGui::EndPopup();

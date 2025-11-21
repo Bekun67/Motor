@@ -36,18 +36,24 @@ GameObject::GameObject(GameObject* parent)
 
 GameObject::~GameObject()
 {
-	// Delete components first
-	for (int i = 0; i < components.size(); i++)
+	// CRITICAL: Delete children FIRST before touching anything else
+	// This prevents children from trying to access their parent during deletion
+	if (!children.empty())
 	{
-		if (components[i] != nullptr)
+		std::vector<GameObject*> childrenCopy = children;
+		children.clear();
+
+		for (GameObject* child : childrenCopy)
 		{
-			delete components[i];
-			components[i] = nullptr;
+			if (child != nullptr)
+			{
+				child->parent = nullptr; // Prevent child from modifying parent's list
+				delete child; // This will recursively delete grandchildren
+			}
 		}
 	}
-	components.clear();
 
-	// Remove from parent's children list
+	// Remove from parent's children list AFTER children are deleted
 	if (parent != nullptr)
 	{
 		for (int i = 0; i < parent->children.size(); i++)
@@ -61,18 +67,35 @@ GameObject::~GameObject()
 		parent = nullptr;
 	}
 
-	// Delete all children
-	std::vector<GameObject*> childrenCopy = children;
-	children.clear();
-
-	for (GameObject* child : childrenCopy)
+	// Delete the three main components (they are NOT in the components vector)
+	if (transform != nullptr)
 	{
-		if (child != nullptr)
+		delete transform;
+		transform = nullptr;
+	}
+
+	if (mesh != nullptr)
+	{
+		delete mesh;
+		mesh = nullptr;
+	}
+
+	if (texture != nullptr)
+	{
+		delete texture;
+		texture = nullptr;
+	}
+
+	// Delete any additional components in the components vector
+	for (int i = 0; i < components.size(); i++)
+	{
+		if (components[i] != nullptr)
 		{
-			child->parent = nullptr;
-			delete child;
+			delete components[i];
+			components[i] = nullptr;
 		}
 	}
+	components.clear();
 }
 
 Component* GameObject::AddComponent(Component* component)
@@ -179,7 +202,7 @@ void GameObject::GetAllDescendants(std::vector<GameObject*>& descendants)
 	for (GameObject* child : children)
 	{
 		descendants.push_back(child);
-		child->GetAllDescendants(descendants); 
+		child->GetAllDescendants(descendants);
 	}
 }
 

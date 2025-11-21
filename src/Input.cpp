@@ -86,27 +86,40 @@ bool Input::PreUpdate()
             if (!editor->selectedGameObjects.empty()) {
                 LOG("Deleting " + std::to_string(editor->selectedGameObjects.size()) + " GameObject(s)");
 
-                // Copy the list because we're going to modify it
                 std::vector<GameObject*> toDelete = editor->selectedGameObjects;
 
+                // Deselect all first
                 editor->DeselectAll();
 
+                // Delete each root object 
                 for (GameObject* go : toDelete)
                 {
-                    auto& gameObjects = opengl->gameObjects;
-                    for (auto it = gameObjects.begin(); it != gameObjects.end(); ++it) {
-                        if (*it == go) {
-                            delete* it;
-                            gameObjects.erase(it);
-                            break;
+                    // Check if still valid (might have been deleted as child)
+                    auto findIt = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
+                    if (findIt == opengl->gameObjects.end())
+                    {
+                        continue; 
+                    }
+
+                    // Collect all descendants
+                    std::vector<GameObject*> allObjects;
+                    allObjects.push_back(go);
+                    go->GetAllDescendants(allObjects);
+
+                    // Remove all from gameObjects vector
+                    for (GameObject* obj : allObjects)
+                    {
+                        auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), obj);
+                        if (it != opengl->gameObjects.end())
+                        {
+                            opengl->gameObjects.erase(it);
                         }
                     }
+                    // Delete ONLY the root 
+                    delete go;
                 }
 
                 editor->sceneModified = true;
-            }
-            else {
-                LOG("No GameObject selected to delete");
             }
         }
 
