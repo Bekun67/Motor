@@ -633,12 +633,12 @@ void ComponentMesh::DrawDebugRay(Camera* camera)
 
     //cam pos
     OpenGL* opengl = Application::GetInstance().opengl.get();
-    glm::vec3 camPos = opengl->camera.GetCameraComponent()->GetGameObject()->transform->position;
+    glm::vec3 camPos = camera->GetPosition();
 
     //line data
     std::vector<float> lineData = {
         center.x, center.y, center.z,
-        camPos.x, camPos.y, camPos.z
+        camPos.x, camPos.y - 0.1f, camPos.z
     };
 
     //drawing line

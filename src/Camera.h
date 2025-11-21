@@ -41,7 +41,7 @@ private:
     float mouseSensitivity;
 
     float fov;
-    float nearClip;
+    float nearClip = 0.1f;
     float farClip;
 
     bool firstMouse;

@@ -50,7 +50,7 @@ bool Camera::Start()
 
     editorCamera->SetFOV(fov);
     editorCamera->SetAspectRatio(aspect);
-    editorCamera->SetNearPlane(nearClip);
+    editorCamera->SetNearPlane(0.1f);
     editorCamera->SetFarPlane(farClip);
 
     return true;

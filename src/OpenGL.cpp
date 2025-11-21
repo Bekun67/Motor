@@ -766,7 +766,6 @@ bool OpenGL::Update()
         for (GameObject* go : opaqueObjects)
         {
             go->mesh->Draw(&camera);
-            if (editorCam->debugRaycastEnabled) go->mesh->DrawDebugRay(&camera);
         }
 
         //then transparent
@@ -777,7 +776,6 @@ bool OpenGL::Update()
         for (GameObject* go : transparentObjects)
         {
             go->mesh->Draw(&camera);
-            if (editorCam->debugRaycastEnabled) go->mesh->DrawDebugRay(&camera);
         }
 
         glDepthMask(GL_TRUE);
@@ -813,16 +811,17 @@ bool OpenGL::Update()
         glUniform1i(glGetUniformLocation(depthDebugShader, "depthTex"), 0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glEnable(GL_DEPTH_TEST);
+    }
 
+    if (editorCam && editorCam->debugRaycastEnabled)
+    {
         for (GameObject* go : opaqueObjects)
         {
-            if (go && go->mesh && editorCam->debugRaycastEnabled)
-                go->mesh->DrawDebugRay(&camera);
+            if (go && go->mesh) go->mesh->DrawDebugRay(&camera);
         }
         for (GameObject* go : transparentObjects)
         {
-            if (go && go->mesh && editorCam->debugRaycastEnabled)
-                go->mesh->DrawDebugRay(&camera);
+            if (go && go->mesh) go->mesh->DrawDebugRay(&camera);
         }
     }
 
