@@ -538,6 +538,8 @@ void ModuleEditor::DrawConfiguration()
                     ImGui::Text("Culling Efficiency: %.1f%%", percentage);
                 }
             }
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            ImGui::Checkbox("Show Depth Debug", &opengl->debugZBuffer);
         }
     }
 
@@ -877,16 +879,18 @@ void ModuleEditor::DrawInspector()
             ComponentMesh* mesh = selectedGameObject->mesh;
             if (mesh && mesh->meshIndex >= 0 && mesh->meshIndex < (int)g_Meshes.size())
             {
-                //showing data
                 MeshData& meshData = g_Meshes[mesh->meshIndex];
-                ImGui::Text("AABB (Local Space)");
-                ImGui::Text("Min: (%.2f, %.2f, %.2f)", meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z);
-                ImGui::Text("Max: (%.2f, %.2f, %.2f)", meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z);
 
-                glm::vec3 center = (meshData.aabbMin + meshData.aabbMax) * 0.5f;
-                glm::vec3 size = meshData.aabbMax - meshData.aabbMin;
-                ImGui::Text("Center: (%.2f, %.2f, %.2f)", center.x, center.y, center.z);
-                ImGui::Text("Size: (%.2f, %.2f, %.2f)", size.x, size.y, size.z);
+                ImGui::Separator();
+
+                //get world aabb for showing info
+                WorldAABB worldAABB = mesh->GetWorldAABB();
+                ImGui::Text("Current AABB Data");
+
+                ImGui::Text("Min: (%.2f, %.2f, %.2f)", worldAABB.min.x, worldAABB.min.y, worldAABB.min.z);
+                ImGui::Text("Max: (%.2f, %.2f, %.2f)", worldAABB.max.x, worldAABB.max.y, worldAABB.max.z);
+                ImGui::Text("Center: (%.2f, %.2f, %.2f)", worldAABB.center.x, worldAABB.center.y, worldAABB.center.z);
+                ImGui::Text("Size: (%.2f, %.2f, %.2f)", worldAABB.size.x, worldAABB.size.y, worldAABB.size.z);
 
                 ImGui::Separator();
                 ImGui::Text("Collision Visualization");
@@ -900,7 +904,7 @@ void ModuleEditor::DrawInspector()
             }
             else
             {
-                ImGui::Text("No boundig box assigned");
+                ImGui::Text("No bounding box assigned");
             }
         }
 

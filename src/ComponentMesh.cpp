@@ -534,3 +534,92 @@ void ComponentMesh::DrawAABB(Camera* camera)
     glDeleteBuffers(1, &aabbVBO);
     glDeleteVertexArrays(1, &aabbVAO);
 }
+
+WorldAABB ComponentMesh::GetWorldAABB() const
+{
+    WorldAABB worldAABB;
+
+    if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())
+    {
+        //empty aabb if there is no mesh
+        worldAABB.min = glm::vec3(0.0f);
+        worldAABB.max = glm::vec3(0.0f);
+        worldAABB.center = glm::vec3(0.0f);
+        worldAABB.size = glm::vec3(0.0f);
+        return worldAABB;
+    }
+
+    MeshData& meshdata = g_Meshes[meshIndex];
+    ComponentTransform* transform = gameObject->transform;
+
+    if (transform == nullptr)
+    {
+        //without transofrm component we return local aabb (the default one)
+        worldAABB.min = meshdata.aabbMin;
+        worldAABB.max = meshdata.aabbMax;
+        worldAABB.center = (meshdata.aabbMin + meshdata.aabbMax) * 0.5f;
+        worldAABB.size = meshdata.aabbMax - meshdata.aabbMin;
+        return worldAABB;
+    }
+
+    //if we have transform we calculate matrix
+    glm::mat4 model = glm::mat4(1.0f);
+
+    model = glm::translate(model, glm::vec3(
+        transform->translation.x,
+        transform->translation.y,
+        transform->translation.z
+    ));
+
+    glm::quat quat(
+        transform->rotation.w,
+        transform->rotation.x,
+        transform->rotation.y,
+        transform->rotation.z
+    );
+    model *= glm::mat4_cast(quat);
+
+    model = glm::scale(model, glm::vec3(
+        transform->scaling.x,
+        transform->scaling.y,
+        transform->scaling.z
+    ));
+
+    //transform all 8 corners
+    glm::vec3 corners[8] = 
+    {
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMin.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMin.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMax.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMax.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMin.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMin.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMax.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMax.y, meshdata.aabbMax.z)
+    };
+
+    //find new min and max
+    glm::vec3 minWorld(FLT_MAX);
+    glm::vec3 maxWorld(-FLT_MAX);
+
+    for (int i = 0; i < 8; ++i)
+    {
+        glm::vec4 worldPos = model * glm::vec4(corners[i], 1.0f);
+        glm::vec3 worldPos3 = glm::vec3(worldPos);
+
+        minWorld.x = std::min(minWorld.x, worldPos3.x);
+        minWorld.y = std::min(minWorld.y, worldPos3.y);
+        minWorld.z = std::min(minWorld.z, worldPos3.z);
+
+        maxWorld.x = std::max(maxWorld.x, worldPos3.x);
+        maxWorld.y = std::max(maxWorld.y, worldPos3.y);
+        maxWorld.z = std::max(maxWorld.z, worldPos3.z);
+    }
+
+    worldAABB.min = minWorld;
+    worldAABB.max = maxWorld;
+    worldAABB.center = (minWorld + maxWorld) * 0.5f;
+    worldAABB.size = maxWorld - minWorld;
+
+    return worldAABB;
+}

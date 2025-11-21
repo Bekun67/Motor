@@ -48,6 +48,12 @@ public:
 	int culledCount = 0;
 	int renderedCount = 0;
 
+	unsigned int depthDebugShader = 0;
+	unsigned int fullscreenQuadVAO = 0;
+	unsigned int fullscreenQuadVBO = 0;
+
+	bool debugZBuffer = false;
+
 private:
 	bool Start() override;
 	bool CleanUp() override;
