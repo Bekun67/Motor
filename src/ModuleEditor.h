@@ -174,6 +174,11 @@ private:
     // Helper functions for hierarchy
     void DrawGameObjectNode(GameObject* go);
     void HandleHierarchyDragDrop(GameObject* go);
+
+    // Confirmation dialogs
+    bool showNewSceneConfirmation = false;
+    bool showLoadSceneConfirmation = false;
+    std::string pendingSceneToLoad = "";
 };
 
 // Global logging functions

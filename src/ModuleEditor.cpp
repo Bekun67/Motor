@@ -270,31 +270,8 @@ void ModuleEditor::DrawMenuBar()
         {
             if (ImGui::MenuItem("New Scene"))
             {
-                if (sceneModified && !currentScenePath.empty())
-                {
-                    LOG_WARNING("Current scene has unsaved changes!");
-                }
-
-                // Clear current scene
-                OpenGL* opengl = Application::GetInstance().opengl.get();
-                if (opengl)
-                {
-                    // Clear selection first
-                    selectedGameObjects.empty();
-                    opengl->selectedGameObject = nullptr;
-
-                    // Delete all GameObjects - IMPORTANT: delete in reverse order to avoid issues with children
-                    while (!opengl->gameObjects.empty())
-                    {
-                        GameObject* go = opengl->gameObjects.back();
-                        opengl->gameObjects.pop_back();
-                        delete go;
-                    }
-
-                    currentScenePath = "";
-                    sceneModified = false;
-                    LOG("New scene created");
-                }
+                // Show confirmation dialog instead of immediately clearing
+                showNewSceneConfirmation = true;
             }
 
             if (ImGui::MenuItem("Save Scene"))
@@ -523,7 +500,68 @@ void ModuleEditor::DrawMenuBar()
         ImGui::EndMainMenuBar();
     }
 
-    // Save Scene Dialog
+	// newscene popup
+    if (showNewSceneConfirmation)
+    {
+        ImGui::OpenPopup("New Scene Confirmation");
+        showNewSceneConfirmation = false;
+    }
+
+    // Center the popup
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("New Scene Confirmation", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        if (sceneModified && !currentScenePath.empty())
+        {
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Warning: Current scene has unsaved changes!");
+            ImGui::Spacing();
+        }
+
+        ImGui::Text("Are you sure you want to create a new scene?");
+        ImGui::Text("All unsaved changes will be lost.");
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button("Confirm", ImVec2(120, 0)))
+        {
+            // Clear current scene
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            if (opengl)
+            {
+                // Clear selection first
+                selectedGameObjects.clear();
+                opengl->selectedGameObject = nullptr;
+
+                // Delete all GameObjects
+                while (!opengl->gameObjects.empty())
+                {
+                    GameObject* go = opengl->gameObjects.back();
+                    opengl->gameObjects.pop_back();
+                    delete go;
+                }
+
+                currentScenePath = "";
+                sceneModified = false;
+                LOG("New scene created");
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        {
+            LOG("New scene creation cancelled");
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // savescene popup
     if (showSaveDialog)
     {
         ImGui::OpenPopup("Save Scene");
@@ -564,7 +602,7 @@ void ModuleEditor::DrawMenuBar()
         ImGui::EndPopup();
     }
 
-    // Load Scene Dialog
+	// load scene popup
     if (showLoadDialog)
     {
         ImGui::OpenPopup("Load Scene");
@@ -586,8 +624,9 @@ void ModuleEditor::DrawMenuBar()
             {
                 if (ImGui::Selectable(sceneName.c_str()))
                 {
-                    std::string filepath = FileSystemManager::GetScenesDirectory() + sceneName;
-                    LoadScene(filepath);
+                    // Store the scene to load and show confirmation
+                    pendingSceneToLoad = FileSystemManager::GetScenesDirectory() + sceneName;
+                    showLoadSceneConfirmation = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
@@ -597,6 +636,52 @@ void ModuleEditor::DrawMenuBar()
 
         if (ImGui::Button("Cancel", ImVec2(120, 0)))
         {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // confirm loadscene
+    if (showLoadSceneConfirmation)
+    {
+        ImGui::OpenPopup("Load Scene Confirmation");
+        showLoadSceneConfirmation = false;
+    }
+
+    // Center the popup
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("Load Scene Confirmation", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        if (sceneModified && !currentScenePath.empty())
+        {
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Warning: Current scene has unsaved changes!");
+            ImGui::Spacing();
+        }
+
+        ImGui::Text("Are you sure you want to load a different scene?");
+        ImGui::Text("All unsaved changes will be lost.");
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button("Confirm", ImVec2(120, 0)))
+        {
+            if (!pendingSceneToLoad.empty())
+            {
+                LoadScene(pendingSceneToLoad);
+                pendingSceneToLoad = "";
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        {
+            LOG("Load scene cancelled");
+            pendingSceneToLoad = "";
             ImGui::CloseCurrentPopup();
         }
 
