@@ -70,8 +70,6 @@ public:
     ImVec2 sceneViewportPos;
     ImVec2 sceneViewportSize;
 
-
-
     // Selected GameObjects 
     std::vector<GameObject*> selectedGameObjects;
 
@@ -129,29 +127,29 @@ private:
     struct LayoutConfig
     {
         // Menu Bar
-        float menuBarHeight = 25.0f;  
+        float menuBarHeight = 25.0f;
 
         // Scene
-        float sceneXPercent = 0.15f;     
-        float sceneWidthPercent = 0.70f;  
-        float sceneHeightPercent = 0.80f; 
+        float sceneXPercent = 0.15f;
+        float sceneWidthPercent = 0.70f;
+        float sceneHeightPercent = 0.80f;
 
         // Hierarchy
         float hierarchyXPercent = 0.0f;
-        float hierarchyYPercent = 0.5f;   
+        float hierarchyYPercent = 0.5f;
         float hierarchyWidthPercent = 0.15f;
-        float hierarchyHeightPercent = 0.8f; 
+        float hierarchyHeightPercent = 0.8f;
 
         // Inspector
-        float inspectorXPercent = 0.85f;  
-        float inspectorWidthPercent = 0.15f; 
+        float inspectorXPercent = 0.85f;
+        float inspectorWidthPercent = 0.15f;
         float inspectorHeightPercent = 1.0f;
 
         // Console
-        float consoleYPercent = 0.80f;    
+        float consoleYPercent = 0.80f;
         float consoleXPercent = 0.f;
         float consoleWidthPercent = 0.85f;
-        float consoleHeightPercent = 0.20f; 
+        float consoleHeightPercent = 0.20f;
 
         // Margins
         float marginX = 5.0f;

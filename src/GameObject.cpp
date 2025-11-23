@@ -12,10 +12,7 @@ GameObject::GameObject()
 	transform = new ComponentTransform(this);
 	mesh = new ComponentMesh(this);
 	texture = new ComponentTexture(this);
-	camera = nullptr;
-
-	isVisibleInFrustum = true;
-	culledLastFrame = false;
+	camera = nullptr;  // Se crea solo cuando se necesita
 }
 
 
@@ -36,10 +33,7 @@ GameObject::GameObject(GameObject* parent)
 	transform = new ComponentTransform(this);
 	mesh = new ComponentMesh(this);
 	texture = new ComponentTexture(this);
-	camera = nullptr;
-
-	isVisibleInFrustum = true;
-	culledLastFrame = false;
+	camera = nullptr;  // Se crea solo cuando se necesita
 }
 
 GameObject::~GameObject()
@@ -75,7 +69,7 @@ GameObject::~GameObject()
 		parent = nullptr;
 	}
 
-	// Delete the three main components (they are NOT in the components vector)
+	// Delete the main components (they are NOT in the components vector)
 	if (transform != nullptr)
 	{
 		delete transform;
@@ -92,6 +86,12 @@ GameObject::~GameObject()
 	{
 		delete texture;
 		texture = nullptr;
+	}
+
+	if (camera != nullptr)
+	{
+		delete camera;
+		camera = nullptr;
 	}
 
 	// Delete any additional components in the components vector

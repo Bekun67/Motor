@@ -720,7 +720,7 @@ void ModuleEditor::DrawConfiguration()
         ImGui::Text("Frame Time: %.3f ms", lastFrameTime * 1000.0f);
     }
 
-    //frustum culling
+//frustum culling
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
         Camera* cam = &Application::GetInstance().opengl->camera;
@@ -782,18 +782,20 @@ void ModuleEditor::DrawConfiguration()
                 }
             }
 
-            if (ImGui::Checkbox("Show Raycast to Game Objects", &cam->GetCameraComponent()->debugRaycastEnabled))
+            // Debug Raycast Toggle
+            if (ImGui::Checkbox("Show Raycast to Game Objects", &editorCam->debugRaycastEnabled))
             {
-                if (cam->GetCameraComponent()->debugRaycastEnabled)
+                if (editorCam->debugRaycastEnabled)
                 {
                     LOG("Raycast to Game Objects ENABLED");
                 }
-                else 
+                else
                 {
                     LOG("Raycast to Game Objects DISABLED");
                 }
             }
 
+            // Z-Buffer Debug Toggle
             OpenGL* opengl = Application::GetInstance().opengl.get();
             if (ImGui::Checkbox("Show Z-Buffer Depth Debug", &opengl->debugZBuffer))
             {

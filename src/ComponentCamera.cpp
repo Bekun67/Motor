@@ -104,9 +104,31 @@ void ComponentCamera::SetProjectionType(ProjectionType type)
     projectionType = type;
 }
 
+PropertyMap ComponentCamera::Serialize() const
+{
+    PropertyMap props;
+    props["fov"] = fov;
+    props["aspectRatio"] = aspectRatio;
+    props["nearPlane"] = nearPlane;
+    props["farPlane"] = farPlane;
+    props["projectionType"] = (int)projectionType;
+    props["orthographicSize"] = orthographicSize;
+    return props;
+}
+
+void ComponentCamera::Deserialize(const PropertyMap& props)
+{
+    if (props.count("fov")) fov = std::get<float>(props.at("fov"));
+    if (props.count("aspectRatio")) aspectRatio = std::get<float>(props.at("aspectRatio"));
+    if (props.count("nearPlane")) nearPlane = std::get<float>(props.at("nearPlane"));
+    if (props.count("farPlane")) farPlane = std::get<float>(props.at("farPlane"));
+    if (props.count("projectionType")) projectionType = (ProjectionType)std::get<int>(props.at("projectionType"));
+    if (props.count("orthographicSize")) orthographicSize = std::get<float>(props.at("orthographicSize"));
+}
+
 void Frustum::ExtractFromMatrix(const glm::mat4& m)
 {
-    //extract all 6 planes from aabb
+    //extract all 6 planes from matrix
     planes[0].normal.x = m[0][3] + m[0][0];
     planes[0].normal.y = m[1][3] + m[1][0];
     planes[0].normal.z = m[2][3] + m[2][0];
@@ -163,7 +185,7 @@ FrustumIntersection Frustum::ContainsAABB(const glm::vec3& minPoint, const glm::
         positiveVertex.y = (planes[p].normal.y >= 0.0f) ? maxPoint.y : minPoint.y;
         positiveVertex.z = (planes[p].normal.z >= 0.0f) ? maxPoint.z : minPoint.z;
 
-        //closests vertex
+        //closest vertex
         glm::vec3 negativeVertex;
         negativeVertex.x = (planes[p].normal.x >= 0.0f) ? minPoint.x : maxPoint.x;
         negativeVertex.y = (planes[p].normal.y >= 0.0f) ? minPoint.y : maxPoint.y;
@@ -181,6 +203,6 @@ FrustumIntersection Frustum::ContainsAABB(const glm::vec3& minPoint, const glm::
     //if all 6 planes are in we are IN
     if (totalIn == 6) return FrustumIntersection::IN;
 
-    //otherwise we are INTERESECT
+    //otherwise we are INTERSECT
     return FrustumIntersection::INTERSECT;
 }

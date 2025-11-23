@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Component.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -10,6 +9,12 @@ enum class ProjectionType
     ORTHOGRAPHIC
 };
 
+struct Plane
+{
+    glm::vec3 normal;
+    float distance;
+};
+
 enum class FrustumIntersection
 {
     OUT,
@@ -17,35 +22,11 @@ enum class FrustumIntersection
     IN
 };
 
-struct Plane
-{
-    glm::vec3 normal;
-    float distance;
-
-    Plane() : normal(0, 0, 0), distance(0) {}
-
-    void SetFromPointNormal(const glm::vec3& point, const glm::vec3& n)
-    {
-        normal = glm::normalize(n);
-        distance = glm::dot(normal, point);
-    }
-
-    float SignedDistance(const glm::vec3& point) const
-    {
-        return glm::dot(normal, point) + distance;
-    }
-
-    bool IsOnPositiveSide(const glm::vec3& point) const
-    {
-        return SignedDistance(point) >= 0.0f;
-    }
-};
-
 struct Frustum
 {
     Plane planes[6];
 
-    void ExtractFromMatrix(const glm::mat4& viewProjection);
+    void ExtractFromMatrix(const glm::mat4& m);
     FrustumIntersection ContainsAABB(const glm::vec3& minPoint, const glm::vec3& maxPoint) const;
 };
 
@@ -55,18 +36,14 @@ public:
     ComponentCamera(GameObject* gameObject);
     virtual ~ComponentCamera();
 
-    void Update();
+    void Update() override;
 
-    // Matrix getters
     glm::mat4 GetViewMatrix() const;
     glm::mat4 GetProjectionMatrix() const;
     glm::mat4 GetViewProjectionMatrix() const;
 
-    // Frustum
     void UpdateFrustum();
-    const Frustum& GetFrustum() const { return frustum; }
 
-    // Camera properties
     void SetFOV(float fovDegrees);
     void SetAspectRatio(float aspect);
     void SetNearPlane(float near);
@@ -77,24 +54,24 @@ public:
     float GetAspectRatio() const { return aspectRatio; }
     float GetNearPlane() const { return nearPlane; }
     float GetFarPlane() const { return farPlane; }
-    ProjectionType GetProjectionType() const { return projectionType; }
 
-    // Background
+    // Get frustum for culling
+    const Frustum& GetFrustum() const { return frustum; }
+
+    // Serialization
+    PropertyMap Serialize() const override;
+    void Deserialize(const PropertyMap& props) override;
+
+public:
+    ProjectionType projectionType;
     glm::vec3 backgroundColor;
-
+    float orthographicSize;
+    Frustum frustum;
     bool debugRaycastEnabled = false;
 
 private:
-    // Projection parameters
     float fov;
     float aspectRatio;
     float nearPlane;
     float farPlane;
-    ProjectionType projectionType;
-
-    // Frustum culling
-    Frustum frustum;
-
-    // For orthographic
-    float orthographicSize;
 };

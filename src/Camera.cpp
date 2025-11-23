@@ -2,6 +2,7 @@
 #include "Application.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
+#include "ComponentCamera.h"
 #include <iostream>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>

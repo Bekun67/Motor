@@ -10,11 +10,12 @@
 #include "ComponentTexture.h"
 #include "UUID.h"
 
-//forward declatarions
+//forward declarations
 class Component;
 class ComponentTransform;
 class ComponentMesh;
 class ComponentTexture;
+class ComponentCamera;
 enum class ComponentType;
 
 class GameObject
@@ -38,9 +39,9 @@ public:
 	void SetParent(GameObject* newParent);
 	void RemoveChild(GameObject* child);
 	void AddChild(GameObject* child);
-	int GetChildIndex() const; 
-	void MoveUp(); 
-	void MoveDown(); 
+	int GetChildIndex() const;
+	void MoveUp();
+	void MoveDown();
 
 	// Helper to check if this is an empty GameObject (no mesh)
 	bool IsEmpty() const { return mesh == nullptr || mesh->meshIndex < 0; }
@@ -51,7 +52,6 @@ public:
 	// Check if this GameObject is a descendant of another
 	bool IsDescendantOf(GameObject* potentialAncestor) const;
 
-	
 	GameObject* parent;
 	std::string name;
 	bool active = true;
@@ -68,11 +68,11 @@ public:
 	std::string meshPath;
 	int meshIndexInFBX = 0;
 
+	// Frustum culling state
+	bool isVisibleInFrustum = true;
+	bool culledLastFrame = false;
+
 private:
 	UUID m_UUID;
 	UUID m_ParentUUID;
-
-	//Frustum culling
-	bool isVisibleInFrustum = true;
-	bool culledLastFrame = false;
 };
