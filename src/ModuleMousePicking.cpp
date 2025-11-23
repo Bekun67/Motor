@@ -78,9 +78,9 @@ bool ModuleMousePicking::Update()
 
     if (hit.hit && hit.gameObject)
     {
-        // If the ray detects something, it selects it
+        // If the ray detects something, it selects it using the new selection system
         opengl->selectedGameObject = hit.gameObject;
-        editor->selectedGameObject = hit.gameObject;
+        editor->SelectGameObject(hit.gameObject, false); 
 
         LOG("Picked GameObject: " + hit.gameObject->name +
             " at distance: " + std::to_string(hit.distance));
@@ -89,7 +89,7 @@ bool ModuleMousePicking::Update()
     {
         // if the ray doesn't detect anything, it deselects
         opengl->selectedGameObject = nullptr;
-        editor->selectedGameObject = nullptr;
+        editor->DeselectAll();
         LOG("No GameObject picked - deselecting");
     }
 
