@@ -12,6 +12,10 @@ GameObject::GameObject()
 	transform = new ComponentTransform(this);
 	mesh = new ComponentMesh(this);
 	texture = new ComponentTexture(this);
+	camera = nullptr;
+
+	isVisibleInFrustum = true;
+	culledLastFrame = false;
 }
 
 
@@ -32,6 +36,10 @@ GameObject::GameObject(GameObject* parent)
 	transform = new ComponentTransform(this);
 	mesh = new ComponentMesh(this);
 	texture = new ComponentTexture(this);
+	camera = nullptr;
+
+	isVisibleInFrustum = true;
+	culledLastFrame = false;
 }
 
 GameObject::~GameObject()
@@ -102,6 +110,10 @@ Component* GameObject::AddComponent(Component* component)
 {
 	components.push_back(component);
 
+	if (component->type == ComponentType::CAMERA)
+	{
+		camera = static_cast<ComponentCamera*>(component);
+	}
 	return component;
 }
 

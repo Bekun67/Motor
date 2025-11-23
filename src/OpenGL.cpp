@@ -29,7 +29,7 @@ OpenGL::~OpenGL()
 }
 
 OpenGL& OpenGL::GetInstance() {
-    static OpenGL instance; 
+    static OpenGL instance;
     return instance;
 }
 
@@ -97,26 +97,26 @@ void OpenGL::CreateGrid(int size)
 
     // Create lines (X axis)
     for (int z = -size; z <= size; ++z) {
-        
-        gridVertices.push_back(-size); 
-        gridVertices.push_back(0.0f);   
-        gridVertices.push_back(z);      
 
-        gridVertices.push_back(size);   
-        gridVertices.push_back(0.0f);   
-        gridVertices.push_back(z);      
+        gridVertices.push_back(-size);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(z);
+
+        gridVertices.push_back(size);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(z);
     }
 
     //Create lines (Z axis)
     for (int x = -size; x <= size; ++x) {
-        
-        gridVertices.push_back(x);    
-        gridVertices.push_back(0.0f);   
-        gridVertices.push_back(-size); 
 
-        gridVertices.push_back(x);     
-        gridVertices.push_back(0.0f);  
-        gridVertices.push_back(size);   
+        gridVertices.push_back(x);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(-size);
+
+        gridVertices.push_back(x);
+        gridVertices.push_back(0.0f);
+        gridVertices.push_back(size);
     }
 
     gridLineCount = gridVertices.size() / 3;
@@ -469,7 +469,88 @@ bool OpenGL::Start()
     }
     std::cout << std::endl;
 
+    camera.Start();
     CreateGrid(50);
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    //color texture for zbuffer
+    glGenTextures(1, &colorTexture);
+    glBindTexture(GL_TEXTURE_2D, colorTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 1024, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
+
+    //depth texture
+    glGenTextures(1, &depthTexture);
+    glBindTexture(GL_TEXTURE_2D, depthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+
+    GLuint attachments[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, attachments);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cerr << "ERROR: Framebuffer is not complete!" << std::endl;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    //vertex shader for z-buffer
+    const char* depthQuadVS = R"(
+        #version 330 core
+        layout(location = 0) in vec2 aPos;
+        layout(location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main() {
+            TexCoord = aTexCoord;
+            gl_Position = vec4(aPos, 0.0, 1.0);
+        }
+        )";
+
+    //fragment shader for z-buffer
+    const char* depthQuadFS = R"(
+        #version 330 core
+        out vec4 FragColor;
+        in vec2 TexCoord;
+        uniform sampler2D depthTex;
+        void main() {
+            float depth = texture(depthTex, TexCoord).r;
+            FragColor = vec4(vec3(1.0 - depth), 1.0);
+        }
+        )";
+
+    depthDebugShader = glCreateProgram();
+    GLuint quadVS = CompileShader(GL_VERTEX_SHADER, depthQuadVS);
+    GLuint quadFS = CompileShader(GL_FRAGMENT_SHADER, depthQuadFS);
+    glAttachShader(depthDebugShader, quadVS);
+    glAttachShader(depthDebugShader, quadFS);
+    glLinkProgram(depthDebugShader);
+    glDeleteShader(quadVS);
+    glDeleteShader(quadFS);
+
+    float quadVertices[] = 
+    {
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &fullscreenQuadVAO);
+    glGenBuffers(1, &fullscreenQuadVBO);
+    glBindVertexArray(fullscreenQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, fullscreenQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
 
     std::cout << "OpenGL initialized successfully" << std::endl;
     return true;
@@ -506,24 +587,22 @@ bool OpenGL::Update()
 
     ModuleEditor* editor = Application::GetInstance().editor.get();
 
-    // Configurar el viewport para que OpenGL solo renderice en el área de la escena
+    int viewportWidth = 800;
+    int viewportHeight = 600;
+    int viewportX = 0;
+    int viewportY = 0;
+
     if (editor)
     {
-        // Convertir coordenadas de ImGui a coordenadas de OpenGL (Y invertida)
         Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
 
-        // ImGui usa coordenadas desde arriba, OpenGL desde abajo
-        int viewportX = (int)editor->sceneViewportPos.x;
-        int viewportY = windowHeight - (int)(editor->sceneViewportPos.y + editor->sceneViewportSize.y);
-        int viewportWidth = (int)editor->sceneViewportSize.x;
-        int viewportHeight = (int)editor->sceneViewportSize.y;
+        viewportX = (int)editor->sceneViewportPos.x;
+        viewportY = windowHeight - (int)(editor->sceneViewportPos.y + editor->sceneViewportSize.y);
+        viewportWidth = (int)editor->sceneViewportSize.x;
+        viewportHeight = (int)editor->sceneViewportSize.y;
 
-        // Establecer el viewport de OpenGL
-        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
-
-        // Actualizar el aspect ratio de la cámara basado en el viewport
         if (viewportHeight > 0)
         {
             camera.aspect = (float)viewportWidth / (float)viewportHeight;
@@ -531,27 +610,52 @@ bool OpenGL::Update()
     }
     else
     {
-        // Fallback: usar toda la ventana
         Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
-        glViewport(0, 0, windowWidth, windowHeight);
+        viewportWidth = windowWidth;
+        viewportHeight = windowHeight;
     }
 
-    // Clear solo el área del viewport
+    glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
     glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    //resize texture if we change the viewport
+    if (debugZBuffer)
+    {
+        if (depthTextureWidth != viewportWidth || depthTextureHeight != viewportHeight)
+        {
+            depthTextureWidth = viewportWidth;
+            depthTextureHeight = viewportHeight;
 
-    // Draw grid
-    DrawGrid();
+            glBindTexture(GL_TEXTURE_2D, depthTexture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, viewportWidth, viewportHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+            glBindTexture(GL_TEXTURE_2D, colorTexture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, viewportWidth, viewportHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        }
+    }
+
+    ComponentCamera* editorCam = camera.GetCameraComponent();
+    const Frustum* frustum = nullptr;
+
+    if (camera.frustumCullingEnabled && editorCam)
+    {
+        editorCam->UpdateFrustum();
+        frustum = &editorCam->GetFrustum();
+    }
+
+    //reset culling stats for showing
+    culledCount = 0;
+    renderedCount = 0;
 
     std::vector<GameObject*> opaqueObjects;
     std::vector<GameObject*> transparentObjects;
 
     glm::vec3 cameraPos = camera.GetPosition();
 
-    //we split game objects depending on their transaparency
+    //split objects by transparency and apply frustum culling
     for (GameObject* go : gameObjects)
     {
         // Skip empty GameObjects (no mesh)
@@ -567,53 +671,189 @@ bool OpenGL::Update()
             float dy = cameraPos.y - go->transform->translation.y;
             float dz = cameraPos.z - go->transform->translation.z;
             go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
+        }
+        
+        //calculate distance to camera
+        float dx = cameraPos.x - go->transform->translation.x;
+        float dy = cameraPos.y - go->transform->translation.y;
+        float dz = cameraPos.z - go->transform->translation.z;
+        go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
 
-            //filter transparent and opaque
-            bool isTransparent = false;
-            if (go->texture != nullptr && go->texture->hasTexture)
+        //assume visible by default
+        go->isVisibleInFrustum = true;
+
+        //test frustum
+        if (frustum != nullptr && go->mesh->meshIndex < (int)g_Meshes.size())
+        {
+            MeshData& meshData = g_Meshes[go->mesh->meshIndex];
+
+            //get aabb
+            glm::vec3 localMin = meshData.aabbMin;
+            glm::vec3 localMax = meshData.aabbMax;
+
+            glm::mat4 model = glm::mat4(1.0f);
+
+            //translation
+            model = glm::translate(model, glm::vec3(
+                go->transform->translation.x,
+                go->transform->translation.y,
+                go->transform->translation.z
+            ));
+
+            //rotation
+            glm::quat rotation(
+                go->transform->rotation.w,
+                go->transform->rotation.x,
+                go->transform->rotation.y,
+                go->transform->rotation.z
+            );
+            model *= glm::mat4_cast(rotation);
+
+            //scale
+            model = glm::scale(model, glm::vec3(
+                go->transform->scaling.x,
+                go->transform->scaling.y,
+                go->transform->scaling.z
+            ));
+
+            //transform 8 aabb corners
+            glm::vec3 corners[8] = {
+                glm::vec3(localMin.x, localMin.y, localMin.z),
+                glm::vec3(localMax.x, localMin.y, localMin.z),
+                glm::vec3(localMax.x, localMax.y, localMin.z),
+                glm::vec3(localMin.x, localMax.y, localMin.z),
+                glm::vec3(localMin.x, localMin.y, localMax.z),
+                glm::vec3(localMax.x, localMin.y, localMax.z),
+                glm::vec3(localMax.x, localMax.y, localMax.z),
+                glm::vec3(localMin.x, localMax.y, localMax.z)
+            };
+
+            glm::vec3 worldMin = glm::vec3(FLT_MAX);
+            glm::vec3 worldMax = glm::vec3(-FLT_MAX);
+
+            for (int i = 0; i < 8; ++i)
             {
-                isTransparent = go->texture->hasTransparency;
+                glm::vec4 worldCorner = model * glm::vec4(corners[i], 1.0f);
+                glm::vec3 corner3D = glm::vec3(worldCorner);
+
+                worldMin.x = std::min(worldMin.x, corner3D.x);
+                worldMin.y = std::min(worldMin.y, corner3D.y);
+                worldMin.z = std::min(worldMin.z, corner3D.z);
+
+                worldMax.x = std::max(worldMax.x, corner3D.x);
+                worldMax.y = std::max(worldMax.y, corner3D.y);
+                worldMax.z = std::max(worldMax.z, corner3D.z);
             }
 
-            if (isTransparent)
+            //test aabb against frustum
+            FrustumIntersection result = frustum->ContainsAABB(worldMin, worldMax);
+
+            //if the object is OUT we skip it
+            if (result == FrustumIntersection::OUT)
             {
-                transparentObjects.push_back(go);
+                go->isVisibleInFrustum = false;
+                go->culledLastFrame = true;
+                culledCount++;
+                continue;
             }
             else
             {
-                opaqueObjects.push_back(go);
+                go->culledLastFrame = false;
+                renderedCount++;
             }
+        }
+        else
+        {
+            //if the object is IN or INTERESECT we count it
+            renderedCount++;
+        }
+
+        //filter transparent and opaque
+        bool isTransparent = false;
+        if (go->texture != nullptr && go->texture->hasTexture)
+        {
+            isTransparent = go->texture->hasTransparency;
+        }
+
+        if (isTransparent)
+        {
+            transparentObjects.push_back(go);
+        }
+        else
+        {
+            opaqueObjects.push_back(go);
         }
     }
 
-    //order transparent obj based on distance (method given by #include <algorithm>)
-    std::sort(transparentObjects.begin(), transparentObjects.end(),
-        [](GameObject* a, GameObject* b) 
+    if (!debugZBuffer) 
+    {
+        DrawGrid();
+
+        //first we draw opaque
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+
+        for (GameObject* go : opaqueObjects)
         {
-            return a->distanceToCamera > b->distanceToCamera;
-        });
+            go->mesh->Draw(&camera);
+        }
 
-    //first drawing opaque obj
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+        //then transparent
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
 
-    for (GameObject* go : opaqueObjects)
+        for (GameObject* go : transparentObjects)
+        {
+            go->mesh->Draw(&camera);
+        }
+
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+    }
+    else
     {
-        go->mesh->Draw(&camera);
+        //render with fbo (z-buffer)
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glViewport(0, 0, viewportWidth, viewportHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        DrawGrid();
+
+        for (GameObject* go : opaqueObjects)
+        {
+            if (go && go->mesh) go->mesh->Draw(&camera);
+        }
+        for (GameObject* go : transparentObjects)
+        {
+            if (go && go->mesh) go->mesh->Draw(&camera);
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glUseProgram(depthDebugShader);
+        glBindVertexArray(fullscreenQuadVAO);
+        glDisable(GL_DEPTH_TEST);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthTexture);
+        glUniform1i(glGetUniformLocation(depthDebugShader, "depthTex"), 0);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glEnable(GL_DEPTH_TEST);
     }
 
-    //then transparent obj
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
-
-    for (GameObject* go : transparentObjects)
+    if (editorCam && editorCam->debugRaycastEnabled)
     {
-        go->mesh->Draw(&camera);
+        for (GameObject* go : opaqueObjects)
+        {
+            if (go && go->mesh) go->mesh->DrawDebugRay(&camera);
+        }
+        for (GameObject* go : transparentObjects)
+        {
+            if (go && go->mesh) go->mesh->DrawDebugRay(&camera);
+        }
     }
-
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
 
     return true;
 }

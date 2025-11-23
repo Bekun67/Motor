@@ -44,6 +44,24 @@ public:
 	char *buf;
 	float f;
 
+	//frustum culling stats
+	int culledCount = 0;
+	int renderedCount = 0;
+
+	unsigned int depthDebugShader = 0;
+	unsigned int fullscreenQuadVAO = 0;
+	unsigned int fullscreenQuadVBO = 0;
+
+	bool debugZBuffer = false;
+	unsigned int fbo = 0;
+	unsigned int depthTexture = 0;
+	unsigned int colorTexture = 0;
+	int depthTextureWidth = 0;
+	int depthTextureHeight = 0;
+
+	glm::vec3 debugRayStart;
+	glm::vec3 debugRayEnd;
+
 private:
 	bool Start() override;
 	bool CleanUp() override;
@@ -51,8 +69,6 @@ private:
 	bool Draw();
 
 	void MySaveFunction();
-
-
 
 	void CreateGrid(int size);
 	void DrawGrid();

@@ -552,3 +552,146 @@ void ComponentMesh::Deserialize(const PropertyMap& props)
     if (props.count("showFaceNormals")) showFaceNormals = std::get<bool>(props.at("showFaceNormals"));
     if (props.count("showAABB")) showAABB = std::get<bool>(props.at("showAABB"));
 }
+
+WorldAABB ComponentMesh::GetWorldAABB() const
+{
+    WorldAABB worldAABB;
+
+    if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())
+    {
+        //empty aabb if there is no mesh
+        worldAABB.min = glm::vec3(0.0f);
+        worldAABB.max = glm::vec3(0.0f);
+        worldAABB.center = glm::vec3(0.0f);
+        worldAABB.size = glm::vec3(0.0f);
+        return worldAABB;
+    }
+
+    MeshData& meshdata = g_Meshes[meshIndex];
+    ComponentTransform* transform = gameObject->transform;
+
+    if (transform == nullptr)
+    {
+        //without transofrm component we return local aabb (the default one)
+        worldAABB.min = meshdata.aabbMin;
+        worldAABB.max = meshdata.aabbMax;
+        worldAABB.center = (meshdata.aabbMin + meshdata.aabbMax) * 0.5f;
+        worldAABB.size = meshdata.aabbMax - meshdata.aabbMin;
+        return worldAABB;
+    }
+
+    //if we have transform we calculate matrix
+    glm::mat4 model = glm::mat4(1.0f);
+
+    model = glm::translate(model, glm::vec3(
+        transform->translation.x,
+        transform->translation.y,
+        transform->translation.z
+    ));
+
+    glm::quat quat(
+        transform->rotation.w,
+        transform->rotation.x,
+        transform->rotation.y,
+        transform->rotation.z
+    );
+    model *= glm::mat4_cast(quat);
+
+    model = glm::scale(model, glm::vec3(
+        transform->scaling.x,
+        transform->scaling.y,
+        transform->scaling.z
+    ));
+
+    //transform all 8 corners
+    glm::vec3 corners[8] = 
+    {
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMin.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMin.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMax.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMax.y, meshdata.aabbMin.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMin.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMin.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMax.x, meshdata.aabbMax.y, meshdata.aabbMax.z),
+        glm::vec3(meshdata.aabbMin.x, meshdata.aabbMax.y, meshdata.aabbMax.z)
+    };
+
+    //find new min and max
+    glm::vec3 minWorld(FLT_MAX);
+    glm::vec3 maxWorld(-FLT_MAX);
+
+    for (int i = 0; i < 8; ++i)
+    {
+        glm::vec4 worldPos = model * glm::vec4(corners[i], 1.0f);
+        glm::vec3 worldPos3 = glm::vec3(worldPos);
+
+        minWorld.x = std::min(minWorld.x, worldPos3.x);
+        minWorld.y = std::min(minWorld.y, worldPos3.y);
+        minWorld.z = std::min(minWorld.z, worldPos3.z);
+
+        maxWorld.x = std::max(maxWorld.x, worldPos3.x);
+        maxWorld.y = std::max(maxWorld.y, worldPos3.y);
+        maxWorld.z = std::max(maxWorld.z, worldPos3.z);
+    }
+
+    worldAABB.min = minWorld;
+    worldAABB.max = maxWorld;
+    worldAABB.center = (minWorld + maxWorld) * 0.5f;
+    worldAABB.size = maxWorld - minWorld;
+
+    return worldAABB;
+}
+
+void ComponentMesh::DrawDebugRay(Camera* camera)
+{
+    if (!gameObject || !camera) return;
+
+    //center of the obj
+    glm::vec3 center = GetWorldAABB().center;
+
+    //cam pos
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    glm::vec3 camPos = camera->GetPosition();
+
+    //line data
+    std::vector<float> lineData = {
+        center.x, center.y, center.z,
+        camPos.x, camPos.y - 0.1f, camPos.z
+    };
+
+    //drawing line
+    GLuint vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, lineData.size() * sizeof(float), lineData.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    unsigned int shader = Application::GetInstance().opengl->normalShaderProgram;
+    glUseProgram(shader);
+
+    glm::mat4 identity = glm::mat4(1.0f);
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+
+    glUniformMatrix4fv(glGetUniformLocation(shader, "model_matrix"), 1, GL_FALSE, glm::value_ptr(identity));
+    glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    if (opengl->debugZBuffer) glUniform3f(glGetUniformLocation(shader, "lineColor"), 0.5f, 0.5f, 0.5f);
+    else glUniform3f(glGetUniformLocation(shader, "lineColor"), 1.0f, 0.0f, 1.0f);
+
+    glLineWidth(2.0f);
+    glDisable(GL_DEPTH_TEST);
+    glDrawArrays(GL_LINES, 0, 2);
+    glEnable(GL_DEPTH_TEST);
+    glLineWidth(1.0f);
+
+    glBindVertexArray(0);
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
+}

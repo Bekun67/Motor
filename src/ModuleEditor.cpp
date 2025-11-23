@@ -720,6 +720,95 @@ void ModuleEditor::DrawConfiguration()
         ImGui::Text("Frame Time: %.3f ms", lastFrameTime * 1000.0f);
     }
 
+    //frustum culling
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        Camera* cam = &Application::GetInstance().opengl->camera;
+        ComponentCamera* editorCam = cam->GetCameraComponent();
+
+        if (editorCam)
+        {
+            // FOV
+            float fov = editorCam->GetFOV();
+            if (ImGui::SliderFloat("FOV", &fov, 30.0f, 120.0f))
+            {
+                editorCam->SetFOV(fov);
+                LOG("Camera FOV changed to " + std::to_string(fov));
+            }
+
+            // Near Plane
+            float nearPlane = editorCam->GetNearPlane();
+            if (ImGui::DragFloat("Near Plane", &nearPlane, 0.1f, 0.1f, 10.0f))
+            {
+                editorCam->SetNearPlane(nearPlane);
+                LOG("Camera Near Plane changed to " + std::to_string(nearPlane));
+            }
+
+            // Far Plane
+            float farPlane = editorCam->GetFarPlane();
+            if (ImGui::DragFloat("Far Plane", &farPlane, 1.0f, 10.0f, 10000.0f))
+            {
+                editorCam->SetFarPlane(farPlane);
+                LOG("Camera Far Plane changed to " + std::to_string(farPlane));
+            }
+
+            ImGui::Separator();
+
+            // Frustum Culling Toggle
+            if (ImGui::Checkbox("Enable Frustum Culling", &cam->frustumCullingEnabled))
+            {
+                if (cam->frustumCullingEnabled)
+                {
+                    LOG("Frustum Culling ENABLED");
+                }
+                else
+                {
+                    LOG("Frustum Culling DISABLED");
+                }
+            }
+
+            // Statistics
+            if (cam->frustumCullingEnabled)
+            {
+                OpenGL* opengl = Application::GetInstance().opengl.get();
+                ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
+                ImGui::Text("Objects Culled: %d", opengl->culledCount);
+
+                int total = opengl->renderedCount + opengl->culledCount;
+                if (total > 0)
+                {
+                    float percentage = (float)opengl->culledCount / (float)total * 100.0f;
+                    ImGui::Text("Culling Efficiency: %.1f%%", percentage);
+                }
+            }
+
+            if (ImGui::Checkbox("Show Raycast to Game Objects", &cam->GetCameraComponent()->debugRaycastEnabled))
+            {
+                if (cam->GetCameraComponent()->debugRaycastEnabled)
+                {
+                    LOG("Raycast to Game Objects ENABLED");
+                }
+                else 
+                {
+                    LOG("Raycast to Game Objects DISABLED");
+                }
+            }
+
+            OpenGL* opengl = Application::GetInstance().opengl.get();
+            if (ImGui::Checkbox("Show Z-Buffer Depth Debug", &opengl->debugZBuffer))
+            {
+                if (opengl->debugZBuffer)
+                {
+                    LOG("Z-Buffer ENABLED");
+                }
+                else
+                {
+                    LOG("Z-Buffer DISABLED");
+                }
+            }
+        }
+    }
+
     if (ImGui::CollapsingHeader("Window"))
     {
         Window* window = Application::GetInstance().window.get();
@@ -1331,16 +1420,18 @@ void ModuleEditor::DrawInspector()
             ComponentMesh* mesh = selectedGameObject->mesh;
             if (mesh && mesh->meshIndex >= 0 && mesh->meshIndex < (int)g_Meshes.size())
             {
-                //showing data
                 MeshData& meshData = g_Meshes[mesh->meshIndex];
-                ImGui::Text("AABB (Local Space)");
-                ImGui::Text("Min: (%.2f, %.2f, %.2f)", meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z);
-                ImGui::Text("Max: (%.2f, %.2f, %.2f)", meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z);
 
-                glm::vec3 center = (meshData.aabbMin + meshData.aabbMax) * 0.5f;
-                glm::vec3 size = meshData.aabbMax - meshData.aabbMin;
-                ImGui::Text("Center: (%.2f, %.2f, %.2f)", center.x, center.y, center.z);
-                ImGui::Text("Size: (%.2f, %.2f, %.2f)", size.x, size.y, size.z);
+                ImGui::Separator();
+
+                //get world aabb for showing info
+                WorldAABB worldAABB = mesh->GetWorldAABB();
+                ImGui::Text("Current AABB Data");
+
+                ImGui::Text("Min: (%.2f, %.2f, %.2f)", worldAABB.min.x, worldAABB.min.y, worldAABB.min.z);
+                ImGui::Text("Max: (%.2f, %.2f, %.2f)", worldAABB.max.x, worldAABB.max.y, worldAABB.max.z);
+                ImGui::Text("Center: (%.2f, %.2f, %.2f)", worldAABB.center.x, worldAABB.center.y, worldAABB.center.z);
+                ImGui::Text("Size: (%.2f, %.2f, %.2f)", worldAABB.size.x, worldAABB.size.y, worldAABB.size.z);
 
                 ImGui::Separator();
                 ImGui::Text("Collision Visualization");
@@ -1354,7 +1445,7 @@ void ModuleEditor::DrawInspector()
             }
             else
             {
-                ImGui::Text("No boundig box assigned");
+                ImGui::Text("No bounding box assigned");
             }
         }
 

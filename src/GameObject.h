@@ -51,6 +51,7 @@ public:
 	// Check if this GameObject is a descendant of another
 	bool IsDescendantOf(GameObject* potentialAncestor) const;
 
+	
 	GameObject* parent;
 	std::string name;
 	bool active = true;
@@ -58,6 +59,7 @@ public:
 	ComponentTransform* transform;
 	ComponentMesh* mesh;
 	ComponentTexture* texture;
+	ComponentCamera* camera;
 
 	std::vector<Component*> components;
 	std::vector<GameObject*> children;
@@ -69,4 +71,8 @@ public:
 private:
 	UUID m_UUID;
 	UUID m_ParentUUID;
+
+	//Frustum culling
+	bool isVisibleInFrustum = true;
+	bool culledLastFrame = false;
 };
