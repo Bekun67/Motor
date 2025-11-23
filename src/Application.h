@@ -1,5 +1,4 @@
 #pragma once
-
 #include <memory>
 #include <list>
 #include "Window.h"
@@ -9,8 +8,8 @@
 #include "Camera.h"
 #include "Texture.h"
 #include "ModuleEditor.h"
+#include "ModuleMousePicking.h"
 #include "FileSystemManager.h"
-
 
 class Module;
 
@@ -37,9 +36,9 @@ public:
     std::shared_ptr<Input> input;
     std::shared_ptr<OpenGL> opengl;
     std::shared_ptr<Camera> camera;
-	std::shared_ptr<Texture> texture;
+    std::shared_ptr<Texture> texture;
     std::shared_ptr<ModuleEditor> editor;
-
+    std::shared_ptr<ModuleMousePicking> mousePicking;
 
 private:
     // Private constructor for singleton
@@ -65,7 +64,6 @@ private:
     bool PostUpdate();
 
 public:
-
     enum EngineState
     {
         CREATE = 1,
@@ -76,7 +74,6 @@ public:
         FAIL,
         EXIT
     };
-
 };
 
 extern Application* app;

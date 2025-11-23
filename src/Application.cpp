@@ -12,15 +12,17 @@ Application::Application() : isRunning(true)
     input = std::make_shared<Input>();
     opengl = std::make_shared<OpenGL>();
     camera = std::make_shared<Camera>();
-	texture = std::make_shared<Texture>();
+    texture = std::make_shared<Texture>();
     editor = std::make_shared<ModuleEditor>();
+    mousePicking = std::make_shared<ModuleMousePicking>();
 
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Input>(input));
     AddModule(std::static_pointer_cast<OpenGL>(opengl));
     AddModule(std::static_pointer_cast<Camera>(camera));
-	AddModule(std::static_pointer_cast<Texture>(texture));
+    AddModule(std::static_pointer_cast<Texture>(texture));
     AddModule(std::static_pointer_cast<ModuleEditor>(editor));
+    AddModule(std::static_pointer_cast<ModuleMousePicking>(mousePicking));
 }
 
 Application& Application::GetInstance()
@@ -34,7 +36,7 @@ void Application::AddModule(std::shared_ptr<Module> module)
     moduleList.push_back(module);
 }
 
-bool Application::Awake() 
+bool Application::Awake()
 {
     return true;
 }
@@ -74,7 +76,7 @@ bool Application::Update()
     return ret;
 }
 
-bool Application::PreUpdate() 
+bool Application::PreUpdate()
 {
     //Iterates the module list and calls PreUpdate on each module
     bool result = true;

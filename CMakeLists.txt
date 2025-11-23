@@ -34,7 +34,8 @@ file(GLOB GRAPHICS_FILES
 
 file(GLOB IO_FILES 
     "src/Input.*"
-    "src/LoadFBX.*")
+    "src/LoadFBX.*"
+    "src/Ray.*")
 
 file (GLOB IMPORTER_FILES
     "src/MeshImporter.*"

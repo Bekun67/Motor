@@ -27,6 +27,17 @@ void ComponentMesh::Update()
 {
 }
 
+//void ComponentMesh::SetMeshIndex(int index)
+//{
+//    meshIndex = index;
+//
+//    if (meshIndex >= 0 && gameObject)
+//    {
+//        gameObject->UpdateAABB();
+//        std::cout << "AABB calculated for " << gameObject->name << " (meshIndex: " << meshIndex << ")" << std::endl;
+//    }
+//}
+
 void ComponentMesh::Draw(Camera* camera)
 {
     if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())

@@ -1,13 +1,12 @@
 #pragma once
-
 #include "imgui.h"
 #include <vector>
 #include <string>
-
 #include "Component.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "Ray.h" 
 #include "UUID.h"
 
 //forward declarations
@@ -20,7 +19,6 @@ enum class ComponentType;
 
 class GameObject
 {
-
 public:
 	GameObject();
 	GameObject(GameObject* parent);
@@ -29,6 +27,9 @@ public:
 	Component* AddComponent(Component* component);
 	Component* GetComponent(ComponentType type);
 
+	void UpdateAABB();
+
+	AABB GetWorldAABB() const;
 	UUID GetUUID() const { return m_UUID; }
 	void SetUUID(UUID uuid) { m_UUID = uuid; }
 
@@ -64,6 +65,8 @@ public:
 	std::vector<Component*> components;
 	std::vector<GameObject*> children;
 
+	AABB localAABB;
+	bool hasAABB = false;
 	float distanceToCamera = 0.0f;
 	std::string meshPath;
 	int meshIndexInFBX = 0;
