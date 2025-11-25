@@ -24,6 +24,9 @@ public:
 	GameObject(GameObject* parent);
 	~GameObject();
 
+	// Clean GameObjects
+	void DestroyHierarchy();
+
 	Component* AddComponent(Component* component);
 	Component* GetComponent(ComponentType type);
 
@@ -78,4 +81,5 @@ public:
 private:
 	UUID m_UUID;
 	UUID m_ParentUUID;
+	bool m_IsBeingDestroyed = false;
 };

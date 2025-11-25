@@ -91,22 +91,48 @@ bool Input::PreUpdate()
                 // Deselect all first
                 editor->DeselectAll();
 
-                // Delete each root object 
+                // filter only roots
+                std::vector<GameObject*> rootsToDelete;
                 for (GameObject* go : toDelete)
                 {
-                    // Check if still valid (might have been deleted as child)
+                    // see if it stil exists
                     auto findIt = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
                     if (findIt == opengl->gameObjects.end())
                     {
-                        continue; 
+                        continue;
                     }
 
-                    // Collect all descendants
+                    // only add if it isn't another children
+                    bool isChildOfOtherSelected = false;
+                    for (GameObject* other : toDelete)
+                    {
+                        if (other != go && go->IsDescendantOf(other))
+                        {
+                            isChildOfOtherSelected = true;
+                            break;
+                        }
+                    }
+
+                    if (!isChildOfOtherSelected)
+                    {
+                        rootsToDelete.push_back(go);
+                    }
+                }
+
+                // delete every root with descendants
+                for (GameObject* go : rootsToDelete)
+                {
+                    auto findIt = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
+                    if (findIt == opengl->gameObjects.end())
+                    {
+                        continue;
+                    }
+
+                    // recolect all descendants
                     std::vector<GameObject*> allObjects;
                     allObjects.push_back(go);
                     go->GetAllDescendants(allObjects);
 
-                    // Remove all from gameObjects vector
                     for (GameObject* obj : allObjects)
                     {
                         auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), obj);
@@ -115,7 +141,6 @@ bool Input::PreUpdate()
                             opengl->gameObjects.erase(it);
                         }
                     }
-                    // Delete ONLY the root 
                     delete go;
                 }
 

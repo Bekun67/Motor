@@ -872,12 +872,22 @@ bool OpenGL::CleanUp()
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
     LOG("ImGui cleaned up");
-
-    // Delete all GameObjects safely
-    while (!gameObjects.empty())
+    
+    // Cleanup gameobjects
+    std::vector<GameObject*> rootObjects;
+    for (GameObject* go : gameObjects)
     {
-        GameObject* go = gameObjects.back();
-        gameObjects.pop_back();
+        if (go != nullptr && go->parent == nullptr)
+        {
+            rootObjects.push_back(go);
+        }
+    }
+
+    gameObjects.clear();
+    
+    // Cleanup root objects
+    for (GameObject* go : rootObjects)
+    {
         if (go != nullptr)
         {
             delete go;
