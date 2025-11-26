@@ -1305,7 +1305,7 @@ void ModuleEditor::DrawInspector()
     }
     else if (selectedGameObjects.size() == 1)
     {
-        // Show inspector for only one object
+        // Show inspector for only one object (código existente)
         GameObject* selectedGameObject = selectedGameObjects[0];
 
         textureDropPos = ImGui::GetWindowPos();
@@ -1363,7 +1363,7 @@ void ModuleEditor::DrawInspector()
                     transform->translation.x = pos[0];
                     transform->translation.y = pos[1];
                     transform->translation.z = pos[2];
-					sceneModified = true;
+                    sceneModified = true;
                 }
 
                 float scale[3] = { transform->scaling.x, transform->scaling.y, transform->scaling.z };
@@ -1372,24 +1372,24 @@ void ModuleEditor::DrawInspector()
                     transform->scaling.x = scale[0];
                     transform->scaling.y = scale[1];
                     transform->scaling.z = scale[2];
-					sceneModified = true;
+                    sceneModified = true;
                 }
 
                 //method to normalize angles (361º -> 1º)
-                auto normalizeAngle = [](float angle) -> float 
+                auto normalizeAngle = [](float angle) -> float
                     {
-                    angle = fmod(angle, 360.0f);
+                        angle = fmod(angle, 360.0f);
 
-                    if (angle > 180.0f) 
-                    {
-                        angle -= 360.0f;
-                    }
-                    else if (angle < -180.0f) 
-                    {
-                        angle += 360.0f;
-                    }
+                        if (angle > 180.0f)
+                        {
+                            angle -= 360.0f;
+                        }
+                        else if (angle < -180.0f)
+                        {
+                            angle += 360.0f;
+                        }
 
-                    return angle;
+                        return angle;
                     };
 
                 //rotation
@@ -1463,7 +1463,7 @@ void ModuleEditor::DrawInspector()
                     transform->rotation.x = newQuat.x;
                     transform->rotation.y = newQuat.y;
                     transform->rotation.z = newQuat.z;
-					sceneModified = true;
+                    sceneModified = true;
                 }
 
                 //show quat (not editable)
@@ -1564,14 +1564,13 @@ void ModuleEditor::DrawInspector()
                 ImGui::Text("No texture assigned");
             }
 
-            //Drag adn Drop Area for textures
+            //Drag and Drop Area for textures
             ImGui::Separator();
             ImGui::Text("Drag new texture in \ninspector tab to change it!");
         }
     }
     else
     {
-        // more than one object selected
         ImGui::Text("Multiple objects selected (%d)", (int)selectedGameObjects.size());
         ImGui::Separator();
 
@@ -1582,9 +1581,204 @@ void ModuleEditor::DrawInspector()
         }
 
         ImGui::Separator();
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),
-            "Multi-object editing not yet implemented");
-        ImGui::Text("Use Gizmo to move all objects together");
+
+        //Transform
+        if (ImGui::CollapsingHeader("Multi-Object Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f),
+                "Editing %d objects simultaneously", (int)selectedGameObjects.size());
+            ImGui::Spacing();
+
+            // Calculate average values
+            glm::vec3 avgPosition(0.0f);
+            glm::vec3 avgScale(0.0f);
+            glm::vec3 avgRotation(0.0f);
+
+            int validCount = 0;
+            for (GameObject* go : selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    avgPosition.x += go->transform->translation.x;
+                    avgPosition.y += go->transform->translation.y;
+                    avgPosition.z += go->transform->translation.z;
+
+                    avgScale.x += go->transform->scaling.x;
+                    avgScale.y += go->transform->scaling.y;
+                    avgScale.z += go->transform->scaling.z;
+
+                    // Convert quaternion to euler for averaging
+                    glm::quat q(go->transform->rotation.w, go->transform->rotation.x,
+                        go->transform->rotation.y, go->transform->rotation.z);
+                    glm::vec3 euler = glm::degrees(glm::eulerAngles(q));
+                    avgRotation += euler;
+
+                    validCount++;
+                }
+            }
+
+            if (validCount > 0)
+            {
+                avgPosition /= (float)validCount;
+                avgScale /= (float)validCount;
+                avgRotation /= (float)validCount;
+            }
+
+            // position
+            float pos[3] = { avgPosition.x, avgPosition.y, avgPosition.z };
+            ImGui::Text("Position (Average):");
+            if (ImGui::DragFloat3("##MultiPos", pos, 0.1f))
+            {
+                // Calculate delta
+                glm::vec3 delta(
+                    pos[0] - avgPosition.x,
+                    pos[1] - avgPosition.y,
+                    pos[2] - avgPosition.z
+                );
+
+                // Apply delta to all objects
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->translation.x += delta.x;
+                        go->transform->translation.y += delta.y;
+                        go->transform->translation.z += delta.z;
+                    }
+                }
+                sceneModified = true;
+                editing = true;
+            }
+            if (ImGui::IsItemDeactivated())
+            {
+                editing = false;
+            }
+
+            ImGui::Spacing();
+
+            // Rotation
+            float rot[3] = { avgRotation.x, avgRotation.y, avgRotation.z };
+            ImGui::Text("Rotation (Average - Degrees):");
+            if (ImGui::DragFloat3("##MultiRot", rot, 0.5f))
+            {
+                // Calculate delta
+                glm::vec3 delta(
+                    rot[0] - avgRotation.x,
+                    rot[1] - avgRotation.y,
+                    rot[2] - avgRotation.z
+                );
+
+                // Apply delta to all objects
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        // Get current rotation as euler
+                        glm::quat currentQuat(go->transform->rotation.w, go->transform->rotation.x,
+                            go->transform->rotation.y, go->transform->rotation.z);
+                        glm::vec3 currentEuler = glm::degrees(glm::eulerAngles(currentQuat));
+
+                        // Add delta
+                        glm::vec3 newEuler = currentEuler + delta;
+
+                        // Convert back to quaternion
+                        glm::quat newQuat = glm::quat(glm::radians(newEuler));
+                        go->transform->rotation.w = newQuat.w;
+                        go->transform->rotation.x = newQuat.x;
+                        go->transform->rotation.y = newQuat.y;
+                        go->transform->rotation.z = newQuat.z;
+                    }
+                }
+                sceneModified = true;
+                editing = true;
+            }
+            if (ImGui::IsItemDeactivated())
+            {
+                editing = false;
+            }
+
+            ImGui::Spacing();
+
+            // scale
+            float scale[3] = { avgScale.x, avgScale.y, avgScale.z };
+            ImGui::Text("Scale (Average):");
+            if (ImGui::DragFloat3("##MultiScale", scale, 0.01f, 0.01f, 100.0f))
+            {
+                // Calculate scale factor
+                glm::vec3 scaleFactor(
+                    scale[0] / avgScale.x,
+                    scale[1] / avgScale.y,
+                    scale[2] / avgScale.z
+                );
+
+                // Apply scale factor to all objects
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->scaling.x *= scaleFactor.x;
+                        go->transform->scaling.y *= scaleFactor.y;
+                        go->transform->scaling.z *= scaleFactor.z;
+                    }
+                }
+                sceneModified = true;
+                editing = true;
+            }
+            if (ImGui::IsItemDeactivated())
+            {
+                editing = false;
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // reset
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Quick Actions:");
+
+            if (ImGui::Button("Reset Position", ImVec2(-1, 0)))
+            {
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                    }
+                }
+                sceneModified = true;
+                LOG("Reset position for " + std::to_string(selectedGameObjects.size()) + " objects");
+            }
+
+            if (ImGui::Button("Reset Rotation", ImVec2(-1, 0)))
+            {
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                    }
+                }
+                sceneModified = true;
+                LOG("Reset rotation for " + std::to_string(selectedGameObjects.size()) + " objects");
+            }
+
+            if (ImGui::Button("Reset Scale", ImVec2(-1, 0)))
+            {
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+                    }
+                }
+                sceneModified = true;
+                LOG("Reset scale for " + std::to_string(selectedGameObjects.size()) + " objects");
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
     }
     ImGui::End();
 }
