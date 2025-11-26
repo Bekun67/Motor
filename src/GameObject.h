@@ -75,6 +75,9 @@ public:
 	bool isVisibleInFrustum = true;
 	bool culledLastFrame = false;
 
+	//quadtree
+	bool isStatic = false;
+
 private:
 	UUID m_UUID;
 	UUID m_ParentUUID;

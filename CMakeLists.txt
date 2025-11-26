@@ -30,6 +30,7 @@ file(GLOB GRAPHICS_FILES
     "src/OpenGL.*"
     "src/PrimitiveGenerator.*"
     "src/Texture.*"
+    "src/Quadtree.*"
     "src/Camera.*")
 
 file(GLOB IO_FILES 

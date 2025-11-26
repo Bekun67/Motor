@@ -1,6 +1,7 @@
 #pragma once
 #include "Module.h"
 #include "Ray.h"
+#include "Quadtree.h"
 #include <glm/glm.hpp>
 #include <vector>
 

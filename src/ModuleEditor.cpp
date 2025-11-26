@@ -967,6 +967,54 @@ void ModuleEditor::DrawConfiguration()
         }
     }
 
+    //quadtree section
+    if (ImGui::CollapsingHeader("Space Partitioning", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        OpenGL* opengl = Application::GetInstance().opengl.get();
+        if (opengl)
+        {
+            //change usage
+            if (ImGui::Checkbox("Use Quadtree", &opengl->useQuadtree))
+            {
+                if (opengl->useQuadtree)
+                {
+                    opengl->RebuildQuadtree();
+                    LOG("Quadtree enabled");
+                }
+                else
+                {
+                    opengl->quadtree.Clear();
+                    LOG("Quadtree disabled");
+                }
+            }
+
+            //if quadtree is active we add an option for showing
+            if (opengl->useQuadtree)
+            {
+                ImGui::Checkbox("Show Quadtree", &opengl->showQuadtree);
+
+                if (ImGui::Button("Rebuild Quadtree", ImVec2(-1, 0)))
+                {
+                    opengl->RebuildQuadtree();
+                }
+
+                ImGui::Separator();
+                ImGui::Text("Quadtree Statistics:");
+
+                std::vector<GameObject*> allInQuadtree;
+                opengl->quadtree.GetAllObjects(allInQuadtree);
+                ImGui::Text("Objects in Quadtree: %d", (int)allInQuadtree.size());
+
+                if (opengl->camera.frustumCullingEnabled)
+                {
+                    ImGui::Text("Quadtree Tests: %d", opengl->quadtreeTestsCount);
+                    ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
+                    ImGui::Text("Objects Culled: %d", opengl->culledCount);
+                }
+            }
+        }
+    }
+
     if (ImGui::CollapsingHeader("Hardware"))
     {
         const GLubyte* glVersion = glGetString(GL_VERSION);
@@ -1474,6 +1522,31 @@ void ModuleEditor::DrawInspector()
                     transform->rotation.y,
                     transform->rotation.z);
             }
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Space Partitioning:");
+
+        //change static or not
+        bool wasStatic = selectedGameObject->isStatic;
+        if (ImGui::Checkbox("Static", &selectedGameObject->isStatic))
+        {
+            if (wasStatic != selectedGameObject->isStatic)
+            {
+                //if we have changed static or dynamic we rebuild the quadtree
+                OpenGL* opengl = Application::GetInstance().opengl.get();
+                if (opengl && opengl->useQuadtree)
+                {
+                    opengl->RebuildQuadtree();
+                    LOG("GameObject " + selectedGameObject->name + " marked as " + (selectedGameObject->isStatic ? "STATIC" : "DYNAMIC"));
+                }
+                sceneModified = true;
+            }
+        }
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Static objects won't move during gameplay and\nare stored in the Quadtree for faster queries");
         }
 
         // Mesh Component

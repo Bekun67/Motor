@@ -649,30 +649,19 @@ bool OpenGL::Update()
     //reset culling stats for showing
     culledCount = 0;
     renderedCount = 0;
-
-    std::vector<GameObject*> opaqueObjects;
-    std::vector<GameObject*> transparentObjects;
+    quadtreeTestsCount = 0;
 
     glm::vec3 cameraPos = camera.GetPosition();
 
     //split objects by transparency and apply frustum culling
+    std::vector<GameObject*> staticObjects;
+    std::vector<GameObject*> dynamicObjects;
+
     for (GameObject* go : gameObjects)
     {
-        // Skip empty GameObjects (no mesh)
         if (go == nullptr || go->mesh == nullptr || go->mesh->meshIndex < 0 || go->IsEmpty())
-        {
             continue;
-        }
 
-        if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
-        {
-            //calculate distance
-            float dx = cameraPos.x - go->transform->translation.x;
-            float dy = cameraPos.y - go->transform->translation.y;
-            float dz = cameraPos.z - go->transform->translation.z;
-            go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
-        }
-        
         //calculate distance to camera
         float dx = cameraPos.x - go->transform->translation.x;
         float dy = cameraPos.y - go->transform->translation.y;
@@ -680,17 +669,214 @@ bool OpenGL::Update()
         go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
 
         //assume visible by default
+        if (go->isStatic)
+        {
+            staticObjects.push_back(go);
+        }
+        else
+        {
+            dynamicObjects.push_back(go);
+        }
+    }
+
+    //process static obj
+    std::vector<GameObject*> visibleStatic;
+
+    if (useQuadtree && !staticObjects.empty())
+    {
+        quadtree.GetAllObjects(visibleStatic);
+        quadtreeTestsCount = visibleStatic.size();
+
+        if (frustum != nullptr)
+        {
+            //do frustum on results
+            for (auto it = visibleStatic.begin(); it != visibleStatic.end();)
+            {
+                GameObject* go = *it;
+
+                if (go->mesh->meshIndex < (int)g_Meshes.size())
+                {
+                    MeshData& meshData = g_Meshes[go->mesh->meshIndex];
+
+                    //get aabb
+                    glm::mat4 model = glm::mat4(1.0f);
+                    model = glm::translate(model, glm::vec3(
+                        go->transform->translation.x,
+                        go->transform->translation.y,
+                        go->transform->translation.z
+                    ));
+
+                    glm::quat rotation(
+                        go->transform->rotation.w,
+                        go->transform->rotation.x,
+                        go->transform->rotation.y,
+                        go->transform->rotation.z
+                    );
+                    model *= glm::mat4_cast(rotation);
+
+                    model = glm::scale(model, glm::vec3(
+                        go->transform->scaling.x,
+                        go->transform->scaling.y,
+                        go->transform->scaling.z
+                    ));
+
+                    glm::vec3 corners[8] = {
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z),
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMax.z)
+                    };
+
+                    glm::vec3 worldMin = glm::vec3(FLT_MAX);
+                    glm::vec3 worldMax = glm::vec3(-FLT_MAX);
+
+                    for (int i = 0; i < 8; ++i)
+                    {
+                        glm::vec4 worldCorner = model * glm::vec4(corners[i], 1.0f);
+                        glm::vec3 corner3D = glm::vec3(worldCorner);
+
+                        worldMin = glm::min(worldMin, corner3D);
+                        worldMax = glm::max(worldMax, corner3D);
+                    }
+
+                    FrustumIntersection result = frustum->ContainsAABB(worldMin, worldMax);
+
+                    if (result == FrustumIntersection::OUT)
+                    {
+                        go->isVisibleInFrustum = false;
+                        go->culledLastFrame = true;
+                        culledCount++;
+                        it = visibleStatic.erase(it);
+                        continue;
+                    }
+                    else
+                    {
+                        go->culledLastFrame = false;
+                        renderedCount++;
+                    }
+                }
+                ++it;
+            }
+        }
+        else
+        {
+            //no frustum = all are visible
+            renderedCount += visibleStatic.size();
+            for (GameObject* go : visibleStatic)
+            {
+                go->isVisibleInFrustum = true;
+                go->culledLastFrame = false;
+            }
+        }
+    }
+    else
+    {
+        //not usuing quad
+        visibleStatic = staticObjects;
+
+        if (frustum != nullptr)
+        {
+            //do frustum on static
+            for (auto it = visibleStatic.begin(); it != visibleStatic.end();)
+            {
+                GameObject* go = *it;
+
+                if (go->mesh->meshIndex < (int)g_Meshes.size())
+                {
+                    MeshData& meshData = g_Meshes[go->mesh->meshIndex];
+
+                    //get aabb
+                    glm::mat4 model = glm::mat4(1.0f);
+                    model = glm::translate(model, glm::vec3(
+                        go->transform->translation.x,
+                        go->transform->translation.y,
+                        go->transform->translation.z
+                    ));
+
+                    glm::quat rotation(
+                        go->transform->rotation.w,
+                        go->transform->rotation.x,
+                        go->transform->rotation.y,
+                        go->transform->rotation.z
+                    );
+                    model *= glm::mat4_cast(rotation);
+
+                    model = glm::scale(model, glm::vec3(
+                        go->transform->scaling.x,
+                        go->transform->scaling.y,
+                        go->transform->scaling.z
+                    ));
+
+                    glm::vec3 corners[8] = {
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                        glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z),
+                        glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMax.z)
+                    };
+
+                    glm::vec3 worldMin = glm::vec3(FLT_MAX);
+                    glm::vec3 worldMax = glm::vec3(-FLT_MAX);
+
+                    for (int i = 0; i < 8; ++i)
+                    {
+                        glm::vec4 worldCorner = model * glm::vec4(corners[i], 1.0f);
+                        glm::vec3 corner3D = glm::vec3(worldCorner);
+
+                        worldMin = glm::min(worldMin, corner3D);
+                        worldMax = glm::max(worldMax, corner3D);
+                    }
+
+                    FrustumIntersection result = frustum->ContainsAABB(worldMin, worldMax);
+
+                    if (result == FrustumIntersection::OUT)
+                    {
+                        go->isVisibleInFrustum = false;
+                        go->culledLastFrame = true;
+                        culledCount++;
+                        it = visibleStatic.erase(it);
+                        continue;
+                    }
+                    else
+                    {
+                        go->culledLastFrame = false;
+                        renderedCount++;
+                    }
+                }
+                ++it;
+            }
+        }
+        else
+        {
+            //no frusutm
+            renderedCount += visibleStatic.size();
+            for (GameObject* go : visibleStatic)
+            {
+                go->isVisibleInFrustum = true;
+                go->culledLastFrame = false;
+            }
+        }
+    }
+
+    //process dynamic
+    std::vector<GameObject*> visibleDynamic;
+
+    for (GameObject* go : dynamicObjects)
+    {
         go->isVisibleInFrustum = true;
 
-        //test frustum
         if (frustum != nullptr && go->mesh->meshIndex < (int)g_Meshes.size())
         {
             MeshData& meshData = g_Meshes[go->mesh->meshIndex];
 
             //get aabb
-            glm::vec3 localMin = meshData.aabbMin;
-            glm::vec3 localMax = meshData.aabbMax;
-
             glm::mat4 model = glm::mat4(1.0f);
 
             //translation
@@ -718,14 +904,14 @@ bool OpenGL::Update()
 
             //transform 8 aabb corners
             glm::vec3 corners[8] = {
-                glm::vec3(localMin.x, localMin.y, localMin.z),
-                glm::vec3(localMax.x, localMin.y, localMin.z),
-                glm::vec3(localMax.x, localMax.y, localMin.z),
-                glm::vec3(localMin.x, localMax.y, localMin.z),
-                glm::vec3(localMin.x, localMin.y, localMax.z),
-                glm::vec3(localMax.x, localMin.y, localMax.z),
-                glm::vec3(localMax.x, localMax.y, localMax.z),
-                glm::vec3(localMin.x, localMax.y, localMax.z)
+                glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z),
+                glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMax.z)
             };
 
             glm::vec3 worldMin = glm::vec3(FLT_MAX);
@@ -736,13 +922,8 @@ bool OpenGL::Update()
                 glm::vec4 worldCorner = model * glm::vec4(corners[i], 1.0f);
                 glm::vec3 corner3D = glm::vec3(worldCorner);
 
-                worldMin.x = std::min(worldMin.x, corner3D.x);
-                worldMin.y = std::min(worldMin.y, corner3D.y);
-                worldMin.z = std::min(worldMin.z, corner3D.z);
-
-                worldMax.x = std::max(worldMax.x, corner3D.x);
-                worldMax.y = std::max(worldMax.y, corner3D.y);
-                worldMax.z = std::max(worldMax.z, corner3D.z);
+                worldMin = glm::min(worldMin, corner3D);
+                worldMax = glm::max(worldMax, corner3D);
             }
 
             //test aabb against frustum
@@ -768,7 +949,23 @@ bool OpenGL::Update()
             renderedCount++;
         }
 
-        //filter transparent and opaque
+        if (go->isVisibleInFrustum)
+        {
+            visibleDynamic.push_back(go);
+        }
+    }
+
+    //combine visible static and dynamic
+    std::vector<GameObject*> allVisibleObjects;
+    allVisibleObjects.insert(allVisibleObjects.end(), visibleStatic.begin(), visibleStatic.end());
+    allVisibleObjects.insert(allVisibleObjects.end(), visibleDynamic.begin(), visibleDynamic.end());
+
+    //filter transparent and opaque
+    std::vector<GameObject*> opaqueObjects;
+    std::vector<GameObject*> transparentObjects;
+
+    for (GameObject* go : allVisibleObjects)
+    {
         bool isTransparent = false;
         if (go->texture != nullptr && go->texture->hasTexture)
         {
@@ -785,9 +982,15 @@ bool OpenGL::Update()
         }
     }
 
-    if (!debugZBuffer) 
+    if (!debugZBuffer)
     {
         DrawGrid();
+
+        //draw quad
+        if (showQuadtree && useQuadtree)
+        {
+            quadtree.DebugDraw();
+        }
 
         //first we draw opaque
         glDepthMask(GL_TRUE);
@@ -926,4 +1129,65 @@ bool OpenGL::CleanUp()
 bool OpenGL::Draw()
 {
     return true;
+}
+
+void OpenGL::RebuildQuadtree()
+{
+    LOG("Rebuilding Quadtree...");
+
+    //calculate aabb that contains all static
+    glm::vec3 sceneMin(FLT_MAX);
+    glm::vec3 sceneMax(-FLT_MAX);
+
+    int staticCount = 0;
+
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr && go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        {
+            WorldAABB worldAABB = go->mesh->GetWorldAABB();
+
+            sceneMin.x = std::min(sceneMin.x, worldAABB.min.x);
+            sceneMin.y = std::min(sceneMin.y, worldAABB.min.y);
+            sceneMin.z = std::min(sceneMin.z, worldAABB.min.z);
+
+            sceneMax.x = std::max(sceneMax.x, worldAABB.max.x);
+            sceneMax.y = std::max(sceneMax.y, worldAABB.max.y);
+            sceneMax.z = std::max(sceneMax.z, worldAABB.max.z);
+
+            staticCount++;
+        }
+    }
+
+    if (staticCount == 0)
+    {
+        LOG_WARNING("No static objects found to build Quadtree");
+        quadtree.Clear();
+        return;
+    }
+
+    float padding = 10.0f;
+    sceneMin -= glm::vec3(padding, 0, padding);
+    sceneMax += glm::vec3(padding, 0, padding);
+
+    AABB boundary(sceneMin, sceneMax);
+
+    quadtree.Create(boundary, 4, 5); 
+
+    //insert game objects
+    int insertedCount = 0;
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr && go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        {
+            if (quadtree.Insert(go))
+            {
+                insertedCount++;
+            }
+        }
+    }
+
+    LOG("Quadtree rebuilt with " + std::to_string(insertedCount) + " static objects");
+    LOG("Boundary: Min(" + std::to_string(sceneMin.x) + ", " + std::to_string(sceneMin.z) +
+        ") Max(" + std::to_string(sceneMax.x) + ", " + std::to_string(sceneMax.z) + ")");
 }

@@ -133,9 +133,34 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
     closestHit.distance = FLT_MAX;
 
     // List to store objects that the ray hits
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+
+    std::vector<GameObject*> candidateObjects;
+
+    // using quadtree
+    if (opengl && opengl->useQuadtree)
+    {
+        opengl->quadtree.Intersect(candidateObjects, ray);
+
+        LOG("Quadtree query returned " + std::to_string(candidateObjects.size()) + " static objects");
+
+        for (GameObject* go : gameObjects)
+        {
+            if (go != nullptr && !go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+            {
+                candidateObjects.push_back(go);
+            }
+        }
+    }
+    else
+    {
+        //not using quadtree
+        candidateObjects = gameObjects;
+    }
+
     std::vector<std::pair<GameObject*, float>> aabbHits;
 
-    for (GameObject* go : gameObjects)
+    for (GameObject* go : candidateObjects)
     {
         if (!go || !go->mesh || go->mesh->meshIndex < 0 || go->mesh->meshIndex >= (int)g_Meshes.size())
             continue;
@@ -201,9 +226,11 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
         }
     }
 
+    // Sort by distance (closest first)
     std::sort(aabbHits.begin(), aabbHits.end(),
         [](const auto& a, const auto& b) { return a.second < b.second; });
 
+    // Test triangles only for objects that passed AABB test
     for (const auto& [go, aabbDistance] : aabbHits)
     {
         std::vector<Triangle> triangles = GetMeshTriangles(go);
@@ -231,17 +258,6 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
     }
 
     return closestHit;
-}
-
-bool ModuleMousePicking::RayIntersectsAABB(const Ray& ray, const AABB& aabb, float& distance)
-{
-    float tMin, tMax;
-    return aabb.IntersectRay(ray, tMin, tMax);
-}
-
-bool ModuleMousePicking::RayIntersectsTriangle(const Ray& ray, const Triangle& triangle, float& distance, glm::vec3& hitPoint)
-{
-    return triangle.IntersectRay(ray, distance, hitPoint);
 }
 
 std::vector<Triangle> ModuleMousePicking::GetMeshTriangles(GameObject* gameObject)
@@ -328,4 +344,15 @@ std::vector<Triangle> ModuleMousePicking::GetMeshTriangles(GameObject* gameObjec
     }
 
     return triangles;
+}
+
+bool ModuleMousePicking::RayIntersectsAABB(const Ray& ray, const AABB& aabb, float& distance)
+{
+    float tMin, tMax;
+    return aabb.IntersectRay(ray, tMin, tMax);
+}
+
+bool ModuleMousePicking::RayIntersectsTriangle(const Ray& ray, const Triangle& triangle, float& distance, glm::vec3& hitPoint)
+{
+    return triangle.IntersectRay(ray, distance, hitPoint);
 }
