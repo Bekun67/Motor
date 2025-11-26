@@ -12,9 +12,8 @@ GameObject::GameObject()
 	transform = new ComponentTransform(this);
 	mesh = new ComponentMesh(this);
 	texture = new ComponentTexture(this);
-	camera = nullptr;  // Se crea solo cuando se necesita
+	camera = nullptr;
 }
-
 
 GameObject::GameObject(GameObject* parent)
 {
@@ -33,13 +32,23 @@ GameObject::GameObject(GameObject* parent)
 	transform = new ComponentTransform(this);
 	mesh = new ComponentMesh(this);
 	texture = new ComponentTexture(this);
-	camera = nullptr;  // Se crea solo cuando se necesita
+	camera = nullptr;
 }
 
 GameObject::~GameObject()
 {
-	// CRITICAL: Delete children FIRST before touching anything else
-	// This prevents children from trying to access their parent during deletion
+	// Prevent multiple deletes
+	if (m_IsBeingDestroyed)
+		return;
+
+	m_IsBeingDestroyed = true;
+
+	DestroyHierarchy();
+}
+
+void GameObject::DestroyHierarchy()
+{
+	//delete childrens first
 	if (!children.empty())
 	{
 		std::vector<GameObject*> childrenCopy = children;
@@ -47,29 +56,26 @@ GameObject::~GameObject()
 
 		for (GameObject* child : childrenCopy)
 		{
-			if (child != nullptr)
+			if (child != nullptr && !child->m_IsBeingDestroyed)
 			{
-				child->parent = nullptr; // Prevent child from modifying parent's list
-				delete child; // This will recursively delete grandchildren
+				child->parent = nullptr;
+				delete child; 
 			}
 		}
 	}
 
-	// Remove from parent's children list AFTER children are deleted
+	//delete parents
 	if (parent != nullptr)
 	{
-		for (int i = 0; i < parent->children.size(); i++)
+		auto it = std::find(parent->children.begin(), parent->children.end(), this);
+		if (it != parent->children.end())
 		{
-			if (parent->children[i] == this)
-			{
-				parent->children.erase(parent->children.begin() + i);
-				break;
-			}
+			parent->children.erase(it);
 		}
 		parent = nullptr;
 	}
 
-	// Delete the main components (they are NOT in the components vector)
+	// clean components
 	if (transform != nullptr)
 	{
 		delete transform;
@@ -94,13 +100,12 @@ GameObject::~GameObject()
 		camera = nullptr;
 	}
 
-	// Delete any additional components in the components vector
-	for (int i = 0; i < components.size(); i++)
+	// clean extra components
+	for (Component* component : components)
 	{
-		if (components[i] != nullptr)
+		if (component != nullptr)
 		{
-			delete components[i];
-			components[i] = nullptr;
+			delete component;
 		}
 	}
 	components.clear();

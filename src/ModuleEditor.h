@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <ImGuizmo.h>
 #include "PrimitiveGenerator.h"
+#include <glm/gtc/quaternion.hpp>
 
 class GameObject;
 
@@ -179,6 +180,10 @@ private:
     bool showNewSceneConfirmation = false;
     bool showLoadSceneConfirmation = false;
     std::string pendingSceneToLoad = "";
+
+    glm::quat lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
+    glm::vec3 lastMultiSelectionScale = glm::vec3(1, 1, 1);
+    bool wasManipulating = false;
 };
 
 // Global logging functions

@@ -43,6 +43,10 @@ bool ModuleMousePicking::Update()
     if (editor->editing)
         return true;
 
+    // dont use mousepicking when using guizmo
+    if (ImGuizmo::IsUsing())
+        return true;
+
     // Get mouse position
     float mouseX, mouseY;
     SDL_GetMouseState(&mouseX, &mouseY);
@@ -80,7 +84,7 @@ bool ModuleMousePicking::Update()
     {
         // If the ray detects something, it selects it using the new selection system
         opengl->selectedGameObject = hit.gameObject;
-        editor->SelectGameObject(hit.gameObject, false); 
+        editor->SelectGameObject(hit.gameObject, false);
 
         LOG("Picked GameObject: " + hit.gameObject->name +
             " at distance: " + std::to_string(hit.distance));

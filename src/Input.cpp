@@ -91,22 +91,48 @@ bool Input::PreUpdate()
                 // Deselect all first
                 editor->DeselectAll();
 
-                // Delete each root object 
+                // filter only roots
+                std::vector<GameObject*> rootsToDelete;
                 for (GameObject* go : toDelete)
                 {
-                    // Check if still valid (might have been deleted as child)
+                    // see if it stil exists
                     auto findIt = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
                     if (findIt == opengl->gameObjects.end())
                     {
-                        continue; 
+                        continue;
                     }
 
-                    // Collect all descendants
+                    // only add if it isn't another children
+                    bool isChildOfOtherSelected = false;
+                    for (GameObject* other : toDelete)
+                    {
+                        if (other != go && go->IsDescendantOf(other))
+                        {
+                            isChildOfOtherSelected = true;
+                            break;
+                        }
+                    }
+
+                    if (!isChildOfOtherSelected)
+                    {
+                        rootsToDelete.push_back(go);
+                    }
+                }
+
+                // delete every root with descendants
+                for (GameObject* go : rootsToDelete)
+                {
+                    auto findIt = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
+                    if (findIt == opengl->gameObjects.end())
+                    {
+                        continue;
+                    }
+
+                    // recolect all descendants
                     std::vector<GameObject*> allObjects;
                     allObjects.push_back(go);
                     go->GetAllDescendants(allObjects);
 
-                    // Remove all from gameObjects vector
                     for (GameObject* obj : allObjects)
                     {
                         auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), obj);
@@ -115,7 +141,6 @@ bool Input::PreUpdate()
                             opengl->gameObjects.erase(it);
                         }
                     }
-                    // Delete ONLY the root 
                     delete go;
                 }
 
@@ -410,7 +435,6 @@ bool Input::PreUpdate()
                     glm::vec3 camPos = camera->GetPosition();
 
                     GameObject* closestObject = nullptr;
-                    float maxSelectionDistance = 2.0f; //max radius of search
 
                     //if we are hovering inside the "Drag new texture here:" panel we change the selectedGameObject's texture
                     if (mouseInsideTextureInspector && !moduleEditor->selectedGameObjects.empty())
@@ -421,44 +445,103 @@ bool Input::PreUpdate()
                     {
                         float closestDistance = FLT_MAX;
 
-                        for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
-                            if (go->mesh->meshIndex < 0) {
-                                continue;
-                            }
+                        // Get viewport bounds from editor
+                        float viewportMinX = moduleEditor->sceneViewportPos.x;
+                        float viewportMinY = moduleEditor->sceneViewportPos.y;
+                        float viewportWidth = moduleEditor->sceneViewportSize.x;
+                        float viewportHeight = moduleEditor->sceneViewportSize.y;
 
-                            //get pos of the game object
-                            glm::vec3 objPos(
-                                go->transform->translation.x,
-                                go->transform->translation.y,
-                                go->transform->translation.z
+                        float relativeMouseX = mouseX - viewportMinX;
+                        float relativeMouseY = mouseY - viewportMinY;
+
+                        // Check if mouse is within viewport bounds
+                        if (relativeMouseX >= 0 && relativeMouseX <= viewportWidth &&
+                            relativeMouseY >= 0 && relativeMouseY <= viewportHeight)
+                        {
+                            ModuleMousePicking* mousePicking = Application::GetInstance().mousePicking.get();
+
+                            // create ray using viewport-relative coordinates
+                            Ray ray = mousePicking->CreateRayFromMouse(
+                                relativeMouseX,
+                                relativeMouseY,
+                                camera,
+                                (int)viewportWidth,
+                                (int)viewportHeight
                             );
 
-                            //vector
-                            glm::vec3 camToObj = objPos - camPos;
+                            //test ray against all game objects using AABB
+                            for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
+                                if (go->mesh->meshIndex < 0 || go->mesh->meshIndex >= (int)g_Meshes.size()) {
+                                    continue;
+                                }
 
-                            //proyection to our ray
-                            float t = glm::dot(camToObj, rayWorld);
+                                MeshData& meshData = g_Meshes[go->mesh->meshIndex];
+                                ComponentTransform* transform = go->transform;
 
-                            //if out of view, ignore
-                            if (t < 0.0f) {
-                                continue;
-                            }
+                                glm::mat4 model = glm::mat4(1.0f);
+                                model = glm::translate(model, glm::vec3(
+                                    transform->translation.x,
+                                    transform->translation.y,
+                                    transform->translation.z
+                                ));
 
-                            //closest point to ray
-                            glm::vec3 closestPointOnRay = camPos + rayWorld * t;
+                                glm::quat quat(
+                                    transform->rotation.w,
+                                    transform->rotation.x,
+                                    transform->rotation.y,
+                                    transform->rotation.z
+                                );
+                                model *= glm::mat4_cast(quat);
 
-                            //distance
-                            float perpDistance = glm::length(objPos - closestPointOnRay);
+                                model = glm::scale(model, glm::vec3(
+                                    transform->scaling.x,
+                                    transform->scaling.y,
+                                    transform->scaling.z
+                                ));
 
-                            //if we are in the radius we continue
-                            if (perpDistance < maxSelectionDistance) {
-                                //get the distance and find the closest one
-                                float distanceFromCamera = glm::length(camToObj);
+                                //transform AABB corners to world space
+                                glm::vec3 corners[8] = {
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z),
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMax.z)
+                                };
 
-                                //the closest wins
-                                if (distanceFromCamera < closestDistance) {
-                                    closestDistance = distanceFromCamera;
-                                    closestObject = go;
+                                glm::vec3 worldMin(FLT_MAX);
+                                glm::vec3 worldMax(-FLT_MAX);
+
+                                for (int i = 0; i < 8; ++i)
+                                {
+                                    glm::vec4 worldCorner = model * glm::vec4(corners[i], 1.0f);
+                                    glm::vec3 corner3D = glm::vec3(worldCorner);
+
+                                    worldMin.x = std::min(worldMin.x, corner3D.x);
+                                    worldMin.y = std::min(worldMin.y, corner3D.y);
+                                    worldMin.z = std::min(worldMin.z, corner3D.z);
+
+                                    worldMax.x = std::max(worldMax.x, corner3D.x);
+                                    worldMax.y = std::max(worldMax.y, corner3D.y);
+                                    worldMax.z = std::max(worldMax.z, corner3D.z);
+                                }
+
+                                AABB worldAABB(worldMin, worldMax);
+
+                                // Test ray against AABB
+                                float tMin, tMax;
+                                if (worldAABB.IntersectRay(ray, tMin, tMax))
+                                {
+
+                                    float hitDistance = tMin > 0.0f ? tMin : tMax;
+
+                                    if (hitDistance >= 0.0f && hitDistance < closestDistance)
+                                    {
+                                        closestDistance = hitDistance;
+                                        closestObject = go;
+                                    }
                                 }
                             }
                         }
@@ -500,7 +583,7 @@ bool Input::PreUpdate()
                     else
                     {
                         //if there is no close object
-                        std::cout << "No object found under cursor (within " << maxSelectionDistance << " units)" << std::endl;
+                        std::cout << "No object found under cursor" << std::endl;
                         LOG("WARNING: No GameObject in that position");
                     }
                 }

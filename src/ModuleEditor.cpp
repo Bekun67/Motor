@@ -1759,8 +1759,6 @@ void ModuleEditor::DrawGuizmo()
         if (!selected->transform)
             return;
 
-        // [Mantener el código original del Gizmo para un solo objeto]
-
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(
             selected->transform->translation.x,
@@ -1799,6 +1797,20 @@ void ModuleEditor::DrawGuizmo()
             glm::value_ptr(model),
             glm::value_ptr(deltaMatrix)))
         {
+            // Inicializar tracking si es la primera frame de manipulación
+            if (!wasManipulating)
+            {
+                wasManipulating = true;
+                
+                glm::vec3 dummyTranslation, dummyScale;
+                glm::quat dummyRotation;
+                ComponentTransform tempTransform(nullptr);
+                tempTransform.Decompose(model, dummyTranslation, dummyRotation, dummyScale);
+                
+                lastMultiSelectionRotation = dummyRotation;
+                lastMultiSelectionScale = dummyScale;
+            }
+            
             editing = true;
 
             glm::vec3 newTranslation, newScale;
@@ -1859,16 +1871,126 @@ void ModuleEditor::DrawGuizmo()
 
             // Calcular el nuevo centro después de la manipulación
             glm::vec3 newCenter = glm::vec3(model[3]);
-            glm::vec3 offset = newCenter - selectionCenter;
 
-            // Aplicar el offset a todos los objetos seleccionados
-            for (GameObject* go : selectedGameObjects)
+            if (currentGizmoOperation == ImGuizmo::TRANSLATE)
             {
-                if (go && go->transform)
+                // TRASLACIÓN: mover todos los objetos por el mismo offset
+                glm::vec3 offset = newCenter - selectionCenter;
+
+                for (GameObject* go : selectedGameObjects)
                 {
-                    go->transform->translation.x += offset.x;
-                    go->transform->translation.y += offset.y;
-                    go->transform->translation.z += offset.z;
+                    if (go && go->transform)
+                    {
+                        go->transform->translation.x += offset.x;
+                        go->transform->translation.y += offset.y;
+                        go->transform->translation.z += offset.z;
+                    }
+                }
+            }
+            else if (currentGizmoOperation == ImGuizmo::ROTATE)
+            {
+                // ROTACIÓN: rotar cada objeto alrededor del centro de selección
+                
+                // Extraer la rotación de la matriz de transformación
+                glm::vec3 dummyTranslation, dummyScale;
+                glm::quat newRotation;
+                glm::mat4 rotationMatrix = model;
+                rotationMatrix[3] = glm::vec4(0, 0, 0, 1); // Eliminar traslación
+                
+                // Descomponer para obtener solo la rotación
+                ComponentTransform tempTransform(nullptr);
+                tempTransform.Decompose(model, dummyTranslation, newRotation, dummyScale);
+
+                // Calcular la rotación delta desde la última frame
+                glm::quat deltaRotation = newRotation ;
+                lastMultiSelectionRotation = newRotation;
+
+                // Aplicar rotación a cada objeto alrededor del centro
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        // Posición actual del objeto
+                        glm::vec3 objectPos(
+                            go->transform->translation.x,
+                            go->transform->translation.y,
+                            go->transform->translation.z
+                        );
+
+                        // Vector desde el centro hasta el objeto
+                        glm::vec3 offset = objectPos - selectionCenter;
+
+                        // Rotar el offset
+                        glm::vec3 rotatedOffset = deltaRotation * offset;
+
+                        // Nueva posición = centro + offset rotado
+                        glm::vec3 newPos = selectionCenter + rotatedOffset;
+
+                        go->transform->translation.x = newPos.x;
+                        go->transform->translation.y = newPos.y;
+                        go->transform->translation.z = newPos.z;
+
+                        // También rotar la orientación del objeto
+                        glm::quat currentRot(
+                            go->transform->rotation.w,
+                            go->transform->rotation.x,
+                            go->transform->rotation.y,
+                            go->transform->rotation.z
+                        );
+
+                        glm::quat finalRot = deltaRotation * currentRot;
+
+                        go->transform->rotation.w = finalRot.w;
+                        go->transform->rotation.x = finalRot.x;
+                        go->transform->rotation.y = finalRot.y;
+                        go->transform->rotation.z = finalRot.z;
+                    }
+                }
+            }
+            else if (currentGizmoOperation == ImGuizmo::SCALE)
+            {
+                // ESCALADO: escalar desde el centro de selección
+                
+                // Extraer la escala de la matriz
+                glm::vec3 dummyTranslation, newScale;
+                glm::quat dummyRotation;
+                ComponentTransform tempTransform(nullptr);
+                tempTransform.Decompose(model, dummyTranslation, dummyRotation, newScale);
+
+                // Calcular el factor de escala (asumiendo escala uniforme)
+                glm::vec3 scaleFactor = newScale / lastMultiSelectionScale;
+                lastMultiSelectionScale = newScale;
+
+                // Aplicar escala a cada objeto desde el centro
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        // Posición actual del objeto
+                        glm::vec3 objectPos(
+                            go->transform->translation.x,
+                            go->transform->translation.y,
+                            go->transform->translation.z
+                        );
+
+                        // Vector desde el centro hasta el objeto
+                        glm::vec3 offset = objectPos - selectionCenter;
+
+                        // Escalar el offset
+                        glm::vec3 scaledOffset = offset * scaleFactor;
+
+                        // Nueva posición = centro + offset escalado
+                        glm::vec3 newPos = selectionCenter + scaledOffset;
+
+                        go->transform->translation.x = newPos.x;
+                        go->transform->translation.y = newPos.y;
+                        go->transform->translation.z = newPos.z;
+
+                        // También escalar el tamaño del objeto
+                        go->transform->scaling.x *= scaleFactor.x;
+                        go->transform->scaling.y *= scaleFactor.y;
+                        go->transform->scaling.z *= scaleFactor.z;
+                    }
                 }
             }
 
@@ -1879,6 +2001,11 @@ void ModuleEditor::DrawGuizmo()
             if (editing)
             {
                 editing = false;
+                
+                // Reset de rotaciones/escalas acumuladas cuando se suelta el Gizmo
+                lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
+                lastMultiSelectionScale = glm::vec3(1, 1, 1);
+                wasManipulating = false;
             }
         }
     }
