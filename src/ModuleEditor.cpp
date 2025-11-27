@@ -1626,8 +1626,7 @@ void ModuleEditor::DrawInspector()
 
             // position
             float pos[3] = { avgPosition.x, avgPosition.y, avgPosition.z };
-            ImGui::Text("Position (Average):");
-            if (ImGui::DragFloat3("##MultiPos", pos, 0.1f))
+            if (ImGui::DragFloat3("Position", pos, 0.1f))
             {
                 // Calculate delta
                 glm::vec3 delta(
@@ -1654,12 +1653,9 @@ void ModuleEditor::DrawInspector()
                 editing = false;
             }
 
-            ImGui::Spacing();
-
             // Rotation
             float rot[3] = { avgRotation.x, avgRotation.y, avgRotation.z };
-            ImGui::Text("Rotation (Average - Degrees):");
-            if (ImGui::DragFloat3("##MultiRot", rot, 0.5f))
+            if (ImGui::DragFloat3("Rotation", rot, 0.5f))
             {
                 // Calculate delta
                 glm::vec3 delta(
@@ -1697,12 +1693,9 @@ void ModuleEditor::DrawInspector()
                 editing = false;
             }
 
-            ImGui::Spacing();
-
             // scale
             float scale[3] = { avgScale.x, avgScale.y, avgScale.z };
-            ImGui::Text("Scale (Average):");
-            if (ImGui::DragFloat3("##MultiScale", scale, 0.01f, 0.01f, 100.0f))
+            if (ImGui::DragFloat3("Scale", scale, 0.01f, 0.01f, 100.0f))
             {
                 // Calculate scale factor
                 glm::vec3 scaleFactor(
