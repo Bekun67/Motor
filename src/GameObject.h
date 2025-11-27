@@ -78,6 +78,8 @@ public:
 	bool isVisibleInFrustum = true;
 	bool culledLastFrame = false;
 
+	bool m_MarkedForDeletion = false;
+
 private:
 	UUID m_UUID;
 	UUID m_ParentUUID;

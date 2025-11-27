@@ -53,6 +53,9 @@ public:
     void UpdateLayout(int windowWidth, int windowHeight);
     void ResetLayout();
 
+    void MarkForDeletion(GameObject* go);
+    void ProcessDeletions();
+
     // ImGuizmo
     void DrawGuizmo();
     ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
@@ -104,6 +107,9 @@ private:
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
     void DrawSceneViewport();
+    void SafeDeleteGameObject(GameObject* go);
+
+    std::vector<GameObject*> m_ObjectsToDelete;
 
     // Console
     std::deque<LogEntry> logs;

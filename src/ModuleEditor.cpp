@@ -142,7 +142,6 @@ bool ModuleEditor::Update()
             fpsHistory.erase(fpsHistory.begin());
     }
 
-
     ImGuizmo::BeginFrame();
 
     // Handle Gizmo operation changes with W, E, R keys
@@ -160,20 +159,21 @@ bool ModuleEditor::Update()
         {
             currentGizmoOperation = ImGuizmo::SCALE;
         }
-           
     }
 
     // Draw all editor windows
-    DrawSceneViewport();  
-    DrawHierarchy();      
-    DrawInspector();      
-    DrawConsole();        
-    DrawMenuBar();        
+    DrawSceneViewport();
+    DrawHierarchy();
+    DrawInspector();
+    DrawConsole();
+    DrawMenuBar();
     if (showConfiguration) DrawConfiguration();
     if (showAbout) DrawAbout();
 
-    // Draw Gizmo (debe ser lo �ltimo)
     DrawGuizmo();
+
+    // Process deletions at the END of the frame, after all ImGui operations
+    ProcessDeletions();
 
     return true;
 }
@@ -1090,7 +1090,7 @@ void ModuleEditor::DrawHierarchy()
 
 void ModuleEditor::DrawGameObjectNode(GameObject* go)
 {
-    if (go == nullptr)
+    if (go == nullptr || go->m_MarkedForDeletion)
         return;
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
@@ -1108,7 +1108,7 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
     // Click: select with childs
     if (ImGui::IsItemClicked() && !ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
-        SelectGameObject(go, true); 
+        SelectGameObject(go, true);
     }
 
     // Double click: select just that object
@@ -1161,42 +1161,8 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
 
         if (ImGui::MenuItem("Delete"))
         {
-            OpenGL* opengl = Application::GetInstance().opengl.get();
-            if (opengl)
-            {
-                // Deselect if selected
-                if (IsSelected(go))
-                {
-                    DeselectAll();
-                }
-
-                // Important: Collect ALL objects to remove (parent and ALL descendants)
-                std::vector<GameObject*> objectsToRemove;
-                objectsToRemove.push_back(go);
-                go->GetAllDescendants(objectsToRemove);
-
-                // Remove ALL objects from the gameObjects vector first (don't delete yet)
-                for (GameObject* obj : objectsToRemove)
-                {
-                    auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), obj);
-                    if (it != opengl->gameObjects.end())
-                    {
-                        opengl->gameObjects.erase(it);
-                    }
-                }
-
-                LOG("Deleted GameObject: " + go->name + " and " + std::to_string(objectsToRemove.size() - 1) + " descendants");
-
-                // Now delete ONLY the root - its destructor will handle the children
-                delete go;
-
-                sceneModified = true;
-
-                ImGui::EndPopup();
-                if (nodeOpen)
-                    ImGui::TreePop();
-                return;
-            }
+            // Just mark for deletion - will be processed at end of frame
+            MarkForDeletion(go);
         }
 
         ImGui::EndPopup();
@@ -1213,12 +1179,18 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
     // Drop target
     HandleHierarchyDragDrop(go);
 
-    // Dibujar hijos recursivamente
+    // Draw children recursively
     if (nodeOpen)
     {
-        for (GameObject* child : go->children)
+        // Create a copy to avoid issues
+        std::vector<GameObject*> childrenCopy = go->children;
+
+        for (GameObject* child : childrenCopy)
         {
-            DrawGameObjectNode(child);
+            if (child && !child->m_MarkedForDeletion)
+            {
+                DrawGameObjectNode(child);
+            }
         }
         ImGui::TreePop();
     }
@@ -2385,4 +2357,104 @@ glm::vec3 ModuleEditor::GetSelectionCenter() const
 
     float count = static_cast<float>(selectedGameObjects.size());
     return center / count;
+}
+
+void ModuleEditor::MarkForDeletion(GameObject* go)
+{
+    if (!go) return;
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl) return;
+
+    // Collect all descendants
+    std::vector<GameObject*> toMark;
+    toMark.push_back(go);
+    go->GetAllDescendants(toMark);
+
+    // Mark all for deletion
+    for (GameObject* obj : toMark)
+    {
+        if (obj && !obj->m_MarkedForDeletion)
+        {
+            obj->m_MarkedForDeletion = true;
+
+            // Add to deletion queue if not already there
+            if (std::find(m_ObjectsToDelete.begin(), m_ObjectsToDelete.end(), obj) == m_ObjectsToDelete.end())
+            {
+                m_ObjectsToDelete.push_back(obj);
+            }
+        }
+    }
+
+    // Deselect if selected
+    DeselectAll();
+
+    LOG("Marked " + std::to_string(toMark.size()) + " object(s) for deletion");
+}
+
+void ModuleEditor::ProcessDeletions()
+{
+    if (m_ObjectsToDelete.empty())
+        return;
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl)
+        return;
+
+    // Identify root objects (those without parent or whose parent is also being deleted)
+    std::vector<GameObject*> rootsToDelete;
+
+    for (GameObject* go : m_ObjectsToDelete)
+    {
+        if (!go) continue;
+
+        bool isRoot = (go->parent == nullptr);
+
+        // Or parent is not marked for deletion
+        if (go->parent != nullptr)
+        {
+            if (std::find(m_ObjectsToDelete.begin(), m_ObjectsToDelete.end(), go->parent) == m_ObjectsToDelete.end())
+            {
+                // Parent exists but is NOT being deleted, so this is effectively a root
+                isRoot = true;
+            }
+        }
+
+        if (isRoot)
+        {
+            rootsToDelete.push_back(go);
+        }
+    }
+
+    // Remove ALL marked objects from gameObjects list FIRST
+    for (GameObject* go : m_ObjectsToDelete)
+    {
+        auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
+        if (it != opengl->gameObjects.end())
+        {
+            opengl->gameObjects.erase(it);
+        }
+
+        // Unlink from parent
+        if (go->parent != nullptr)
+        {
+            go->parent->RemoveChild(go);
+            go->parent = nullptr;
+        }
+    }
+
+    // Now delete only the roots - their destructors will handle children
+    for (GameObject* go : rootsToDelete)
+    {
+        if (go)
+        {
+            LOG("Deleting root GameObject: " + go->name);
+            delete go;
+        }
+    }
+
+    m_ObjectsToDelete.clear();
+    sceneModified = true;
+
+    LOG("Deletion processing complete");
 }

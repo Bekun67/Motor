@@ -70,14 +70,26 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 	}
 	file.close();
 
-	// Clear current scene
+	// Safe cleanup: Find roots only
+	std::vector<GameObject*> rootsToDelete;
 	for (GameObject* go : gameObjects)
 	{
-		delete go;
+		if (go && go->parent == nullptr)
+		{
+			rootsToDelete.push_back(go);
+		}
 	}
+
+	// Clear list first
 	gameObjects.clear();
 
-	// Deserialize GameObjects
+	// Delete roots
+	for (GameObject* root : rootsToDelete)
+	{
+		delete root;
+	}
+
+	// Deserialize new scene
 	if (sceneJson.contains("GameObjects") && sceneJson["GameObjects"].is_array())
 	{
 		for (const auto& goJson : sceneJson["GameObjects"])
@@ -91,7 +103,6 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 			}
 			else if (go != nullptr)
 			{
-				// GameObject created but failed to load resources
 				std::string name = go->name;
 				delete go;
 				LOG_ERROR("Failed to load GameObject: " + name + " - skipping");
