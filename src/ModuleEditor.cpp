@@ -1010,6 +1010,21 @@ void ModuleEditor::DrawConfiguration()
                     ImGui::Text("Quadtree Tests: %d", opengl->quadtreeTestsCount);
                     ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
                     ImGui::Text("Objects Culled: %d", opengl->culledCount);
+
+                    int totalStatic = (int)allInQuadtree.size();
+
+                    if (totalStatic > 0)
+                    {
+                        //quadtree stats
+                        int testsSaved = totalStatic - opengl->quadtreeTestsCount;
+                        float savedPercent = 100.0f * (float)testsSaved / (float)totalStatic;
+
+                        ImGui::Text("Tests Saved: %d / %d", testsSaved, totalStatic);
+                        ImGui::Text("Quadtree Efficiency: %.1f%%", savedPercent);
+
+                        int totalWithoutQuadtree = totalStatic + (opengl->renderedCount + opengl->culledCount - totalStatic);
+                        ImGui::Text("(Without Quadtree would test: %d objects)", totalStatic);
+                    }
                 }
             }
         }

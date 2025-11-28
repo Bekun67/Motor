@@ -80,6 +80,7 @@ public:
 
 	//quadtree
 	bool isStatic = false;
+	bool needsQuadtreeUpdate = false;
 
 private:
 	UUID m_UUID;
