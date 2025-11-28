@@ -69,6 +69,7 @@ public:
 	bool showQuadtree = false;
 	void RebuildQuadtree();
 	int quadtreeTestsCount = 0;
+	int quadtreeCulledCount = 0;
 
 private:
 	bool Start() override;

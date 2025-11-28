@@ -856,14 +856,37 @@ void ModuleEditor::DrawConfiguration()
             if (cam->frustumCullingEnabled)
             {
                 OpenGL* opengl = Application::GetInstance().opengl.get();
-                ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
-                ImGui::Text("Objects Culled: %d", opengl->culledCount);
 
-                int total = opengl->renderedCount + opengl->culledCount;
-                if (total > 0)
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Rendering Statistics:");
+
+                ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
+
+                if (opengl->useQuadtree)
                 {
-                    float percentage = (float)opengl->culledCount / (float)total * 100.0f;
-                    ImGui::Text("Culling Efficiency: %.1f%%", percentage);
+                    ImGui::Text("Culled by Frustum: %d", opengl->culledCount);
+                    ImGui::Text("Culled by Quadtree: %d", opengl->quadtreeCulledCount);
+
+                    int totalCulled = opengl->culledCount + opengl->quadtreeCulledCount;
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "TOTAL Culled: %d", totalCulled);
+
+                    int totalObjects = opengl->renderedCount + totalCulled;
+                    if (totalObjects > 0)
+                    {
+                        float cullingEfficiency = (float)totalCulled / (float)totalObjects * 100.0f;
+                        ImGui::Text("Total Culling Efficiency: %.1f%%", cullingEfficiency);
+                    }
+                }
+                else
+                {
+                    ImGui::Text("Objects Culled: %d", opengl->culledCount);
+
+                    int total = opengl->renderedCount + opengl->culledCount;
+                    if (total > 0)
+                    {
+                        float percentage = (float)opengl->culledCount / (float)total * 100.0f;
+                        ImGui::Text("Culling Efficiency: %.1f%%", percentage);
+                    }
                 }
             }
 
@@ -991,7 +1014,17 @@ void ModuleEditor::DrawConfiguration()
             //if quadtree is active we add an option for showing
             if (opengl->useQuadtree)
             {
-                ImGui::Checkbox("Show Quadtree", &opengl->showQuadtree);
+                if (ImGui::Checkbox("Show Quadtree", &opengl->showQuadtree))
+                {
+                    if (opengl->showQuadtree)
+                    {
+                        LOG("Quadtree Debug ENABLED");
+                    }
+                    else
+                    {
+                        LOG("Quadtree Debug DISABLED");
+                    }
+                }
 
                 if (ImGui::Button("Rebuild Quadtree", ImVec2(-1, 0)))
                 {
@@ -999,7 +1032,7 @@ void ModuleEditor::DrawConfiguration()
                 }
 
                 ImGui::Separator();
-                ImGui::Text("Quadtree Statistics:");
+                ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Quadtree Statistics:");
 
                 std::vector<GameObject*> allInQuadtree;
                 opengl->quadtree.GetAllObjects(allInQuadtree);
@@ -1007,23 +1040,23 @@ void ModuleEditor::DrawConfiguration()
 
                 if (opengl->camera.frustumCullingEnabled)
                 {
-                    ImGui::Text("Quadtree Tests: %d", opengl->quadtreeTestsCount);
-                    ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
-                    ImGui::Text("Objects Culled: %d", opengl->culledCount);
+                    //quadtree stats with frustum
+                    ImGui::Text("Candidates tested: %d", opengl->quadtreeTestsCount);
+                    ImGui::Text("Skipped by Quadtree: %d", opengl->quadtreeCulledCount);
 
                     int totalStatic = (int)allInQuadtree.size();
-
                     if (totalStatic > 0)
                     {
-                        //quadtree stats
+                        float efficiency = 100.0f * (float)opengl->quadtreeCulledCount / (float)totalStatic;
+                        ImGui::ProgressBar(efficiency / 100.0f, ImVec2(-1, 0),
+                            (std::to_string((int)efficiency) + "% skipped").c_str());
+
+                        ImGui::Separator();
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Without Quadtree: %d frustum tests", totalStatic);
+                        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "With Quadtree: %d frustum tests", opengl->quadtreeTestsCount);
+
                         int testsSaved = totalStatic - opengl->quadtreeTestsCount;
-                        float savedPercent = 100.0f * (float)testsSaved / (float)totalStatic;
-
-                        ImGui::Text("Tests Saved: %d / %d", testsSaved, totalStatic);
-                        ImGui::Text("Quadtree Efficiency: %.1f%%", savedPercent);
-
-                        int totalWithoutQuadtree = totalStatic + (opengl->renderedCount + opengl->culledCount - totalStatic);
-                        ImGui::Text("(Without Quadtree would test: %d objects)", totalStatic);
+                        ImGui::Text("Tests Saved: %d (%.1f%%)", testsSaved, efficiency);
                     }
                 }
             }

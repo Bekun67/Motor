@@ -39,14 +39,14 @@ void QuadtreeNode::Clear()
 
 bool QuadtreeNode::Insert(GameObject* object)
 {
-    if (object == nullptr)
-        return false;
+    if (object == nullptr || object->mesh == nullptr) return false;
 
-    if (!Contains(object))
-        return false;
+    //if it doesnt interesct we dont add it to the node
+    if (!Intersects(object)) return false;
 
     if (IsLeaf())
     {
+        //if there is space for a new game object in the node we add it
         if (objects.size() < (size_t)maxObjects || level >= maxLevels)
         {
             objects.push_back(object);
@@ -54,6 +54,7 @@ bool QuadtreeNode::Insert(GameObject* object)
         }
         else
         {
+            //if there's no space (>4) we subdivide
             Subdivide();
 
             std::vector<GameObject*> tempObjects = objects;
@@ -62,10 +63,12 @@ bool QuadtreeNode::Insert(GameObject* object)
             for (GameObject* obj : tempObjects)
             {
                 bool inserted = false;
+
                 for (int i = 0; i < 4; ++i)
                 {
-                    if (children[i]->Insert(obj))
+                    if (children[i]->CanContainCompletely(obj))
                     {
+                        children[i]->Insert(obj);
                         inserted = true;
                         break;
                     }
@@ -80,8 +83,9 @@ bool QuadtreeNode::Insert(GameObject* object)
             bool inserted = false;
             for (int i = 0; i < 4; ++i)
             {
-                if (children[i]->Insert(object))
+                if (children[i]->CanContainCompletely(object))
                 {
+                    children[i]->Insert(object);
                     inserted = true;
                     break;
                 }
@@ -99,9 +103,9 @@ bool QuadtreeNode::Insert(GameObject* object)
     {
         for (int i = 0; i < 4; ++i)
         {
-            if (children[i]->Insert(object))
+            if (children[i]->CanContainCompletely(object))
             {
-                return true;
+                return children[i]->Insert(object);
             }
         }
 
@@ -138,9 +142,9 @@ bool QuadtreeNode::Remove(GameObject* object)
 
 void QuadtreeNode::Subdivide()
 {
-    if (!IsLeaf())
-        return;
+    if (!IsLeaf()) return;
 
+    //dividing in 4
     glm::vec3 min = boundary.min;
     glm::vec3 max = boundary.max;
     glm::vec3 center = boundary.GetCenter();
@@ -166,8 +170,22 @@ void QuadtreeNode::Subdivide()
     );
 }
 
-bool QuadtreeNode::Contains(GameObject* object) const
+bool QuadtreeNode::CanContainCompletely(GameObject* object) const
 {
+    //we check if all the object's vertices are inside the node
+    if (object == nullptr || object->mesh == nullptr) return false;
+
+    WorldAABB worldAABB = object->mesh->GetWorldAABB();
+
+    bool xContained = worldAABB.min.x >= boundary.min.x && worldAABB.max.x <= boundary.max.x;
+    bool zContained = worldAABB.min.z >= boundary.min.z && worldAABB.max.z <= boundary.max.z;
+
+    return xContained && zContained;
+}
+
+bool QuadtreeNode::Intersects(GameObject* object) const
+{
+    //we check if the game object intersects with the node
     if (object == nullptr || object->mesh == nullptr)
         return false;
 

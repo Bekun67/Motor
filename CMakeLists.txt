@@ -17,6 +17,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 file(GLOB CORE_FILES 
     "src/Application.*" 
     "src/Main.*"
+    "src/Structures.*"
     "src/Window.*")
 
 file(GLOB COMPONENT_FILES 
