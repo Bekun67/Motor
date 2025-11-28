@@ -14,6 +14,7 @@
 #include "SceneSerializer.h"
 #include "FileSystemManager.h"
 #include "imgui.h"
+#include "Time.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
 #include <SDL3/SDL.h>
@@ -1801,7 +1802,7 @@ void ModuleEditor::DrawGuizmo()
 
             if (currentGizmoOperation == ImGuizmo::TRANSLATE)
             {
-                // TRASLACIÓN: mover todos los objetos por el mismo offset
+
                 glm::vec3 offset = newCenter - selectionCenter;
 
                 for (GameObject* go : selectedGameObjects)
@@ -2199,3 +2200,149 @@ glm::vec3 ModuleEditor::GetSelectionCenter() const
     float count = static_cast<float>(selectedGameObjects.size());
     return center / count;
 }
+
+void DrawTimeControlsToolbar()
+{
+    ImGui::Begin("Time Controls");
+
+    ImGui::Text("State: %s",
+        Time::IsStopped() ? "STOPPED" :
+        Time::IsPlaying() ? "PLAYING" : "PAUSED");
+
+    ImGui::Separator();
+
+    // Controls
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+    if (ImGui::Button("Play", ImVec2(80, 30)))
+    {
+        if (Time::IsStopped())
+        {
+            Time::Play();
+        }
+        else if (Time::IsPaused())
+        {
+            Time::Resume();
+        }
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.6f, 0.2f, 1.0f));
+    if (ImGui::Button("Pause", ImVec2(80, 30)))
+    {
+        if (Time::IsPlaying())
+        {
+            Time::Pause();
+        }
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
+    if (ImGui::Button("Stop", ImVec2(80, 30)))
+    {
+        if (!Time::IsStopped())
+        {
+            Time::Stop();
+        }
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+
+    ImGui::BeginDisabled(!Time::IsPaused());
+    if (ImGui::Button("Step", ImVec2(80, 30)))
+    {
+        Time::Step();
+    }
+    ImGui::EndDisabled();
+
+    ImGui::Separator();
+
+    ImGui::Text("Time Scale:");
+    ImGui::SliderFloat("##timescale", &Time::timeScale, 0.0f, 5.0f, "%.2fx");
+
+    ImGui::SameLine();
+    if (ImGui::Button("Reset"))
+    {
+        Time::timeScale = 1.0f;
+    }
+
+    // scale buttons
+    if (ImGui::Button("0.5x")) Time::timeScale = 0.5f;
+    ImGui::SameLine();
+    if (ImGui::Button("1.0x")) Time::timeScale = 1.0f;
+    ImGui::SameLine();
+    if (ImGui::Button("2.0x")) Time::timeScale = 2.0f;
+    ImGui::SameLine();
+    if (ImGui::Button("5.0x")) Time::timeScale = 5.0f;
+
+    ImGui::Separator();
+
+    // Time info
+    ImGui::Text("Game Time Info:");
+    ImGui::Text("  Time: %.3f s", Time::time);
+    ImGui::Text("  Delta Time: %.4f s (%.1f FPS)", Time::deltaTime,
+        Time::deltaTime > 0 ? 1.0f / Time::deltaTime : 0.0f);
+    ImGui::Text("  Frame Count: %d", Time::frameCount);
+
+    ImGui::Separator();
+
+    ImGui::Text("Real Time Info:");
+    ImGui::Text("  Real Time: %.3f s", Time::realTimeSinceStartup);
+    ImGui::Text("  Real Delta: %.4f s (%.1f FPS)", Time::realDeltaTime,
+        Time::realDeltaTime > 0 ? 1.0f / Time::realDeltaTime : 0.0f);
+
+    ImGui::End();
+}
+
+//void DrawCompactTimeToolbar()
+//{
+//    ImGuiViewport* viewport = ImGui::GetMainViewport();
+//    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f - 150, viewport->Pos.y + 25));
+//    ImGui::SetNextWindowSize(ImVec2(300, 0));
+//
+//    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
+//        ImGuiWindowFlags_NoMove |
+//        ImGuiWindowFlags_NoResize |
+//        ImGuiWindowFlags_NoSavedSettings;
+//
+//    ImGui::Begin("##TimeToolbar", nullptr, flags);
+//
+//    float buttonWidth = 60.0f;
+//    float spacing = 10.0f;
+//    float totalWidth = buttonWidth * 4 + spacing * 3;
+//    float startX = (300 - totalWidth) * 0.5f;
+//
+//    ImGui::SetCursorPosX(startX);
+//
+//    if (ImGui::Button("Play", ImVec2(buttonWidth, 25)))
+//    {
+//        if (Time::IsStopped() || Time::IsPaused())
+//            Time::Play();
+//    }
+//
+//    ImGui::SameLine();
+//    if (ImGui::Button("Pause", ImVec2(buttonWidth, 25)))
+//    {
+//        Time::Pause();
+//    }
+//
+//    ImGui::SameLine();
+//    if (ImGui::Button("Stop", ImVec2(buttonWidth, 25)))
+//    {
+//        Time::Stop();
+//    }
+//
+//    ImGui::SameLine();
+//    ImGui::BeginDisabled(!Time::IsPaused());
+//    if (ImGui::Button("Step", ImVec2(buttonWidth, 25)))
+//    {
+//        Time::Step();
+//    }
+//    ImGui::EndDisabled();
+//
+//    ImGui::End();
+//}

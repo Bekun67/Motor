@@ -1,6 +1,7 @@
 #include "GameObject.h"
 #include "Component.h"
 #include <algorithm>
+#include "Time.h"
 
 GameObject::GameObject()
 {
