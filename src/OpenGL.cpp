@@ -1020,6 +1020,38 @@ bool OpenGL::Draw()
     return true;
 }
 
+bool OpenGL::EmptyQuadtree()
+{
+    //method to know if the quadtree is empty or not (if there are any static objects or not)
+    glm::vec3 sceneMin(FLT_MAX);
+    glm::vec3 sceneMax(-FLT_MAX);
+    int staticCount = 0;
+
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr && go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        {
+            WorldAABB worldAABB = go->mesh->GetWorldAABB();
+
+            sceneMin.x = std::min(sceneMin.x, worldAABB.min.x);
+            sceneMin.y = std::min(sceneMin.y, worldAABB.min.y);
+            sceneMin.z = std::min(sceneMin.z, worldAABB.min.z);
+
+            sceneMax.x = std::max(sceneMax.x, worldAABB.max.x);
+            sceneMax.y = std::max(sceneMax.y, worldAABB.max.y);
+            sceneMax.z = std::max(sceneMax.z, worldAABB.max.z);
+
+            staticCount++;
+        }
+    }
+    if (staticCount == 0)
+    {
+        quadtree.Clear();
+        return true;
+    }
+    else return false;
+}
+
 void OpenGL::RebuildQuadtree()
 {
     LOG("Rebuilding Quadtree...");

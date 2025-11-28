@@ -1002,7 +1002,7 @@ void ModuleEditor::DrawConfiguration()
                 if (opengl->useQuadtree)
                 {
                     opengl->RebuildQuadtree();
-                    LOG("Quadtree enabled");
+                    if(!opengl->EmptyQuadtree()) LOG("Quadtree enabled");
                 }
                 else
                 {
@@ -1057,6 +1057,18 @@ void ModuleEditor::DrawConfiguration()
 
                         int testsSaved = totalStatic - opengl->quadtreeTestsCount;
                         ImGui::Text("Tests Saved: %d (%.1f%%)", testsSaved, efficiency);
+                    }
+                }
+
+                if (ImGui::Checkbox("Extra Quadtree LOGs", &opengl->extraQuadtreeInfo))
+                {
+                    if (opengl->extraQuadtreeInfo)
+                    {
+                        LOG("Extra Quadtree LOGs enabled");
+                    }
+                    else
+                    {
+                        LOG("Extra Quadtree LOGs disabled");
                     }
                 }
             }

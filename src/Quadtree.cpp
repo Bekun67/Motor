@@ -421,3 +421,43 @@ const AABB& Quadtree::GetBoundary() const
     }
     return emptyAABB;
 }
+
+void QuadtreeNode::CollectIntersections(std::vector<GameObject*>& results, const Ray& ray) const
+{
+    float tMin, tMax;
+    if (!boundary.IntersectRay(ray, tMin, tMax))
+    {
+        //if the ray doesn't touch this node we discard it
+        return;
+    }
+
+    for (GameObject* obj : objects)
+    {
+        if (obj != nullptr && obj->mesh != nullptr && obj->mesh->meshIndex >= 0)
+        {
+            if (std::find(results.begin(), results.end(), obj) == results.end())
+            {
+                results.push_back(obj);
+            }
+        }
+    }
+
+    if (!IsLeaf())
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            if (children[i] != nullptr)
+            {
+                children[i]->CollectIntersections(results, ray);
+            }
+        }
+    }
+}
+
+void Quadtree::CollectIntersections(std::vector<GameObject*>& results, const Ray& ray) const
+{
+    if (root != nullptr)
+    {
+        root->CollectIntersections(results, ray);
+    }
+}

@@ -1,4 +1,4 @@
-#include "ModuleMousePicking.h"
+﻿#include "ModuleMousePicking.h"
 #include "Application.h"
 #include "Input.h"
 #include "OpenGL.h"
@@ -12,6 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <iostream>
+#include <chrono>
 
 ModuleMousePicking::ModuleMousePicking()
 {
@@ -141,13 +142,30 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
 
     std::vector<GameObject*> candidateObjects;
 
-    // using quadtree
-    if (opengl && opengl->useQuadtree)
+    //stats for showing
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    int totalStaticObjects = 0;
+    int totalDynamicObjects = 0;
+
+    for (GameObject* go : gameObjects)
     {
-        opengl->quadtree.Intersect(candidateObjects, ray);
+        if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        {
+            if (go->isStatic) totalStaticObjects++;
+            else totalDynamicObjects++;
+        }
+    }
+    auto startQuadtreeTime = std::chrono::high_resolution_clock::now();
 
-        LOG("Quadtree query returned " + std::to_string(candidateObjects.size()) + " static objects");
+    //quadtree to static objects
+    if (opengl && opengl->useQuadtree && totalStaticObjects > 0)
+    {
+        opengl->quadtree.CollectIntersections(candidateObjects, ray);
 
+        if(opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: Quadtree returned " + std::to_string(candidateObjects.size()) + " static candidates (out of " + std::to_string(totalStaticObjects) + " total)");
+
+        //add all dynamic go
         for (GameObject* go : gameObjects)
         {
             if (go != nullptr && !go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
@@ -155,12 +173,26 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
                 candidateObjects.push_back(go);
             }
         }
+
+        int objectsSkipped = totalStaticObjects - (candidateObjects.size() - totalDynamicObjects);
+        if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: Skipped " + std::to_string(objectsSkipped) + " static objects thanks to Quadtree");
     }
     else
     {
         //not using quadtree
-        candidateObjects = gameObjects;
+        for (GameObject* go : gameObjects)
+        {
+            if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+            {
+                candidateObjects.push_back(go);
+            }
+        }
+
+        if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: Testing all " + std::to_string(candidateObjects.size()) + " objects (Quadtree not functional)");
     }
+
+    auto endQuadtreeTime = std::chrono::high_resolution_clock::now();
+    auto quadtreeDuration = std::chrono::duration_cast<std::chrono::microseconds>(endQuadtreeTime - startQuadtreeTime);
 
     std::vector<std::pair<GameObject*, float>> aabbHits;
 
@@ -230,9 +262,15 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
         }
     }
 
+    auto endAABBTime = std::chrono::high_resolution_clock::now();
+    auto aabbDuration = std::chrono::duration_cast<std::chrono::microseconds>(endAABBTime - endQuadtreeTime);
+
     // Sort by distance (closest first)
     std::sort(aabbHits.begin(), aabbHits.end(),
         [](const auto& a, const auto& b) { return a.second < b.second; });
+
+    int trianglesTestCount = 0;
+    bool objFound = false;
 
     // Test triangles only for objects that passed AABB test
     for (const auto& [go, aabbDistance] : aabbHits)
@@ -241,6 +279,7 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
 
         for (const Triangle& triangle : triangles)
         {
+            trianglesTestCount++;
             float distance;
             glm::vec3 hitPoint;
 
@@ -257,8 +296,23 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
         }
 
         // If we find a hit, we can stop 
-        if (closestHit.hit)
+        if (closestHit.hit) 
+        {
+            objFound = true;
             break;
+        }
+    }
+    auto endTriangleTime = std::chrono::high_resolution_clock::now();
+    auto triangleDuration = std::chrono::duration_cast<std::chrono::microseconds>(endTriangleTime - endAABBTime);
+    auto totalDuration = std::chrono::duration_cast<std::chrono::microseconds>(endTriangleTime - startTime);
+
+    if (objFound) 
+    {
+        //us are μs so microseconds, our log system doenst recognize "μ" sadly
+        if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: Quadtree query: " + std::to_string(quadtreeDuration.count()) + " us");
+        if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: AABB tests: " + std::to_string(aabbDuration.count()) + " us (" + std::to_string(candidateObjects.size()) + " objects)");
+        if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: Triangle tests: " + std::to_string(triangleDuration.count()) + " us (" + std::to_string(trianglesTestCount) + " triangles)");
+        if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: TOTAL: " + std::to_string(totalDuration.count()) + " us");
     }
 
     return closestHit;

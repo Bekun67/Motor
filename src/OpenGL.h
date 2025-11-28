@@ -70,6 +70,8 @@ public:
 	void RebuildQuadtree();
 	int quadtreeTestsCount = 0;
 	int quadtreeCulledCount = 0;
+	bool EmptyQuadtree();
+	bool extraQuadtreeInfo = false;
 
 private:
 	bool Start() override;

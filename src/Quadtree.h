@@ -57,6 +57,7 @@ public:
             }
         }
     }
+    void CollectIntersections(std::vector<GameObject*>& results, const Ray& ray) const;
 
 private:
     void Subdivide();
@@ -104,6 +105,7 @@ public:
 
     const AABB& GetBoundary() const;
     bool IsEmpty() const { return root == nullptr; }
+    void CollectIntersections(std::vector<GameObject*>& results, const Ray& ray) const;
 
 private:
     QuadtreeNode* root;
