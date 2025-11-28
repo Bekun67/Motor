@@ -79,9 +79,9 @@ public:
 	bool culledLastFrame = false;
 
 	bool m_MarkedForDeletion = false;
+	bool m_IsBeingDestroyed = false;
 
 private:
 	UUID m_UUID;
 	UUID m_ParentUUID;
-	bool m_IsBeingDestroyed = false;
 };

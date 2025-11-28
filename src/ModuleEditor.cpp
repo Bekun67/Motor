@@ -527,26 +527,12 @@ void ModuleEditor::DrawMenuBar()
 
         if (ImGui::Button("Confirm", ImVec2(120, 0)))
         {
-            // Clear current scene
-            OpenGL* opengl = Application::GetInstance().opengl.get();
-            if (opengl)
-            {
-                // Clear selection first
-                selectedGameObjects.clear();
-                opengl->selectedGameObject = nullptr;
+            ClearCurrentScene();
 
-                // Delete all GameObjects
-                while (!opengl->gameObjects.empty())
-                {
-                    GameObject* go = opengl->gameObjects.back();
-                    opengl->gameObjects.pop_back();
-                    delete go;
-                }
+            currentScenePath = "";
+            sceneModified = false;
+            LOG("New scene created");
 
-                currentScenePath = "";
-                sceneModified = false;
-                LOG("New scene created");
-            }
             ImGui::CloseCurrentPopup();
         }
 
@@ -2197,29 +2183,14 @@ bool ModuleEditor::LoadScene(const std::string& filepath)
         return false;
     }
 
-    // Ask user to save current scene if modified
-    if (sceneModified && !currentScenePath.empty())
-    {
-        // In a real implementation, you would show a dialog here
-        LOG_WARNING("Current scene has unsaved changes");
-    }
+    ClearCurrentScene();
 
+    // load saved scene
     std::vector<GameObject*> loadedGameObjects;
     if (SceneSerializer::LoadScene(filepath, loadedGameObjects))
     {
-        // Clear current scene
-        for (GameObject* go : opengl->gameObjects)
-        {
-            delete go;
-        }
-        opengl->gameObjects.clear();
-
         // Set loaded GameObjects
         opengl->gameObjects = loadedGameObjects;
-
-        // Clear selection
-        selectedGameObjects.empty();
-        opengl->selectedGameObject = nullptr;
 
         currentScenePath = filepath;
         sceneModified = false;
@@ -2230,6 +2201,46 @@ bool ModuleEditor::LoadScene(const std::string& filepath)
 
     LOG_ERROR("Failed to load scene: " + filepath);
     return false;
+}
+
+void ModuleEditor::ClearCurrentScene()
+{
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl)
+    {
+        LOG_ERROR("Failed to clear scene: OpenGL module not available");
+        return;
+    }
+
+    LOG("Clearing current scene...");
+
+    // Clear selection first
+    selectedGameObjects.clear();
+    opengl->selectedGameObject = nullptr;
+
+    // Breake childs/parents
+    for (GameObject* go : opengl->gameObjects)
+    {
+        if (go != nullptr)
+        {
+            go->parent = nullptr;
+            go->children.clear();
+        }
+    }
+
+    // delete GameObjects
+    for (GameObject* go : opengl->gameObjects)
+    {
+        if (go != nullptr)
+        {
+            go->m_IsBeingDestroyed = true;
+            delete go;
+        }
+    }
+
+    opengl->gameObjects.clear();
+
+    LOG("Scene cleared successfully");
 }
 
 void ModuleEditor::SetupImGuiStyle()

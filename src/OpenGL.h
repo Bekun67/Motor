@@ -68,8 +68,6 @@ private:
 	bool Update() override;
 	bool Draw();
 
-	void MySaveFunction();
-
 	void CreateGrid(int size);
 	void DrawGrid();
 

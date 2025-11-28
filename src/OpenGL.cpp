@@ -858,11 +858,6 @@ bool OpenGL::Update()
     return true;
 }
 
-void OpenGL::MySaveFunction()
-{
-
-}
-
 bool OpenGL::CleanUp()
 {
     std::cout << "Destroying OpenGL Context" << std::endl;
@@ -872,27 +867,26 @@ bool OpenGL::CleanUp()
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
     LOG("ImGui cleaned up");
-    
-    // Cleanup gameobjects
-    std::vector<GameObject*> rootObjects;
+
     for (GameObject* go : gameObjects)
     {
-        if (go != nullptr && go->parent == nullptr)
+        if (go != nullptr)
         {
-            rootObjects.push_back(go);
+            go->parent = nullptr;
+            go->children.clear();
+        }
+    }
+
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr)
+        {
+            go->m_IsBeingDestroyed = true;
+            delete go;
         }
     }
 
     gameObjects.clear();
-    
-    // Cleanup root objects
-    for (GameObject* go : rootObjects)
-    {
-        if (go != nullptr)
-        {
-            delete go;
-        }
-    }
 
     // Delete loaded resources by LoadFBX
     for (MeshData& md : g_Meshes) {

@@ -107,7 +107,7 @@ private:
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
     void DrawSceneViewport();
-    void SafeDeleteGameObject(GameObject* go);
+    void ClearCurrentScene();
 
     std::vector<GameObject*> m_ObjectsToDelete;
 
