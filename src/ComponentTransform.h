@@ -26,4 +26,10 @@ public:
 	glm::mat4 rotationMatrix;
 
 	float radius;
+
+	bool HasChanged();
+private:
+	aiVector3D lastTranslation;
+	aiQuaternion lastRotation;
+	aiVector3D lastScaling;
 };
