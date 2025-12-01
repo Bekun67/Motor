@@ -90,6 +90,46 @@ static GLuint CreateNormalShader() {
 
 }
 
+// Create outline shaders
+static GLuint CreateOutlineShader() {
+    const char* vertexShaderSource = "#version 330 core\n"
+        "layout(location = 0) in vec3 position;\n"
+        "uniform mat4 model_matrix;\n"
+        "uniform mat4 view;\n"
+        "uniform mat4 projection;\n"
+        "void main() {\n"
+        "    gl_Position = projection * view * model_matrix * vec4(position, 1.0);\n"
+        "}\n";
+
+    const char* fragmentShaderSource = "#version 330 core\n"
+        "out vec4 FragColor;\n"
+        "uniform vec3 outlineColor;\n"
+        "void main() {\n"
+        "    FragColor = vec4(outlineColor, 1.0);\n"
+        "}\n";
+
+    GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+
+    int success;
+    char infoLog[1024];
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(program, 1024, NULL, infoLog);
+        std::cerr << "ERROR: Outline Shader Program Linking Failed\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    std::cout << "Outline shader created successfully" << std::endl;
+    return program;
+}
 
 void OpenGL::CreateGrid(int size)
 {
@@ -242,6 +282,8 @@ bool OpenGL::Start()
 
     // Create shaders for normals
     normalShaderProgram = CreateNormalShader();
+    // Create shader for outline 
+    outlineShaderProgram = CreateOutlineShader();
 
     lastTicks = SDL_GetTicks();
 
@@ -582,8 +624,8 @@ bool OpenGL::Update()
         }
     }
 
-    glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     ModuleEditor* editor = Application::GetInstance().editor.get();
 
@@ -785,11 +827,90 @@ bool OpenGL::Update()
         }
     }
 
-    if (!debugZBuffer) 
+    if (!debugZBuffer)
     {
+        // Clear color, depth and stencil
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
         DrawGrid();
 
-        //first we draw opaque
+        ModuleEditor* editor = Application::GetInstance().editor.get();
+
+        // Draw selected objects to stencil buffer
+        if (editor && !editor->selectedGameObjects.empty())
+        {
+            // Enable stencil test
+            glEnable(GL_STENCIL_TEST);
+
+            // Set stencil function to always pass
+            glStencilFunc(GL_ALWAYS, 1, 0xFF);
+
+            // Set stencil operation: replace stencil value with 1 where we draw
+            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+            // Enable writing to stencil buffer
+            glStencilMask(0xFF);
+
+            // Disable writing to color buffer (we only want to write to stencil)
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+            // Draw selected objects to stencil buffer
+            glDepthMask(GL_TRUE);
+            glDisable(GL_BLEND);
+
+            for (GameObject* selectedGO : editor->selectedGameObjects)
+            {
+                if (selectedGO && selectedGO->mesh &&
+                    selectedGO->mesh->meshIndex >= 0 &&
+                    !selectedGO->IsEmpty())
+                {
+                    // Find if it's opaque or transparent
+                    auto it = std::find(opaqueObjects.begin(), opaqueObjects.end(), selectedGO);
+                    if (it != opaqueObjects.end())
+                    {
+                        selectedGO->mesh->Draw(&camera);
+                    }
+                    else
+                    {
+                        auto it2 = std::find(transparentObjects.begin(), transparentObjects.end(), selectedGO);
+                        if (it2 != transparentObjects.end())
+                        {
+                            selectedGO->mesh->Draw(&camera);
+                        }
+                    }
+                }
+            }
+
+            // Re-enable color writing
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+            // Don't write to stencil anymore
+            glStencilMask(0x00);
+
+            // Now draw the outline where stencil != 1
+            glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+
+            glDisable(GL_DEPTH_TEST);
+
+            glm::vec3 outlineColor(0.3f, 0.5f, 1.0f); 
+            float outlineThickness = 0.03f; 
+
+            for (GameObject* selectedGO : editor->selectedGameObjects)
+            {
+                if (selectedGO && selectedGO->mesh &&
+                    selectedGO->mesh->meshIndex >= 0 &&
+                    !selectedGO->IsEmpty())
+                {
+                    selectedGO->mesh->DrawOutline(&camera, outlineColor, outlineThickness);
+                }
+            }
+
+            glEnable(GL_DEPTH_TEST);
+            glDisable(GL_STENCIL_TEST);
+            glStencilMask(0xFF);
+        }
+
+        // Draw objects
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
 
@@ -798,7 +919,7 @@ bool OpenGL::Update()
             go->mesh->Draw(&camera);
         }
 
-        //then transparent
+        // Then transparent objects
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDepthMask(GL_FALSE);
@@ -813,7 +934,7 @@ bool OpenGL::Update()
     }
     else
     {
-        //render with fbo (z-buffer)
+        // Z-buffer debug rendering
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glViewport(0, 0, viewportWidth, viewportHeight);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -911,6 +1032,11 @@ bool OpenGL::CleanUp()
     if (shaderProgram) {
         glDeleteProgram(shaderProgram);
         shaderProgram = 0;
+    }
+
+    if (outlineShaderProgram) {
+        glDeleteProgram(outlineShaderProgram);
+        outlineShaderProgram = 0;
     }
 
     if (normalShaderProgram) {

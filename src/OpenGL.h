@@ -28,6 +28,7 @@ public:
 	bool showGrid = true;
 	unsigned int gridVAO = 0;
 	unsigned int normalShaderProgram;
+	unsigned int outlineShaderProgram;
 	unsigned int gridVBO = 0;
 	int gridLineCount = 0;
 

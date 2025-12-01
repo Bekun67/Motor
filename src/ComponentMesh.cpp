@@ -695,3 +695,78 @@ void ComponentMesh::DrawDebugRay(Camera* camera)
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
 }
+
+void ComponentMesh::DrawOutline(Camera* camera, const glm::vec3& color, float thickness)
+{
+    if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())
+    {
+        return;
+    }
+
+    MeshData& meshdata = g_Meshes[meshIndex];
+
+    if (meshdata.VAO == 0 || meshdata.numIndices == 0)
+    {
+        return;
+    }
+
+    ComponentTransform* transform = gameObject->transform;
+    if (transform == nullptr)
+    {
+        return;
+    }
+
+    // Calculate model matrix
+    glm::mat4 model = glm::mat4(1.0f);
+
+    model = glm::translate(model, glm::vec3(
+        transform->translation.x,
+        transform->translation.y,
+        transform->translation.z
+    ));
+
+    glm::quat quat(
+        transform->rotation.w,
+        transform->rotation.x,
+        transform->rotation.y,
+        transform->rotation.z
+    );
+    model *= glm::mat4_cast(quat);
+
+    // Scale slightly larger for outline
+    float scaleMultiplier = 1.0f + thickness;
+    model = glm::scale(model, glm::vec3(
+        transform->scaling.x * scaleMultiplier,
+        transform->scaling.y * scaleMultiplier,
+        transform->scaling.z * scaleMultiplier
+    ));
+
+    // Get matrices
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+
+    // Use outline shader
+    unsigned int outlineShader = Application::GetInstance().opengl->outlineShaderProgram;
+    glUseProgram(outlineShader);
+
+    GLint modelLoc = glGetUniformLocation(outlineShader, "model_matrix");
+    GLint viewLoc = glGetUniformLocation(outlineShader, "view");
+    GLint projLoc = glGetUniformLocation(outlineShader, "projection");
+    GLint colorLoc = glGetUniformLocation(outlineShader, "outlineColor");
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3f(colorLoc, color.r, color.g, color.b);
+
+    // Disable depth writing
+    glDepthMask(GL_FALSE);
+
+    // Draw the scaled-up mesh
+    glBindVertexArray(meshdata.VAO);
+    glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    // Re-enable depth writing
+    glDepthMask(GL_TRUE);
+}
