@@ -2020,32 +2020,79 @@ void ModuleEditor::DrawGuizmo()
             else if (currentGizmoOperation == ImGuizmo::SCALE)
             {
                 // Scale from center
-                
-                // extract matrix scale
-                glm::vec3 dummyTranslation, newScale;
+
+                // Extract current matrix scale
+                glm::vec3 dummyTranslation, currentScale;
                 glm::quat dummyRotation;
                 ComponentTransform tempTransform(nullptr);
-                tempTransform.Decompose(model, dummyTranslation, dummyRotation, newScale);
+                tempTransform.Decompose(model, dummyTranslation, dummyRotation, currentScale);
 
-                // Calculate scale factor
-                glm::vec3 scaleFactor = newScale / lastMultiSelectionScale;
-                lastMultiSelectionScale = newScale;
+                // Calculate scale factor relative to INITIAL scale
+                glm::vec3 rawScaleFactor(1.0f);
+                if (initialMultiSelectionScale.x > 0.0001f)
+                    rawScaleFactor.x = currentScale.x / initialMultiSelectionScale.x;
+                if (initialMultiSelectionScale.y > 0.0001f)
+                    rawScaleFactor.y = currentScale.y / initialMultiSelectionScale.y;
+                if (initialMultiSelectionScale.z > 0.0001f)
+                    rawScaleFactor.z = currentScale.z / initialMultiSelectionScale.z;
 
-                // Apply scale fom center
+                // Apply damping to make scaling smoother and prevent extreme values
+                // Clamp the raw scale factor to a reasonable range first
+                rawScaleFactor.x = glm::clamp(rawScaleFactor.x, 0.01f, 100.0f);
+                rawScaleFactor.y = glm::clamp(rawScaleFactor.y, 0.01f, 100.0f);
+                rawScaleFactor.z = glm::clamp(rawScaleFactor.z, 0.01f, 100.0f);
+
+                // Calculate delta from last frame and apply smooth damping
+                glm::vec3 deltaScale = rawScaleFactor / lastMultiSelectionScale;
+
+                // Limit the rate of change per frame (prevents crazy jumps)
+                deltaScale.x = glm::clamp(deltaScale.x, 0.5f, 2.0f);
+                deltaScale.y = glm::clamp(deltaScale.y, 0.5f, 2.0f);
+                deltaScale.z = glm::clamp(deltaScale.z, 0.5f, 2.0f);
+
+                // Apply the smoothed delta
+                glm::vec3 smoothedScaleFactor = lastMultiSelectionScale * deltaScale;
+                lastMultiSelectionScale = smoothedScaleFactor;
+
+                // Store original scales if this is the first frame
+                static std::map<GameObject*, glm::vec3> originalScales;
+                static std::map<GameObject*, glm::vec3> originalPositions;
+
+                if (originalScales.empty())
+                {
+                    // Store original transforms
+                    for (GameObject* go : selectedGameObjects)
+                    {
+                        if (go && go->transform)
+                        {
+                            originalScales[go] = glm::vec3(
+                                go->transform->scaling.x,
+                                go->transform->scaling.y,
+                                go->transform->scaling.z
+                            );
+
+                            originalPositions[go] = glm::vec3(
+                                go->transform->translation.x,
+                                go->transform->translation.y,
+                                go->transform->translation.z
+                            );
+                        }
+                    }
+                }
+
+                // Apply scale from center
                 for (GameObject* go : selectedGameObjects)
                 {
                     if (go && go->transform)
                     {
-                        // Get current position
-                        glm::vec3 objectPos(
-                            go->transform->translation.x,
-                            go->transform->translation.y,
-                            go->transform->translation.z
-                        );
+                        // Get original position
+                        glm::vec3 originalPos = originalPositions[go];
 
-                        glm::vec3 offset = objectPos - selectionCenter;
+                        // Calculate offset from center
+                        glm::vec3 offset = originalPos - selectionCenter;
 
-                        glm::vec3 scaledOffset = offset * scaleFactor;
+                        // Scale the offset using smoothed factor
+                        glm::vec3 scaledOffset = offset * smoothedScaleFactor;
 
                         // Set new position
                         glm::vec3 newPos = selectionCenter + scaledOffset;
@@ -2054,11 +2101,24 @@ void ModuleEditor::DrawGuizmo()
                         go->transform->translation.y = newPos.y;
                         go->transform->translation.z = newPos.z;
 
-                        // Scale object
-                        go->transform->scaling.x *= scaleFactor.x;
-                        go->transform->scaling.y *= scaleFactor.y;
-                        go->transform->scaling.z *= scaleFactor.z;
+                        // Apply scale to object based on original scale
+                        glm::vec3 originalScale = originalScales[go];
+                        go->transform->scaling.x = originalScale.x * smoothedScaleFactor.x;
+                        go->transform->scaling.y = originalScale.y * smoothedScaleFactor.y;
+                        go->transform->scaling.z = originalScale.z * smoothedScaleFactor.z;
+
+                        // Clamp final scale to prevent extreme values
+                        go->transform->scaling.x = glm::clamp(go->transform->scaling.x, 0.001f, 1000.0f);
+                        go->transform->scaling.y = glm::clamp(go->transform->scaling.y, 0.001f, 1000.0f);
+                        go->transform->scaling.z = glm::clamp(go->transform->scaling.z, 0.001f, 1000.0f);
                     }
+                }
+
+                // Clear stored data when manipulation ends
+                if (!ImGuizmo::IsUsing())
+                {
+                    originalScales.clear();
+                    originalPositions.clear();
                 }
             }
 

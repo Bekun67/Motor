@@ -187,8 +187,10 @@ private:
     bool showLoadSceneConfirmation = false;
     std::string pendingSceneToLoad = "";
 
+    // Multi-selection Gizmo tracking
     glm::quat lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
     glm::vec3 lastMultiSelectionScale = glm::vec3(1, 1, 1);
+    glm::vec3 initialMultiSelectionScale = glm::vec3(1, 1, 1);
     bool wasManipulating = false;
 };
 
