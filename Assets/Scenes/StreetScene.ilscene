@@ -4,7 +4,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 24,
+                "meshIndex": 13,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -16,7 +16,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/building03_c.jpg"
+                "texturePath": "Library/Materials/building03_c.iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -24,12 +24,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "082acd5b"
         },
@@ -37,7 +37,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 25,
+                "meshIndex": 14,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -49,7 +49,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/Building_V02_C.png"
+                "texturePath": "Library/Materials/Building_V02_C.iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -57,12 +57,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "4617fb02"
         },
@@ -70,7 +70,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 26,
+                "meshIndex": 15,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -82,7 +82,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/building_016_c.png"
+                "texturePath": "Library/Materials/building_016_c.iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -90,12 +90,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "2c80224e"
         },
@@ -103,7 +103,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 27,
+                "meshIndex": 16,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -115,7 +115,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/building_025_c.png"
+                "texturePath": "Library/Materials/building_025_c.iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -123,12 +123,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "9911e157"
         },
@@ -136,7 +136,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 28,
+                "meshIndex": 17,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -144,11 +144,11 @@
             "MeshIndexInFBX": 4,
             "MeshPath": "C:/Users/xaviercf12/Downloads/Street/Street/Street environment_V01.FBX",
             "Name": "Street",
-            "ParentUUID": "1e0ff5b4",
+            "ParentUUID": "e690d730",
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": ""
+                "texturePath": "checkerboard"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -156,12 +156,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "c9556e8b"
         },
@@ -169,7 +169,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 29,
+                "meshIndex": 18,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -177,11 +177,11 @@
             "MeshIndexInFBX": 5,
             "MeshPath": "C:/Users/xaviercf12/Downloads/Street/Street/Street environment_V01.FBX",
             "Name": "All_Street",
-            "ParentUUID": "1e0ff5b4",
+            "ParentUUID": "e690d730",
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": ""
+                "texturePath": "checkerboard"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -189,12 +189,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "14608301"
         },
@@ -202,7 +202,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 30,
+                "meshIndex": 19,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -214,7 +214,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/building 01_c.jpg"
+                "texturePath": "Library/Materials/building 01_c.iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -222,12 +222,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "57148275"
         },
@@ -235,7 +235,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 31,
+                "meshIndex": 20,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -247,7 +247,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/building 06_ c .png"
+                "texturePath": "Library/Materials/building 06_ c .iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -255,12 +255,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "f39c3c69"
         },
@@ -268,7 +268,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 32,
+                "meshIndex": 21,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -280,7 +280,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/building05 _c.jpg"
+                "texturePath": "Library/Materials/building05 _c.iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -288,12 +288,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "a1de6343"
         },
@@ -301,7 +301,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 33,
+                "meshIndex": 22,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -313,7 +313,7 @@
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": "C:/Users/xaviercf12/Downloads/Street/Street/Building_V01_C.png"
+                "texturePath": "Library/Materials/Building_V01_C.iltex"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -321,12 +321,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "1a3639c4"
         },
@@ -334,7 +334,7 @@
             "Active": true,
             "IsEmpty": false,
             "Mesh": {
-                "meshIndex": 34,
+                "meshIndex": 23,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -342,11 +342,11 @@
             "MeshIndexInFBX": 10,
             "MeshPath": "C:/Users/xaviercf12/Downloads/Street/Street/Street environment_V01.FBX",
             "Name": "CrossRoads",
-            "ParentUUID": "1e0ff5b4",
+            "ParentUUID": "e690d730",
             "Texture": {
                 "hasTexture": true,
                 "hasTransparency": false,
-                "texturePath": ""
+                "texturePath": "checkerboard"
             },
             "Transform": {
                 "radius": 67.84999084472656,
@@ -354,12 +354,12 @@
                 "rotation_x": 0.0,
                 "rotation_y": 0.0,
                 "rotation_z": 0.0,
-                "scale_x": 0.07369197905063629,
-                "scale_y": 0.07369197905063629,
-                "scale_z": 0.07369197905063629,
-                "translation_x": 0.13636350631713867,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 3.056851863861084
+                "translation_z": 0.0
             },
             "UUID": "b42431ef"
         },
@@ -415,9 +415,37 @@
                 "scale_z": 1.0,
                 "translation_x": 0.0,
                 "translation_y": 0.0,
-                "translation_z": 2.897444486618042
+                "translation_z": 0.0
             },
             "UUID": "f68763a9"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "AllStreet",
+            "ParentUUID": "1e0ff5b4",
+            "Transform": {
+                "radius": 1.426003098487854,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "e690d730"
         }
     ]
 }
