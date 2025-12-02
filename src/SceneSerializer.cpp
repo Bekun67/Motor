@@ -7,6 +7,8 @@
 #include "TextureImporter.h"
 #include "ResourceManager.h"
 #include "MeshImporter.h"
+#include "OpenGL.h"
+#include "Application.h"
 #include <glad/glad.h>
 #include <fstream>
 #include <iostream>
@@ -101,6 +103,14 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 	// Reconstruct hierarchy
 	ReconstructHierarchy(gameObjects);
 
+	//rebuild quadtree
+	OpenGL* opengl = Application::GetInstance().opengl.get();
+	if (opengl && opengl->useQuadtree)
+	{
+		opengl->RebuildQuadtree();
+		LOG("Quadtree rebuilt after loading scene");
+	}
+
 	LOG("Scene loaded successfully from: " + filepath);
 	LOG("Loaded " + std::to_string(gameObjects.size()) + " GameObjects");
 	return true;
@@ -114,6 +124,7 @@ json SceneSerializer::SerializeGameObject(const GameObject* go)
 	j["ParentUUID"] = go->GetParentUUID().ToString();
 	j["Name"] = go->name;
 	j["Active"] = go->active;
+	j["IsStatic"] = go->isStatic;
 	j["MeshPath"] = go->meshPath;
 
 	// Mark if this is an empty GameObject
@@ -208,6 +219,9 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 
 	if (j.contains("Active"))
 		go->active = j["Active"];
+
+	if (j.contains("IsStatic"))
+		go->isStatic = j["IsStatic"];
 
 	if (j.contains("MeshPath"))
 		go->meshPath = j["MeshPath"];

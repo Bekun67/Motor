@@ -841,14 +841,37 @@ void ModuleEditor::DrawConfiguration()
             if (cam->frustumCullingEnabled)
             {
                 OpenGL* opengl = Application::GetInstance().opengl.get();
-                ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
-                ImGui::Text("Objects Culled: %d", opengl->culledCount);
 
-                int total = opengl->renderedCount + opengl->culledCount;
-                if (total > 0)
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Rendering Statistics:");
+
+                ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
+
+                if (opengl->useQuadtree)
                 {
-                    float percentage = (float)opengl->culledCount / (float)total * 100.0f;
-                    ImGui::Text("Culling Efficiency: %.1f%%", percentage);
+                    ImGui::Text("Culled by Frustum: %d", opengl->culledCount);
+                    ImGui::Text("Culled by Quadtree: %d", opengl->quadtreeCulledCount);
+
+                    int totalCulled = opengl->culledCount + opengl->quadtreeCulledCount;
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "TOTAL Culled: %d", totalCulled);
+
+                    int totalObjects = opengl->renderedCount + totalCulled;
+                    if (totalObjects > 0)
+                    {
+                        float cullingEfficiency = (float)totalCulled / (float)totalObjects * 100.0f;
+                        ImGui::Text("Total Culling Efficiency: %.1f%%", cullingEfficiency);
+                    }
+                }
+                else
+                {
+                    ImGui::Text("Objects Culled: %d", opengl->culledCount);
+
+                    int total = opengl->renderedCount + opengl->culledCount;
+                    if (total > 0)
+                    {
+                        float percentage = (float)opengl->culledCount / (float)total * 100.0f;
+                        ImGui::Text("Culling Efficiency: %.1f%%", percentage);
+                    }
                 }
             }
 
@@ -949,6 +972,91 @@ void ModuleEditor::DrawConfiguration()
                 else LOG("Disabled AABB visualization for all GameObjects");
             }
             ImGui::Text("GameObjects in scene: %zu", opengl->gameObjects.size());
+        }
+    }
+
+    //quadtree section
+    if (ImGui::CollapsingHeader("Space Partitioning", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        OpenGL* opengl = Application::GetInstance().opengl.get();
+        if (opengl)
+        {
+            //change usage
+            if (ImGui::Checkbox("Use Quadtree", &opengl->useQuadtree))
+            {
+                if (opengl->useQuadtree)
+                {
+                    opengl->RebuildQuadtree();
+                    if(!opengl->EmptyQuadtree()) LOG("Quadtree enabled");
+                }
+                else
+                {
+                    opengl->quadtree.Clear();
+                    LOG("Quadtree disabled");
+                }
+            }
+
+            //if quadtree is active we add an option for showing
+            if (opengl->useQuadtree)
+            {
+                if (ImGui::Checkbox("Show Quadtree", &opengl->showQuadtree))
+                {
+                    if (opengl->showQuadtree)
+                    {
+                        LOG("Quadtree Debug ENABLED");
+                    }
+                    else
+                    {
+                        LOG("Quadtree Debug DISABLED");
+                    }
+                }
+
+                if (ImGui::Button("Rebuild Quadtree", ImVec2(-1, 0)))
+                {
+                    opengl->RebuildQuadtree();
+                }
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Quadtree Statistics:");
+
+                std::vector<GameObject*> allInQuadtree;
+                opengl->quadtree.GetAllObjects(allInQuadtree);
+                ImGui::Text("Objects in Quadtree: %d", (int)allInQuadtree.size());
+
+                if (opengl->camera.frustumCullingEnabled)
+                {
+                    //quadtree stats with frustum
+                    ImGui::Text("Candidates tested: %d", opengl->quadtreeTestsCount);
+                    ImGui::Text("Skipped by Quadtree: %d", opengl->quadtreeCulledCount);
+
+                    int totalStatic = (int)allInQuadtree.size();
+                    if (totalStatic > 0)
+                    {
+                        float efficiency = 100.0f * (float)opengl->quadtreeCulledCount / (float)totalStatic;
+                        ImGui::ProgressBar(efficiency / 100.0f, ImVec2(-1, 0),
+                            (std::to_string((int)efficiency) + "% skipped").c_str());
+
+                        ImGui::Separator();
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Without Quadtree: %d frustum tests", totalStatic);
+                        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "With Quadtree: %d frustum tests", opengl->quadtreeTestsCount);
+
+                        int testsSaved = totalStatic - opengl->quadtreeTestsCount;
+                        ImGui::Text("Tests Saved: %d (%.1f%%)", testsSaved, efficiency);
+                    }
+                }
+
+                if (ImGui::Checkbox("Extra Quadtree LOGs", &opengl->extraQuadtreeInfo))
+                {
+                    if (opengl->extraQuadtreeInfo)
+                    {
+                        LOG("Extra Quadtree LOGs enabled");
+                    }
+                    else
+                    {
+                        LOG("Extra Quadtree LOGs disabled");
+                    }
+                }
+            }
         }
     }
 
@@ -1431,6 +1539,31 @@ void ModuleEditor::DrawInspector()
                     transform->rotation.y,
                     transform->rotation.z);
             }
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Space Partitioning:");
+
+        //change static or not
+        bool wasStatic = selectedGameObject->isStatic;
+        if (ImGui::Checkbox("Static", &selectedGameObject->isStatic))
+        {
+            if (wasStatic != selectedGameObject->isStatic)
+            {
+                //if we have changed static or dynamic we rebuild the quadtree
+                OpenGL* opengl = Application::GetInstance().opengl.get();
+                if (opengl && opengl->useQuadtree)
+                {
+                    opengl->RebuildQuadtree();
+                    LOG("GameObject " + selectedGameObject->name + " marked as " + (selectedGameObject->isStatic ? "STATIC" : "DYNAMIC"));
+                }
+                sceneModified = true;
+            }
+        }
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Static objects won't move during gameplay and\nare stored in the Quadtree for faster queries");
         }
 
         // Mesh Component

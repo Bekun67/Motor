@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <vector>
 #include <string>
+#include "Quadtree.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
@@ -68,6 +69,16 @@ public:
 
 	glm::vec3 debugRayStart;
 	glm::vec3 debugRayEnd;
+
+	//quadtree
+	Quadtree quadtree;
+	bool useQuadtree = false;
+	bool showQuadtree = false;
+	void RebuildQuadtree();
+	int quadtreeTestsCount = 0;
+	int quadtreeCulledCount = 0;
+	bool EmptyQuadtree();
+	bool extraQuadtreeInfo = false;
 
 private:
 	bool Start() override;

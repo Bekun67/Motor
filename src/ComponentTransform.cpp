@@ -13,6 +13,10 @@ ComponentTransform::ComponentTransform(GameObject* gameObject)
 	translation = aiVector3D(0.0f, 0.0f, 0.0f);
 	rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
 	radius = g_ModelRadius;
+
+	lastTranslation = translation;
+	lastRotation = rotation;
+	lastScaling = scaling;
 }
 
 ComponentTransform::~ComponentTransform()
@@ -22,6 +26,53 @@ ComponentTransform::~ComponentTransform()
 
 void ComponentTransform::Update()
 {
+}
+
+bool ComponentTransform::HasChanged()
+{
+	bool changed = false;
+	const float epsilon = 0.0001f; 
+
+	//check translation change
+	if (std::abs(translation.x - lastTranslation.x) > epsilon ||
+		std::abs(translation.y - lastTranslation.y) > epsilon ||
+		std::abs(translation.z - lastTranslation.z) > epsilon)
+	{
+		changed = true;
+	}
+
+	//check rotation change
+	if (std::abs(rotation.w - lastRotation.w) > epsilon ||
+		std::abs(rotation.x - lastRotation.x) > epsilon ||
+		std::abs(rotation.y - lastRotation.y) > epsilon ||
+		std::abs(rotation.z - lastRotation.z) > epsilon)
+	{
+		changed = true;
+	}
+
+	//check scale change
+	if (std::abs(scaling.x - lastScaling.x) > epsilon ||
+		std::abs(scaling.y - lastScaling.y) > epsilon ||
+		std::abs(scaling.z - lastScaling.z) > epsilon)
+	{
+		changed = true;
+	}
+
+	//if changed
+	if (changed)
+	{
+		lastTranslation = translation;
+		lastRotation = rotation;
+		lastScaling = scaling;
+
+		//mark for quadtree update
+		if (gameObject && gameObject->isStatic)
+		{
+			gameObject->needsQuadtreeUpdate = true;
+		}
+	}
+
+	return changed;
 }
 
 bool ComponentTransform::Decompose(const glm::mat4& transform, glm::vec3& translation, glm::quat& rotation, glm::vec3& scale)
@@ -90,4 +141,8 @@ void ComponentTransform::Deserialize(const PropertyMap& props)
 	if (props.count("scale_z")) scaling.z = std::get<float>(props.at("scale_z"));
 
 	if (props.count("radius")) radius = std::get<float>(props.at("radius"));
+
+	lastTranslation = translation;
+	lastRotation = rotation;
+	lastScaling = scaling;
 }

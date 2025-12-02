@@ -256,7 +256,7 @@ bool Input::PreUpdate()
             if (moduleEditor->showInspector)
             {
                 if (moduleEditor->selectedGameObjects.empty())
-                    LOG("WARNING: No GameObject selected!");
+                    LOG_WARNING("No GameObject selected!");
                 //texture drag area;
                 else if (mouseX >= moduleEditor->textureDropPos.x && mouseX <= moduleEditor->textureDropPos.x + moduleEditor->textureDropSize.x &&
                     mouseY >= moduleEditor->textureDropPos.y && mouseY <= moduleEditor->textureDropPos.y + moduleEditor->textureDropSize.y)
@@ -290,7 +290,7 @@ bool Input::PreUpdate()
                 if (extension == ".fbx") {
                     if (!mouseInsideScene)
                     {
-                        LOG("WARNING: Drop mesh in scene");
+                        LOG_WARNING("Drop mesh in scene");
                         break;
                     }
                     //if fbx we load its mesh
@@ -409,7 +409,7 @@ bool Input::PreUpdate()
                     if (!mouseInsideScene && !mouseInsideTextureInspector)
                     {
                         if (!moduleEditor->selectedGameObjects.empty())
-                            LOG("WARNING: Drop texture over a GameObject or in the Inspector tab!");
+                            LOG_WARNING("Drop texture over a GameObject or in the Inspector tab!");
                         break;
                     }
                     std::cout << "========TEXTURE==========" << std::endl;
@@ -584,12 +584,12 @@ bool Input::PreUpdate()
                     {
                         //if there is no close object
                         std::cout << "No object found under cursor" << std::endl;
-                        LOG("WARNING: No GameObject in that position");
+                        LOG_WARNING("No GameObject in that position");
                     }
                 }
                 else
                 {
-                    LOG("WARNING: Unknown file format");
+                    LOG_WARNING("Unknown file format");
                 }
             }
             break;

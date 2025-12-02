@@ -1,7 +1,11 @@
 #pragma once
-#include "Component.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "Component.h"
+#include "Structures.h"
+
+class GameObject;
+struct Ray;
 
 enum class ProjectionType
 {
@@ -28,6 +32,28 @@ struct Frustum
 
     void ExtractFromMatrix(const glm::mat4& m);
     FrustumIntersection ContainsAABB(const glm::vec3& minPoint, const glm::vec3& maxPoint) const;
+
+    bool Intersects(const AABB& box) const
+    {
+        for (int p = 0; p < 6; ++p)
+        {
+            glm::vec3 positiveVertex;
+            positiveVertex.x = (planes[p].normal.x >= 0.0f) ? box.max.x : box.min.x;
+            positiveVertex.y = (planes[p].normal.y >= 0.0f) ? box.max.y : box.min.y;
+            positiveVertex.z = (planes[p].normal.z >= 0.0f) ? box.max.z : box.min.z;
+
+            float dist = glm::dot(planes[p].normal, positiveVertex) + planes[p].distance;
+            if (dist < 0.0f) return false;
+        }
+
+        return true; 
+    }
+
+    bool Intersects(const WorldAABB& worldAABB) const
+    {
+        AABB box(worldAABB.min, worldAABB.max);
+        return Intersects(box);
+    }
 };
 
 class ComponentCamera : public Component

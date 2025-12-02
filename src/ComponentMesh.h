@@ -3,17 +3,9 @@
 #include "Component.h"
 #include "Camera.h"
 #include <glm/glm.hpp>
+#include "Structures.h"
 
 class MeshData;
-
-//aabb struct for showing in the inspector
-struct WorldAABB
-{
-	glm::vec3 min;
-	glm::vec3 max;
-	glm::vec3 center;
-	glm::vec3 size;
-};
 
 class ComponentMesh : public Component
 {

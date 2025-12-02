@@ -694,6 +694,32 @@ bool OpenGL::Update()
     // Use camera input handling
     camera.HandleInput(deltaTime);
 
+    if (useQuadtree)
+    {
+        bool needsRebuild = false;
+
+        for (GameObject* go : gameObjects)
+        {
+            if (go != nullptr && go->transform != nullptr)
+            {
+                // Check if transform changed
+                if (go->transform->HasChanged())
+                {
+                    if (go->isStatic)
+                    {
+                        needsRebuild = true;
+                    }
+                }
+            }
+        }
+
+        if (needsRebuild)
+        {
+            LOG("Static object moved - Rebuilding Quadtree");
+            RebuildQuadtree();
+        }
+    }
+
     // Check if window was resized
     Window* window = Application::GetInstance().window.get();
     if (window->WasResized())
@@ -722,7 +748,6 @@ bool OpenGL::Update()
 
     if (editor)
     {
-        Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
 
@@ -738,7 +763,6 @@ bool OpenGL::Update()
     }
     else
     {
-        Window* window = Application::GetInstance().window.get();
         int windowWidth, windowHeight;
         window->GetWindowSize(windowWidth, windowHeight);
         viewportWidth = windowWidth;
@@ -777,107 +801,141 @@ bool OpenGL::Update()
     //reset culling stats for showing
     culledCount = 0;
     renderedCount = 0;
-
-    std::vector<GameObject*> opaqueObjects;
-    std::vector<GameObject*> transparentObjects;
+    quadtreeTestsCount = 0;
+    int quadtreeCulledCount = 0;
 
     glm::vec3 cameraPos = camera.GetPosition();
 
-    //split objects by transparency and apply frustum culling
+    std::vector<GameObject*> staticObjects;
+    std::vector<GameObject*> dynamicObjects;
+
+    //split dynamic and static go
     for (GameObject* go : gameObjects)
     {
-        // Skip empty GameObjects (no mesh)
         if (go == nullptr || go->mesh == nullptr || go->mesh->meshIndex < 0 || go->IsEmpty())
-        {
             continue;
-        }
 
-        if (go != nullptr && go->mesh != nullptr && go->mesh->meshIndex >= 0)
-        {
-            //calculate distance
-            float dx = cameraPos.x - go->transform->translation.x;
-            float dy = cameraPos.y - go->transform->translation.y;
-            float dz = cameraPos.z - go->transform->translation.z;
-            go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
-        }
-        
         //calculate distance to camera
         float dx = cameraPos.x - go->transform->translation.x;
         float dy = cameraPos.y - go->transform->translation.y;
         float dz = cameraPos.z - go->transform->translation.z;
         go->distanceToCamera = sqrt(dx * dx + dy * dy + dz * dz);
 
-        //assume visible by default
+        if (go->isStatic)
+        {
+            staticObjects.push_back(go);
+        }
+        else
+        {
+            dynamicObjects.push_back(go);
+        }
+    }
+
+    //process static obj
+    std::vector<GameObject*> visibleStatic;
+
+    if (useQuadtree && !staticObjects.empty())
+    {
+        if (frustum != nullptr)
+        {
+            //quadtree returns candidates
+            std::vector<GameObject*> candidateObjects;
+            quadtree.CollectIntersections(candidateObjects, *frustum);
+
+            quadtreeTestsCount = candidateObjects.size();
+            quadtreeCulledCount = staticObjects.size() - candidateObjects.size();
+
+            //frustum over all candidates
+            for (GameObject* go : candidateObjects)
+            {
+                if (go == nullptr || go->mesh == nullptr || go->mesh->meshIndex < 0) continue;
+
+                if (go->mesh->meshIndex >= (int)g_Meshes.size()) continue;
+
+                WorldAABB worldAABB = go->mesh->GetWorldAABB();
+
+                //test individual aabb against frustum
+                if (frustum->Intersects(worldAABB))
+                {
+                    visibleStatic.push_back(go);
+                    go->isVisibleInFrustum = true;
+                    go->culledLastFrame = false;
+                    renderedCount++;
+                }
+                else
+                {
+                    go->isVisibleInFrustum = false;
+                    go->culledLastFrame = true;
+                    culledCount++;
+                }
+            }
+        }
+        else
+        {
+            //if frustum is not active all are visible
+            quadtree.GetAllObjects(visibleStatic);
+            quadtreeTestsCount = visibleStatic.size();
+            renderedCount += visibleStatic.size();
+
+            for (GameObject* go : visibleStatic)
+            {
+                go->isVisibleInFrustum = true;
+                go->culledLastFrame = false;
+            }
+        }
+    }
+    else if (!staticObjects.empty())
+    {
+        //if quadtree is not active we test frustum against all
+        if (frustum != nullptr)
+        {
+            for (GameObject* go : staticObjects)
+            {
+                if (go->mesh->meshIndex >= (int)g_Meshes.size())
+                    continue;
+
+                WorldAABB worldAABB = go->mesh->GetWorldAABB();
+
+                if (frustum->Intersects(worldAABB))
+                {
+                    visibleStatic.push_back(go);
+                    go->isVisibleInFrustum = true;
+                    go->culledLastFrame = false;
+                    renderedCount++;
+                }
+                else
+                {
+                    go->isVisibleInFrustum = false;
+                    go->culledLastFrame = true;
+                    culledCount++;
+                }
+            }
+        }
+        else
+        {
+            visibleStatic = staticObjects;
+            renderedCount += visibleStatic.size();
+            for (GameObject* go : visibleStatic)
+            {
+                go->isVisibleInFrustum = true;
+                go->culledLastFrame = false;
+            }
+        }
+    }
+
+    //process dynamic
+    std::vector<GameObject*> visibleDynamic;
+
+    for (GameObject* go : dynamicObjects)
+    {
         go->isVisibleInFrustum = true;
 
-        //test frustum
         if (frustum != nullptr && go->mesh->meshIndex < (int)g_Meshes.size())
         {
-            MeshData& meshData = g_Meshes[go->mesh->meshIndex];
-
-            //get aabb
-            glm::vec3 localMin = meshData.aabbMin;
-            glm::vec3 localMax = meshData.aabbMax;
-
-            glm::mat4 model = glm::mat4(1.0f);
-
-            //translation
-            model = glm::translate(model, glm::vec3(
-                go->transform->translation.x,
-                go->transform->translation.y,
-                go->transform->translation.z
-            ));
-
-            //rotation
-            glm::quat rotation(
-                go->transform->rotation.w,
-                go->transform->rotation.x,
-                go->transform->rotation.y,
-                go->transform->rotation.z
-            );
-            model *= glm::mat4_cast(rotation);
-
-            //scale
-            model = glm::scale(model, glm::vec3(
-                go->transform->scaling.x,
-                go->transform->scaling.y,
-                go->transform->scaling.z
-            ));
-
-            //transform 8 aabb corners
-            glm::vec3 corners[8] = {
-                glm::vec3(localMin.x, localMin.y, localMin.z),
-                glm::vec3(localMax.x, localMin.y, localMin.z),
-                glm::vec3(localMax.x, localMax.y, localMin.z),
-                glm::vec3(localMin.x, localMax.y, localMin.z),
-                glm::vec3(localMin.x, localMin.y, localMax.z),
-                glm::vec3(localMax.x, localMin.y, localMax.z),
-                glm::vec3(localMax.x, localMax.y, localMax.z),
-                glm::vec3(localMin.x, localMax.y, localMax.z)
-            };
-
-            glm::vec3 worldMin = glm::vec3(FLT_MAX);
-            glm::vec3 worldMax = glm::vec3(-FLT_MAX);
-
-            for (int i = 0; i < 8; ++i)
-            {
-                glm::vec4 worldCorner = model * glm::vec4(corners[i], 1.0f);
-                glm::vec3 corner3D = glm::vec3(worldCorner);
-
-                worldMin.x = std::min(worldMin.x, corner3D.x);
-                worldMin.y = std::min(worldMin.y, corner3D.y);
-                worldMin.z = std::min(worldMin.z, corner3D.z);
-
-                worldMax.x = std::max(worldMax.x, corner3D.x);
-                worldMax.y = std::max(worldMax.y, corner3D.y);
-                worldMax.z = std::max(worldMax.z, corner3D.z);
-            }
-
-            //test aabb against frustum
-            FrustumIntersection result = frustum->ContainsAABB(worldMin, worldMax);
+            WorldAABB worldAABB = go->mesh->GetWorldAABB();
 
             //if the object is OUT we skip it
-            if (result == FrustumIntersection::OUT)
+            if (!frustum->Intersects(worldAABB))
             {
                 go->isVisibleInFrustum = false;
                 go->culledLastFrame = true;
@@ -896,7 +954,23 @@ bool OpenGL::Update()
             renderedCount++;
         }
 
-        //filter transparent and opaque
+        if (go->isVisibleInFrustum)
+        {
+            visibleDynamic.push_back(go);
+        }
+    }
+
+    //combine visible static and dynamic
+    std::vector<GameObject*> allVisibleObjects;
+    allVisibleObjects.insert(allVisibleObjects.end(), visibleStatic.begin(), visibleStatic.end());
+    allVisibleObjects.insert(allVisibleObjects.end(), visibleDynamic.begin(), visibleDynamic.end());
+
+    //filter transparent and opaque
+    std::vector<GameObject*> opaqueObjects;
+    std::vector<GameObject*> transparentObjects;
+
+    for (GameObject* go : allVisibleObjects)
+    {
         bool isTransparent = false;
         if (go->texture != nullptr && go->texture->hasTexture)
         {
@@ -912,7 +986,9 @@ bool OpenGL::Update()
             opaqueObjects.push_back(go);
         }
     }
+    this->quadtreeCulledCount = quadtreeCulledCount;
 
+    //render
     if (!debugZBuffer)
     {
         ModuleEditor* editor = Application::GetInstance().editor.get();
@@ -992,6 +1068,13 @@ bool OpenGL::Update()
 
         DrawGrid();
 
+        //draw quad
+        if (showQuadtree && useQuadtree)
+        {
+            quadtree.DebugDraw();
+        }
+
+        //first we draw opaque
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
 
@@ -1174,4 +1257,98 @@ bool OpenGL::CleanUp()
 bool OpenGL::Draw()
 {
     return true;
+}
+
+bool OpenGL::EmptyQuadtree()
+{
+    //method to know if the quadtree is empty or not (if there are any static objects or not)
+    glm::vec3 sceneMin(FLT_MAX);
+    glm::vec3 sceneMax(-FLT_MAX);
+    int staticCount = 0;
+
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr && go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        {
+            WorldAABB worldAABB = go->mesh->GetWorldAABB();
+
+            sceneMin.x = std::min(sceneMin.x, worldAABB.min.x);
+            sceneMin.y = std::min(sceneMin.y, worldAABB.min.y);
+            sceneMin.z = std::min(sceneMin.z, worldAABB.min.z);
+
+            sceneMax.x = std::max(sceneMax.x, worldAABB.max.x);
+            sceneMax.y = std::max(sceneMax.y, worldAABB.max.y);
+            sceneMax.z = std::max(sceneMax.z, worldAABB.max.z);
+
+            staticCount++;
+        }
+    }
+    if (staticCount == 0)
+    {
+        quadtree.Clear();
+        return true;
+    }
+    else return false;
+}
+
+void OpenGL::RebuildQuadtree()
+{
+    LOG("Rebuilding Quadtree...");
+
+    //calculate aabb that contains all static
+    glm::vec3 sceneMin(FLT_MAX);
+    glm::vec3 sceneMax(-FLT_MAX);
+
+    int staticCount = 0;
+
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr && go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        {
+            WorldAABB worldAABB = go->mesh->GetWorldAABB();
+
+            sceneMin.x = std::min(sceneMin.x, worldAABB.min.x);
+            sceneMin.y = std::min(sceneMin.y, worldAABB.min.y);
+            sceneMin.z = std::min(sceneMin.z, worldAABB.min.z);
+
+            sceneMax.x = std::max(sceneMax.x, worldAABB.max.x);
+            sceneMax.y = std::max(sceneMax.y, worldAABB.max.y);
+            sceneMax.z = std::max(sceneMax.z, worldAABB.max.z);
+
+            staticCount++;
+        }
+    }
+
+    if (staticCount == 0)
+    {
+        LOG_WARNING("No static objects found to build Quadtree");
+        quadtree.Clear();
+        return;
+    }
+
+    float padding = 10.0f;
+
+    glm::vec3 boundaryMin(sceneMin.x - padding, sceneMin.y, sceneMin.z - padding);
+    glm::vec3 boundaryMax(sceneMax.x + padding, sceneMax.y, sceneMax.z + padding);
+
+    AABB boundary(boundaryMin, boundaryMax);
+
+    quadtree.Create(boundary, 4, 5);
+
+    //insert game objects
+    int insertedCount = 0;
+    for (GameObject* go : gameObjects)
+    {
+        if (go != nullptr && go->isStatic && go->mesh != nullptr && go->mesh->meshIndex >= 0)
+        {
+            if (quadtree.Insert(go))
+            {
+                insertedCount++;
+            }
+        }
+    }
+
+    LOG("Quadtree rebuilt with " + std::to_string(insertedCount) + " static objects");
+    LOG("Boundary: Min(" + std::to_string(sceneMin.x) + ", " + std::to_string(sceneMin.z) +
+        ") Max(" + std::to_string(sceneMax.x) + ", " + std::to_string(sceneMax.z) + ")");
 }

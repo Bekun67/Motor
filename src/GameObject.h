@@ -80,6 +80,10 @@ public:
 
 	bool m_MarkedForDeletion = false;
 	bool m_IsBeingDestroyed = false;
+	
+	//quadtree
+	bool isStatic = false;
+	bool needsQuadtreeUpdate = false;
 
 private:
 	UUID m_UUID;
