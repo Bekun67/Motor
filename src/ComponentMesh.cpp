@@ -745,20 +745,6 @@ void ComponentMesh::DrawOutline(Camera* camera, const glm::vec3& color, float th
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
 
-    // Use outline shader
-    unsigned int outlineShader = Application::GetInstance().opengl->outlineShaderProgram;
-    glUseProgram(outlineShader);
-
-    GLint modelLoc = glGetUniformLocation(outlineShader, "model_matrix");
-    GLint viewLoc = glGetUniformLocation(outlineShader, "view");
-    GLint projLoc = glGetUniformLocation(outlineShader, "projection");
-    GLint colorLoc = glGetUniformLocation(outlineShader, "outlineColor");
-
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform3f(colorLoc, color.r, color.g, color.b);
-
     // Disable depth writing
     glDepthMask(GL_FALSE);
 

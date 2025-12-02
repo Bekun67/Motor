@@ -90,22 +90,48 @@ static GLuint CreateNormalShader() {
 
 }
 
-// Create outline shaders
-static GLuint CreateOutlineShader() {
+// Create outline shaders detecting the edge
+static GLuint CreateEdgeDetectionShader() {
     const char* vertexShaderSource = "#version 330 core\n"
-        "layout(location = 0) in vec3 position;\n"
-        "uniform mat4 model_matrix;\n"
-        "uniform mat4 view;\n"
-        "uniform mat4 projection;\n"
+        "layout(location = 0) in vec2 aPos;\n"
+        "layout(location = 1) in vec2 aTexCoord;\n"
+        "out vec2 TexCoord;\n"
         "void main() {\n"
-        "    gl_Position = projection * view * model_matrix * vec4(position, 1.0);\n"
+        "    TexCoord = aTexCoord;\n"
+        "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
         "}\n";
 
     const char* fragmentShaderSource = "#version 330 core\n"
         "out vec4 FragColor;\n"
+        "in vec2 TexCoord;\n"
+        "uniform sampler2D maskTexture;\n"
         "uniform vec3 outlineColor;\n"
+        "uniform float outlineThickness;\n"
+        "uniform vec2 texelSize;\n"
         "void main() {\n"
-        "    FragColor = vec4(outlineColor, 1.0);\n"
+        "    float mask = texture(maskTexture, TexCoord).r;\n"
+        "    \n"
+        "    if (mask > 0.5) {\n"
+        "        // Check neighbors\n"
+        "        float edge = 0.0;\n"
+        "        for (float x = -outlineThickness; x <= outlineThickness; x += 1.0) {\n"
+        "            for (float y = -outlineThickness; y <= outlineThickness; y += 1.0) {\n"
+        "                vec2 offset = vec2(x, y) * texelSize;\n"
+        "                float neighborMask = texture(maskTexture, TexCoord + offset).r;\n"
+        "                if (neighborMask < 0.5) {\n"
+        "                    edge = 1.0;\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
+        "        \n"
+        "        if (edge > 0.5) {\n"
+        "            FragColor = vec4(outlineColor, 1.0);\n"
+        "        } else {\n"
+        "            discard;\n"
+        "        }\n"
+        "    } else {\n"
+        "        discard;\n"
+        "    }\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -121,13 +147,43 @@ static GLuint CreateOutlineShader() {
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(program, 1024, NULL, infoLog);
-        std::cerr << "ERROR: Outline Shader Program Linking Failed\n" << infoLog << std::endl;
+        std::cerr << "ERROR: Edge Detection Shader Linking Failed\n" << infoLog << std::endl;
     }
 
     glDeleteShader(vs);
     glDeleteShader(fs);
 
-    std::cout << "Outline shader created successfully" << std::endl;
+    std::cout << "Edge detection shader created successfully" << std::endl;
+    return program;
+}
+
+static GLuint CreateMaskShader() {
+    const char* vertexShaderSource = "#version 330 core\n"
+        "layout(location = 0) in vec3 position;\n"
+        "uniform mat4 model_matrix;\n"
+        "uniform mat4 view;\n"
+        "uniform mat4 projection;\n"
+        "void main() {\n"
+        "    gl_Position = projection * view * model_matrix * vec4(position, 1.0);\n"
+        "}\n";
+
+    const char* fragmentShaderSource = "#version 330 core\n"
+        "out vec4 FragColor;\n"
+        "void main() {\n"
+        "    FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
+        "}\n";
+
+    GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
     return program;
 }
 
@@ -282,8 +338,9 @@ bool OpenGL::Start()
 
     // Create shaders for normals
     normalShaderProgram = CreateNormalShader();
-    // Create shader for outline 
-    outlineShaderProgram = CreateOutlineShader();
+    // Create shader for outline detecting edges
+    edgeDetectionShader = CreateEdgeDetectionShader();
+    maskShader = CreateMaskShader();
 
     lastTicks = SDL_GetTicks();
 
@@ -298,7 +355,7 @@ bool OpenGL::Start()
     std::string customTexturePath = TextureImporter::GetCustomTexturePath(texturePath);
     bool needsTextureReimport = FileSystemManager::NeedsReimport(texturePath, customTexturePath);
 
-    // MESH IMPORT
+    // Mesh import
     if (needsMeshReimport) {
         std::cout << "\n========================================" << std::endl;
         std::cout << "BAKER HOUSE - First time or FBX modified" << std::endl;
@@ -328,7 +385,7 @@ bool OpenGL::Start()
         }
     }
 
-    // TEXTURE IMPORT
+    // texture import
     if (needsTextureReimport) {
         std::cout << "\n[BakerHouse] Texture needs reimport" << std::endl;
 
@@ -351,13 +408,13 @@ bool OpenGL::Start()
         }
     }
 
-    // NOW LOAD MESH FROM CUSTOM FORMAT
+    // Load mesh from custom format
     std::cout << "\n[BakerHouse] Loading mesh from custom format..." << std::endl;
     if (!LoadFileCustomFormat(fbxPath)) {
         std::cerr << "[BakerHouse] Failed to load mesh from custom format" << std::endl;
     }
 
-    // CREATE GAME OBJECT
+    // Create game object
     if (!g_Meshes.empty()) {
         GameObject* house = new GameObject();
         house->meshPath = fbxPath;
@@ -372,7 +429,7 @@ bool OpenGL::Start()
 
         house->mesh->meshIndex = 0;
 
-        // LOAD TEXTURE FROM CUSTOM FORMAT
+        // Load texture from custom format
         CustomTexture loadedTexture;
         if (TextureImporter::LoadTexture(loadedTexture, customTexturePath)) {
             std::cout << "[BakerHouse] Loading texture from custom format..." << std::endl;
@@ -593,6 +650,35 @@ bool OpenGL::Start()
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
+
+    // Create selection framebuffer for outline
+    glGenFramebuffers(1, &selectionFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, selectionFBO);
+
+    glGenTextures(1, &selectionTexture);
+    glBindTexture(GL_TEXTURE_2D, selectionTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 1024, 1024, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selectionTexture, 0);
+
+    // Attach depth buffer for proper depth testing
+    GLuint selectionDepthBuffer;
+    glGenRenderbuffers(1, &selectionDepthBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, selectionDepthBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1024, 1024);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, selectionDepthBuffer);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cerr << "ERROR: Selection Framebuffer is not complete!" << std::endl;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    selectionTextureWidth = 1024;
+    selectionTextureHeight = 1024;
+
 
     std::cout << "OpenGL initialized successfully" << std::endl;
     return true;
@@ -829,88 +915,83 @@ bool OpenGL::Update()
 
     if (!debugZBuffer)
     {
-        // Clear color, depth and stencil
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        ModuleEditor* editor = Application::GetInstance().editor.get();
+
+        // Resize selection texture if needed
+        if (editor && (selectionTextureWidth != viewportWidth || selectionTextureHeight != viewportHeight))
+        {
+            selectionTextureWidth = viewportWidth;
+            selectionTextureHeight = viewportHeight;
+
+            glBindTexture(GL_TEXTURE_2D, selectionTexture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, viewportWidth, viewportHeight, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+        }
+
+        // Render selected objects to selection mask
+        if (editor && !editor->selectedGameObjects.empty())
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, selectionFBO);
+            glViewport(0, 0, viewportWidth, viewportHeight);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            glUseProgram(maskShader);
+
+            for (GameObject* selectedGO : editor->selectedGameObjects)
+            {
+                if (selectedGO && selectedGO->mesh &&
+                    selectedGO->mesh->meshIndex >= 0 &&
+                    !selectedGO->IsEmpty())
+                {
+                    ComponentTransform* transform = selectedGO->transform;
+                    if (!transform) continue;
+
+                    MeshData& meshdata = g_Meshes[selectedGO->mesh->meshIndex];
+
+                    glm::mat4 model = glm::mat4(1.0f);
+                    model = glm::translate(model, glm::vec3(
+                        transform->translation.x,
+                        transform->translation.y,
+                        transform->translation.z
+                    ));
+
+                    glm::quat quat(
+                        transform->rotation.w,
+                        transform->rotation.x,
+                        transform->rotation.y,
+                        transform->rotation.z
+                    );
+                    model *= glm::mat4_cast(quat);
+
+                    model = glm::scale(model, glm::vec3(
+                        transform->scaling.x,
+                        transform->scaling.y,
+                        transform->scaling.z
+                    ));
+
+                    glm::mat4 view = camera.GetViewMatrix();
+                    glm::mat4 projection = camera.GetProjectionMatrix();
+
+                    glUniformMatrix4fv(glGetUniformLocation(maskShader, "model_matrix"), 1, GL_FALSE, glm::value_ptr(model));
+                    glUniformMatrix4fv(glGetUniformLocation(maskShader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+                    glUniformMatrix4fv(glGetUniformLocation(maskShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+                    glBindVertexArray(meshdata.VAO);
+                    glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+                    glBindVertexArray(0);
+                }
+            }
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+
+        // Render scene normally
+        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+        glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         DrawGrid();
 
-        ModuleEditor* editor = Application::GetInstance().editor.get();
-
-        // Draw selected objects to stencil buffer
-        if (editor && !editor->selectedGameObjects.empty())
-        {
-            // Enable stencil test
-            glEnable(GL_STENCIL_TEST);
-
-            // Set stencil function to always pass
-            glStencilFunc(GL_ALWAYS, 1, 0xFF);
-
-            // Set stencil operation: replace stencil value with 1 where we draw
-            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-
-            // Enable writing to stencil buffer
-            glStencilMask(0xFF);
-
-            // Disable writing to color buffer (we only want to write to stencil)
-            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-
-            // Draw selected objects to stencil buffer
-            glDepthMask(GL_TRUE);
-            glDisable(GL_BLEND);
-
-            for (GameObject* selectedGO : editor->selectedGameObjects)
-            {
-                if (selectedGO && selectedGO->mesh &&
-                    selectedGO->mesh->meshIndex >= 0 &&
-                    !selectedGO->IsEmpty())
-                {
-                    // Find if it's opaque or transparent
-                    auto it = std::find(opaqueObjects.begin(), opaqueObjects.end(), selectedGO);
-                    if (it != opaqueObjects.end())
-                    {
-                        selectedGO->mesh->Draw(&camera);
-                    }
-                    else
-                    {
-                        auto it2 = std::find(transparentObjects.begin(), transparentObjects.end(), selectedGO);
-                        if (it2 != transparentObjects.end())
-                        {
-                            selectedGO->mesh->Draw(&camera);
-                        }
-                    }
-                }
-            }
-
-            // Re-enable color writing
-            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-            // Don't write to stencil anymore
-            glStencilMask(0x00);
-
-            // Now draw the outline where stencil != 1
-            glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-
-            glDisable(GL_DEPTH_TEST);
-
-            glm::vec3 outlineColor(0.3f, 0.5f, 1.0f); 
-            float outlineThickness = 0.03f; 
-
-            for (GameObject* selectedGO : editor->selectedGameObjects)
-            {
-                if (selectedGO && selectedGO->mesh &&
-                    selectedGO->mesh->meshIndex >= 0 &&
-                    !selectedGO->IsEmpty())
-                {
-                    selectedGO->mesh->DrawOutline(&camera, outlineColor, outlineThickness);
-                }
-            }
-
-            glEnable(GL_DEPTH_TEST);
-            glDisable(GL_STENCIL_TEST);
-            glStencilMask(0xFF);
-        }
-
-        // Draw objects
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
 
@@ -919,7 +1000,6 @@ bool OpenGL::Update()
             go->mesh->Draw(&camera);
         }
 
-        // Then transparent objects
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDepthMask(GL_FALSE);
@@ -931,10 +1011,38 @@ bool OpenGL::Update()
 
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
+
+        // Draw outline using edge detection
+        if (editor && !editor->selectedGameObjects.empty())
+        {
+            glDisable(GL_DEPTH_TEST);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+            glUseProgram(edgeDetectionShader);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, selectionTexture);
+            glUniform1i(glGetUniformLocation(edgeDetectionShader, "maskTexture"), 0);
+
+            glm::vec3 outlineColor(0.3f, 0.5f, 1.0f);
+            glUniform3f(glGetUniformLocation(edgeDetectionShader, "outlineColor"),
+                outlineColor.r, outlineColor.g, outlineColor.b);
+            glUniform1f(glGetUniformLocation(edgeDetectionShader, "outlineThickness"), 2.0f);
+            glUniform2f(glGetUniformLocation(edgeDetectionShader, "texelSize"),
+                1.0f / viewportWidth, 1.0f / viewportHeight);
+
+            glBindVertexArray(fullscreenQuadVAO);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glBindVertexArray(0);
+
+            glEnable(GL_DEPTH_TEST);
+            glDisable(GL_BLEND);
+        }
     }
     else
     {
-        // Z-buffer debug rendering
+        // Z-buffer debug...
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glViewport(0, 0, viewportWidth, viewportHeight);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1034,9 +1142,19 @@ bool OpenGL::CleanUp()
         shaderProgram = 0;
     }
 
-    if (outlineShaderProgram) {
-        glDeleteProgram(outlineShaderProgram);
-        outlineShaderProgram = 0;
+    if (edgeDetectionShader) {
+        glDeleteProgram(edgeDetectionShader);
+        edgeDetectionShader = 0;
+    }
+
+    if (selectionFBO) {
+        glDeleteFramebuffers(1, &selectionFBO);
+        selectionFBO = 0;
+    }
+
+    if (maskShader) {
+        glDeleteProgram(maskShader);
+        maskShader = 0;
     }
 
     if (normalShaderProgram) {

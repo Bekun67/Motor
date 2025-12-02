@@ -28,7 +28,8 @@ public:
 	bool showGrid = true;
 	unsigned int gridVAO = 0;
 	unsigned int normalShaderProgram;
-	unsigned int outlineShaderProgram;
+	unsigned int edgeDetectionShader = 0;
+	unsigned int maskShader = 0;
 	unsigned int gridVBO = 0;
 	int gridLineCount = 0;
 
@@ -59,6 +60,11 @@ public:
 	unsigned int colorTexture = 0;
 	int depthTextureWidth = 0;
 	int depthTextureHeight = 0;
+
+	unsigned int selectionFBO = 0;
+	unsigned int selectionTexture = 0;
+	int selectionTextureWidth = 0;
+	int selectionTextureHeight = 0;
 
 	glm::vec3 debugRayStart;
 	glm::vec3 debugRayEnd;

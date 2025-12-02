@@ -743,7 +743,6 @@ void ModuleEditor::DrawConfiguration()
 {
     if (firstTimeSetup)
     {
-        // Posicionar en la parte superior derecha
         ImGui::SetNextWindowPos(ImVec2(400, 150), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(400, 450), ImGuiCond_FirstUseEver);
     }
@@ -1819,12 +1818,12 @@ void ModuleEditor::DrawGuizmo()
     if (!opengl)
         return;
 
-    // Obtener matrices de cámara
+    // Get camera matrix
     Camera* camera = &opengl->camera;
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
 
-    // Si hay un solo objeto, usar su transformada directamente
+    // If only one object, use its tranformation
     if (selectedGameObjects.size() == 1)
     {
         GameObject* selected = selectedGameObjects[0];
@@ -1869,7 +1868,7 @@ void ModuleEditor::DrawGuizmo()
             glm::value_ptr(model),
             glm::value_ptr(deltaMatrix)))
         {
-            // Inicializar tracking si es la primera frame de manipulación
+            // Inicialize tracking if its first manipulation frame
             if (!wasManipulating)
             {
                 wasManipulating = true;
@@ -1916,10 +1915,10 @@ void ModuleEditor::DrawGuizmo()
     }
     else
     {
-        // MÚLTIPLES OBJETOS: usar el centro de selección
+        // Use center of selection when selecting multiple objects
         glm::vec3 selectionCenter = GetSelectionCenter();
 
-        // Crear matriz identidad en el centro de la selección
+        // Create identity matrix from selection center
         glm::mat4 model = glm::translate(glm::mat4(1.0f), selectionCenter);
 
         ImGuizmo::SetRect(
@@ -1941,12 +1940,12 @@ void ModuleEditor::DrawGuizmo()
         {
             editing = true;
 
-            // Calcular el nuevo centro después de la manipulación
+            // Calculate new center
             glm::vec3 newCenter = glm::vec3(model[3]);
 
             if (currentGizmoOperation == ImGuizmo::TRANSLATE)
             {
-                // TRASLACIÓN: mover todos los objetos por el mismo offset
+                // Move all objects by the same center
                 glm::vec3 offset = newCenter - selectionCenter;
 
                 for (GameObject* go : selectedGameObjects)
@@ -1961,48 +1960,47 @@ void ModuleEditor::DrawGuizmo()
             }
             else if (currentGizmoOperation == ImGuizmo::ROTATE)
             {
-                // ROTACIÓN: rotar cada objeto alrededor del centro de selección
+                // Rotate all objects from center
                 
-                // Extraer la rotación de la matriz de transformación
+                // Extract rotation from transformation matrix
                 glm::vec3 dummyTranslation, dummyScale;
                 glm::quat newRotation;
                 glm::mat4 rotationMatrix = model;
-                rotationMatrix[3] = glm::vec4(0, 0, 0, 1); // Eliminar traslación
+                rotationMatrix[3] = glm::vec4(0, 0, 0, 1);
                 
-                // Descomponer para obtener solo la rotación
+                // Decompose to get only rotation
                 ComponentTransform tempTransform(nullptr);
                 tempTransform.Decompose(model, dummyTranslation, newRotation, dummyScale);
 
-                // Calcular la rotación delta desde la última frame
+                // Calculate delta rotation from last frame
                 glm::quat deltaRotation = newRotation ;
                 lastMultiSelectionRotation = newRotation;
 
-                // Aplicar rotación a cada objeto alrededor del centro
+                // Apply rotation from center
                 for (GameObject* go : selectedGameObjects)
                 {
                     if (go && go->transform)
                     {
-                        // Posición actual del objeto
+                        // Current position
                         glm::vec3 objectPos(
                             go->transform->translation.x,
                             go->transform->translation.y,
                             go->transform->translation.z
                         );
 
-                        // Vector desde el centro hasta el objeto
+                        // Vector from center
                         glm::vec3 offset = objectPos - selectionCenter;
 
-                        // Rotar el offset
                         glm::vec3 rotatedOffset = deltaRotation * offset;
 
-                        // Nueva posición = centro + offset rotado
+                        // New position
                         glm::vec3 newPos = selectionCenter + rotatedOffset;
 
                         go->transform->translation.x = newPos.x;
                         go->transform->translation.y = newPos.y;
                         go->transform->translation.z = newPos.z;
 
-                        // También rotar la orientación del objeto
+                        // Rotate orentation
                         glm::quat currentRot(
                             go->transform->rotation.w,
                             go->transform->rotation.x,
@@ -2021,44 +2019,42 @@ void ModuleEditor::DrawGuizmo()
             }
             else if (currentGizmoOperation == ImGuizmo::SCALE)
             {
-                // ESCALADO: escalar desde el centro de selección
+                // Scale from center
                 
-                // Extraer la escala de la matriz
+                // extract matrix scale
                 glm::vec3 dummyTranslation, newScale;
                 glm::quat dummyRotation;
                 ComponentTransform tempTransform(nullptr);
                 tempTransform.Decompose(model, dummyTranslation, dummyRotation, newScale);
 
-                // Calcular el factor de escala (asumiendo escala uniforme)
+                // Calculate scale factor
                 glm::vec3 scaleFactor = newScale / lastMultiSelectionScale;
                 lastMultiSelectionScale = newScale;
 
-                // Aplicar escala a cada objeto desde el centro
+                // Apply scale fom center
                 for (GameObject* go : selectedGameObjects)
                 {
                     if (go && go->transform)
                     {
-                        // Posición actual del objeto
+                        // Get current position
                         glm::vec3 objectPos(
                             go->transform->translation.x,
                             go->transform->translation.y,
                             go->transform->translation.z
                         );
 
-                        // Vector desde el centro hasta el objeto
                         glm::vec3 offset = objectPos - selectionCenter;
 
-                        // Escalar el offset
                         glm::vec3 scaledOffset = offset * scaleFactor;
 
-                        // Nueva posición = centro + offset escalado
+                        // Set new position
                         glm::vec3 newPos = selectionCenter + scaledOffset;
 
                         go->transform->translation.x = newPos.x;
                         go->transform->translation.y = newPos.y;
                         go->transform->translation.z = newPos.z;
 
-                        // También escalar el tamaño del objeto
+                        // Scale object
                         go->transform->scaling.x *= scaleFactor.x;
                         go->transform->scaling.y *= scaleFactor.y;
                         go->transform->scaling.z *= scaleFactor.z;
@@ -2074,7 +2070,7 @@ void ModuleEditor::DrawGuizmo()
             {
                 editing = false;
                 
-                // Reset de rotaciones/escalas acumuladas cuando se suelta el Gizmo
+                // Reset acomulated scale/rotation
                 lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
                 lastMultiSelectionScale = glm::vec3(1, 1, 1);
                 wasManipulating = false;
@@ -2310,13 +2306,13 @@ void ModuleEditor::SelectGameObject(GameObject* go, bool includeDescendants)
     if (go == nullptr)
         return;
 
-    // Limpiar selección anterior
+    // Clean previous selection
     selectedGameObjects.clear();
 
-    // Añadir el objeto principal
+    // Add main GO
     selectedGameObjects.push_back(go);
 
-    // Si incluimos descendientes, añadirlos también
+    // Add descendants
     if (includeDescendants)
     {
         std::vector<GameObject*> descendants;
@@ -2328,7 +2324,7 @@ void ModuleEditor::SelectGameObject(GameObject* go, bool includeDescendants)
         }
     }
 
-    // Actualizar selección en OpenGL
+    // Update OpenGL selection
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (opengl && !selectedGameObjects.empty())
     {
