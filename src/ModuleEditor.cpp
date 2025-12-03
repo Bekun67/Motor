@@ -142,7 +142,6 @@ bool ModuleEditor::Update()
             fpsHistory.erase(fpsHistory.begin());
     }
 
-
     ImGuizmo::BeginFrame();
 
     // Handle Gizmo operation changes with W, E, R keys
@@ -160,20 +159,21 @@ bool ModuleEditor::Update()
         {
             currentGizmoOperation = ImGuizmo::SCALE;
         }
-           
     }
 
     // Draw all editor windows
-    DrawSceneViewport();  
-    DrawHierarchy();      
-    DrawInspector();      
-    DrawConsole();        
-    DrawMenuBar();        
+    DrawSceneViewport();
+    DrawHierarchy();
+    DrawInspector();
+    DrawConsole();
+    DrawMenuBar();
     if (showConfiguration) DrawConfiguration();
     if (showAbout) DrawAbout();
 
-    // Draw Gizmo (debe ser lo �ltimo)
     DrawGuizmo();
+
+    // Process deletions at the END of the frame, after all ImGui operations
+    ProcessDeletions();
 
     return true;
 }
@@ -527,26 +527,12 @@ void ModuleEditor::DrawMenuBar()
 
         if (ImGui::Button("Confirm", ImVec2(120, 0)))
         {
-            // Clear current scene
-            OpenGL* opengl = Application::GetInstance().opengl.get();
-            if (opengl)
-            {
-                // Clear selection first
-                selectedGameObjects.clear();
-                opengl->selectedGameObject = nullptr;
+            ClearCurrentScene();
 
-                // Delete all GameObjects
-                while (!opengl->gameObjects.empty())
-                {
-                    GameObject* go = opengl->gameObjects.back();
-                    opengl->gameObjects.pop_back();
-                    delete go;
-                }
+            currentScenePath = "";
+            sceneModified = false;
+            LOG("New scene created");
 
-                currentScenePath = "";
-                sceneModified = false;
-                LOG("New scene created");
-            }
             ImGui::CloseCurrentPopup();
         }
 
@@ -757,7 +743,6 @@ void ModuleEditor::DrawConfiguration()
 {
     if (firstTimeSetup)
     {
-        // Posicionar en la parte superior derecha
         ImGui::SetNextWindowPos(ImVec2(400, 150), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(400, 450), ImGuiCond_FirstUseEver);
     }
@@ -1198,7 +1183,7 @@ void ModuleEditor::DrawHierarchy()
 
 void ModuleEditor::DrawGameObjectNode(GameObject* go)
 {
-    if (go == nullptr)
+    if (go == nullptr || go->m_MarkedForDeletion)
         return;
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
@@ -1216,7 +1201,7 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
     // Click: select with childs
     if (ImGui::IsItemClicked() && !ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
-        SelectGameObject(go, true); 
+        SelectGameObject(go, true);
     }
 
     // Double click: select just that object
@@ -1269,42 +1254,8 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
 
         if (ImGui::MenuItem("Delete"))
         {
-            OpenGL* opengl = Application::GetInstance().opengl.get();
-            if (opengl)
-            {
-                // Deselect if selected
-                if (IsSelected(go))
-                {
-                    DeselectAll();
-                }
-
-                // Important: Collect ALL objects to remove (parent and ALL descendants)
-                std::vector<GameObject*> objectsToRemove;
-                objectsToRemove.push_back(go);
-                go->GetAllDescendants(objectsToRemove);
-
-                // Remove ALL objects from the gameObjects vector first (don't delete yet)
-                for (GameObject* obj : objectsToRemove)
-                {
-                    auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), obj);
-                    if (it != opengl->gameObjects.end())
-                    {
-                        opengl->gameObjects.erase(it);
-                    }
-                }
-
-                LOG("Deleted GameObject: " + go->name + " and " + std::to_string(objectsToRemove.size() - 1) + " descendants");
-
-                // Now delete ONLY the root - its destructor will handle the children
-                delete go;
-
-                sceneModified = true;
-
-                ImGui::EndPopup();
-                if (nodeOpen)
-                    ImGui::TreePop();
-                return;
-            }
+            // Just mark for deletion - will be processed at end of frame
+            MarkForDeletion(go);
         }
 
         ImGui::EndPopup();
@@ -1321,12 +1272,18 @@ void ModuleEditor::DrawGameObjectNode(GameObject* go)
     // Drop target
     HandleHierarchyDragDrop(go);
 
-    // Dibujar hijos recursivamente
+    // Draw children recursively
     if (nodeOpen)
     {
-        for (GameObject* child : go->children)
+        // Create a copy to avoid issues
+        std::vector<GameObject*> childrenCopy = go->children;
+
+        for (GameObject* child : childrenCopy)
         {
-            DrawGameObjectNode(child);
+            if (child && !child->m_MarkedForDeletion)
+            {
+                DrawGameObjectNode(child);
+            }
         }
         ImGui::TreePop();
     }
@@ -1413,7 +1370,7 @@ void ModuleEditor::DrawInspector()
     }
     else if (selectedGameObjects.size() == 1)
     {
-        // Show inspector for only one object
+        // Show inspector for only one object (código existente)
         GameObject* selectedGameObject = selectedGameObjects[0];
 
         textureDropPos = ImGui::GetWindowPos();
@@ -1471,7 +1428,7 @@ void ModuleEditor::DrawInspector()
                     transform->translation.x = pos[0];
                     transform->translation.y = pos[1];
                     transform->translation.z = pos[2];
-					sceneModified = true;
+                    sceneModified = true;
                 }
 
                 float scale[3] = { transform->scaling.x, transform->scaling.y, transform->scaling.z };
@@ -1480,24 +1437,24 @@ void ModuleEditor::DrawInspector()
                     transform->scaling.x = scale[0];
                     transform->scaling.y = scale[1];
                     transform->scaling.z = scale[2];
-					sceneModified = true;
+                    sceneModified = true;
                 }
 
                 //method to normalize angles (361º -> 1º)
-                auto normalizeAngle = [](float angle) -> float 
+                auto normalizeAngle = [](float angle) -> float
                     {
-                    angle = fmod(angle, 360.0f);
+                        angle = fmod(angle, 360.0f);
 
-                    if (angle > 180.0f) 
-                    {
-                        angle -= 360.0f;
-                    }
-                    else if (angle < -180.0f) 
-                    {
-                        angle += 360.0f;
-                    }
+                        if (angle > 180.0f)
+                        {
+                            angle -= 360.0f;
+                        }
+                        else if (angle < -180.0f)
+                        {
+                            angle += 360.0f;
+                        }
 
-                    return angle;
+                        return angle;
                     };
 
                 //rotation
@@ -1571,7 +1528,7 @@ void ModuleEditor::DrawInspector()
                     transform->rotation.x = newQuat.x;
                     transform->rotation.y = newQuat.y;
                     transform->rotation.z = newQuat.z;
-					sceneModified = true;
+                    sceneModified = true;
                 }
 
                 //show quat (not editable)
@@ -1697,14 +1654,13 @@ void ModuleEditor::DrawInspector()
                 ImGui::Text("No texture assigned");
             }
 
-            //Drag adn Drop Area for textures
+            //Drag and Drop Area for textures
             ImGui::Separator();
             ImGui::Text("Drag new texture in \ninspector tab to change it!");
         }
     }
     else
     {
-        // more than one object selected
         ImGui::Text("Multiple objects selected (%d)", (int)selectedGameObjects.size());
         ImGui::Separator();
 
@@ -1715,9 +1671,197 @@ void ModuleEditor::DrawInspector()
         }
 
         ImGui::Separator();
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),
-            "Multi-object editing not yet implemented");
-        ImGui::Text("Use Gizmo to move all objects together");
+
+        //Transform
+        if (ImGui::CollapsingHeader("Multi-Object Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f),
+                "Editing %d objects simultaneously", (int)selectedGameObjects.size());
+            ImGui::Spacing();
+
+            // Calculate average values
+            glm::vec3 avgPosition(0.0f);
+            glm::vec3 avgScale(0.0f);
+            glm::vec3 avgRotation(0.0f);
+
+            int validCount = 0;
+            for (GameObject* go : selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    avgPosition.x += go->transform->translation.x;
+                    avgPosition.y += go->transform->translation.y;
+                    avgPosition.z += go->transform->translation.z;
+
+                    avgScale.x += go->transform->scaling.x;
+                    avgScale.y += go->transform->scaling.y;
+                    avgScale.z += go->transform->scaling.z;
+
+                    // Convert quaternion to euler for averaging
+                    glm::quat q(go->transform->rotation.w, go->transform->rotation.x,
+                        go->transform->rotation.y, go->transform->rotation.z);
+                    glm::vec3 euler = glm::degrees(glm::eulerAngles(q));
+                    avgRotation += euler;
+
+                    validCount++;
+                }
+            }
+
+            if (validCount > 0)
+            {
+                avgPosition /= (float)validCount;
+                avgScale /= (float)validCount;
+                avgRotation /= (float)validCount;
+            }
+
+            // position
+            float pos[3] = { avgPosition.x, avgPosition.y, avgPosition.z };
+            if (ImGui::DragFloat3("Position", pos, 0.1f))
+            {
+                // Calculate delta
+                glm::vec3 delta(
+                    pos[0] - avgPosition.x,
+                    pos[1] - avgPosition.y,
+                    pos[2] - avgPosition.z
+                );
+
+                // Apply delta to all objects
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->translation.x += delta.x;
+                        go->transform->translation.y += delta.y;
+                        go->transform->translation.z += delta.z;
+                    }
+                }
+                sceneModified = true;
+                editing = true;
+            }
+            if (ImGui::IsItemDeactivated())
+            {
+                editing = false;
+            }
+
+            // Rotation
+            float rot[3] = { avgRotation.x, avgRotation.y, avgRotation.z };
+            if (ImGui::DragFloat3("Rotation", rot, 0.5f))
+            {
+                // Calculate delta
+                glm::vec3 delta(
+                    rot[0] - avgRotation.x,
+                    rot[1] - avgRotation.y,
+                    rot[2] - avgRotation.z
+                );
+
+                // Apply delta to all objects
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        // Get current rotation as euler
+                        glm::quat currentQuat(go->transform->rotation.w, go->transform->rotation.x,
+                            go->transform->rotation.y, go->transform->rotation.z);
+                        glm::vec3 currentEuler = glm::degrees(glm::eulerAngles(currentQuat));
+
+                        // Add delta
+                        glm::vec3 newEuler = currentEuler + delta;
+
+                        // Convert back to quaternion
+                        glm::quat newQuat = glm::quat(glm::radians(newEuler));
+                        go->transform->rotation.w = newQuat.w;
+                        go->transform->rotation.x = newQuat.x;
+                        go->transform->rotation.y = newQuat.y;
+                        go->transform->rotation.z = newQuat.z;
+                    }
+                }
+                sceneModified = true;
+                editing = true;
+            }
+            if (ImGui::IsItemDeactivated())
+            {
+                editing = false;
+            }
+
+            // scale
+            float scale[3] = { avgScale.x, avgScale.y, avgScale.z };
+            if (ImGui::DragFloat3("Scale", scale, 0.01f, 0.01f, 100.0f))
+            {
+                // Calculate scale factor
+                glm::vec3 scaleFactor(
+                    scale[0] / avgScale.x,
+                    scale[1] / avgScale.y,
+                    scale[2] / avgScale.z
+                );
+
+                // Apply scale factor to all objects
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->scaling.x *= scaleFactor.x;
+                        go->transform->scaling.y *= scaleFactor.y;
+                        go->transform->scaling.z *= scaleFactor.z;
+                    }
+                }
+                sceneModified = true;
+                editing = true;
+            }
+            if (ImGui::IsItemDeactivated())
+            {
+                editing = false;
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // reset
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Quick Actions:");
+
+            if (ImGui::Button("Reset Position", ImVec2(-1, 0)))
+            {
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                    }
+                }
+                sceneModified = true;
+                LOG("Reset position for " + std::to_string(selectedGameObjects.size()) + " objects");
+            }
+
+            if (ImGui::Button("Reset Rotation", ImVec2(-1, 0)))
+            {
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                    }
+                }
+                sceneModified = true;
+                LOG("Reset rotation for " + std::to_string(selectedGameObjects.size()) + " objects");
+            }
+
+            if (ImGui::Button("Reset Scale", ImVec2(-1, 0)))
+            {
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->transform)
+                    {
+                        go->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+                    }
+                }
+                sceneModified = true;
+                LOG("Reset scale for " + std::to_string(selectedGameObjects.size()) + " objects");
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
     }
     ImGui::End();
 }
@@ -1807,12 +1951,12 @@ void ModuleEditor::DrawGuizmo()
     if (!opengl)
         return;
 
-    // Obtener matrices de cámara
+    // Get camera matrix
     Camera* camera = &opengl->camera;
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
 
-    // Si hay un solo objeto, usar su transformada directamente
+    // If only one object, use its tranformation
     if (selectedGameObjects.size() == 1)
     {
         GameObject* selected = selectedGameObjects[0];
@@ -1857,7 +2001,7 @@ void ModuleEditor::DrawGuizmo()
             glm::value_ptr(model),
             glm::value_ptr(deltaMatrix)))
         {
-            // Inicializar tracking si es la primera frame de manipulación
+            // Inicialize tracking if its first manipulation frame
             if (!wasManipulating)
             {
                 wasManipulating = true;
@@ -1904,10 +2048,10 @@ void ModuleEditor::DrawGuizmo()
     }
     else
     {
-        // MÚLTIPLES OBJETOS: usar el centro de selección
+        // Use center of selection when selecting multiple objects
         glm::vec3 selectionCenter = GetSelectionCenter();
 
-        // Crear matriz identidad en el centro de la selección
+        // Create identity matrix from selection center
         glm::mat4 model = glm::translate(glm::mat4(1.0f), selectionCenter);
 
         ImGuizmo::SetRect(
@@ -1929,12 +2073,12 @@ void ModuleEditor::DrawGuizmo()
         {
             editing = true;
 
-            // Calcular el nuevo centro después de la manipulación
+            // Calculate new center
             glm::vec3 newCenter = glm::vec3(model[3]);
 
             if (currentGizmoOperation == ImGuizmo::TRANSLATE)
             {
-                // TRASLACIÓN: mover todos los objetos por el mismo offset
+                // Move all objects by the same center
                 glm::vec3 offset = newCenter - selectionCenter;
 
                 for (GameObject* go : selectedGameObjects)
@@ -1949,48 +2093,47 @@ void ModuleEditor::DrawGuizmo()
             }
             else if (currentGizmoOperation == ImGuizmo::ROTATE)
             {
-                // ROTACIÓN: rotar cada objeto alrededor del centro de selección
+                // Rotate all objects from center
                 
-                // Extraer la rotación de la matriz de transformación
+                // Extract rotation from transformation matrix
                 glm::vec3 dummyTranslation, dummyScale;
                 glm::quat newRotation;
                 glm::mat4 rotationMatrix = model;
-                rotationMatrix[3] = glm::vec4(0, 0, 0, 1); // Eliminar traslación
+                rotationMatrix[3] = glm::vec4(0, 0, 0, 1);
                 
-                // Descomponer para obtener solo la rotación
+                // Decompose to get only rotation
                 ComponentTransform tempTransform(nullptr);
                 tempTransform.Decompose(model, dummyTranslation, newRotation, dummyScale);
 
-                // Calcular la rotación delta desde la última frame
+                // Calculate delta rotation from last frame
                 glm::quat deltaRotation = newRotation ;
                 lastMultiSelectionRotation = newRotation;
 
-                // Aplicar rotación a cada objeto alrededor del centro
+                // Apply rotation from center
                 for (GameObject* go : selectedGameObjects)
                 {
                     if (go && go->transform)
                     {
-                        // Posición actual del objeto
+                        // Current position
                         glm::vec3 objectPos(
                             go->transform->translation.x,
                             go->transform->translation.y,
                             go->transform->translation.z
                         );
 
-                        // Vector desde el centro hasta el objeto
+                        // Vector from center
                         glm::vec3 offset = objectPos - selectionCenter;
 
-                        // Rotar el offset
                         glm::vec3 rotatedOffset = deltaRotation * offset;
 
-                        // Nueva posición = centro + offset rotado
+                        // New position
                         glm::vec3 newPos = selectionCenter + rotatedOffset;
 
                         go->transform->translation.x = newPos.x;
                         go->transform->translation.y = newPos.y;
                         go->transform->translation.z = newPos.z;
 
-                        // También rotar la orientación del objeto
+                        // Rotate orentation
                         glm::quat currentRot(
                             go->transform->rotation.w,
                             go->transform->rotation.x,
@@ -2009,48 +2152,106 @@ void ModuleEditor::DrawGuizmo()
             }
             else if (currentGizmoOperation == ImGuizmo::SCALE)
             {
-                // ESCALADO: escalar desde el centro de selección
-                
-                // Extraer la escala de la matriz
-                glm::vec3 dummyTranslation, newScale;
+                // Scale from center
+
+                // Extract current matrix scale
+                glm::vec3 dummyTranslation, currentScale;
                 glm::quat dummyRotation;
                 ComponentTransform tempTransform(nullptr);
-                tempTransform.Decompose(model, dummyTranslation, dummyRotation, newScale);
+                tempTransform.Decompose(model, dummyTranslation, dummyRotation, currentScale);
 
-                // Calcular el factor de escala (asumiendo escala uniforme)
-                glm::vec3 scaleFactor = newScale / lastMultiSelectionScale;
-                lastMultiSelectionScale = newScale;
+                // Calculate scale factor relative to INITIAL scale
+                glm::vec3 rawScaleFactor(1.0f);
+                if (initialMultiSelectionScale.x > 0.0001f)
+                    rawScaleFactor.x = currentScale.x / initialMultiSelectionScale.x;
+                if (initialMultiSelectionScale.y > 0.0001f)
+                    rawScaleFactor.y = currentScale.y / initialMultiSelectionScale.y;
+                if (initialMultiSelectionScale.z > 0.0001f)
+                    rawScaleFactor.z = currentScale.z / initialMultiSelectionScale.z;
 
-                // Aplicar escala a cada objeto desde el centro
+                // Apply damping to make scaling smoother and prevent extreme values
+                // Clamp the raw scale factor to a reasonable range first
+                rawScaleFactor.x = glm::clamp(rawScaleFactor.x, 0.01f, 100.0f);
+                rawScaleFactor.y = glm::clamp(rawScaleFactor.y, 0.01f, 100.0f);
+                rawScaleFactor.z = glm::clamp(rawScaleFactor.z, 0.01f, 100.0f);
+
+                // Calculate delta from last frame and apply smooth damping
+                glm::vec3 deltaScale = rawScaleFactor / lastMultiSelectionScale;
+
+                // Limit the rate of change per frame (prevents crazy jumps)
+                deltaScale.x = glm::clamp(deltaScale.x, 0.5f, 2.0f);
+                deltaScale.y = glm::clamp(deltaScale.y, 0.5f, 2.0f);
+                deltaScale.z = glm::clamp(deltaScale.z, 0.5f, 2.0f);
+
+                // Apply the smoothed delta
+                glm::vec3 smoothedScaleFactor = lastMultiSelectionScale * deltaScale;
+                lastMultiSelectionScale = smoothedScaleFactor;
+
+                // Store original scales if this is the first frame
+                static std::map<GameObject*, glm::vec3> originalScales;
+                static std::map<GameObject*, glm::vec3> originalPositions;
+
+                if (originalScales.empty())
+                {
+                    // Store original transforms
+                    for (GameObject* go : selectedGameObjects)
+                    {
+                        if (go && go->transform)
+                        {
+                            originalScales[go] = glm::vec3(
+                                go->transform->scaling.x,
+                                go->transform->scaling.y,
+                                go->transform->scaling.z
+                            );
+
+                            originalPositions[go] = glm::vec3(
+                                go->transform->translation.x,
+                                go->transform->translation.y,
+                                go->transform->translation.z
+                            );
+                        }
+                    }
+                }
+
+                // Apply scale from center
                 for (GameObject* go : selectedGameObjects)
                 {
                     if (go && go->transform)
                     {
-                        // Posición actual del objeto
-                        glm::vec3 objectPos(
-                            go->transform->translation.x,
-                            go->transform->translation.y,
-                            go->transform->translation.z
-                        );
+                        // Get original position
+                        glm::vec3 originalPos = originalPositions[go];
 
-                        // Vector desde el centro hasta el objeto
-                        glm::vec3 offset = objectPos - selectionCenter;
+                        // Calculate offset from center
+                        glm::vec3 offset = originalPos - selectionCenter;
 
-                        // Escalar el offset
-                        glm::vec3 scaledOffset = offset * scaleFactor;
+                        // Scale the offset using smoothed factor
+                        glm::vec3 scaledOffset = offset * smoothedScaleFactor;
 
-                        // Nueva posición = centro + offset escalado
+                        // Set new position
                         glm::vec3 newPos = selectionCenter + scaledOffset;
 
                         go->transform->translation.x = newPos.x;
                         go->transform->translation.y = newPos.y;
                         go->transform->translation.z = newPos.z;
 
-                        // También escalar el tamaño del objeto
-                        go->transform->scaling.x *= scaleFactor.x;
-                        go->transform->scaling.y *= scaleFactor.y;
-                        go->transform->scaling.z *= scaleFactor.z;
+                        // Apply scale to object based on original scale
+                        glm::vec3 originalScale = originalScales[go];
+                        go->transform->scaling.x = originalScale.x * smoothedScaleFactor.x;
+                        go->transform->scaling.y = originalScale.y * smoothedScaleFactor.y;
+                        go->transform->scaling.z = originalScale.z * smoothedScaleFactor.z;
+
+                        // Clamp final scale to prevent extreme values
+                        go->transform->scaling.x = glm::clamp(go->transform->scaling.x, 0.001f, 1000.0f);
+                        go->transform->scaling.y = glm::clamp(go->transform->scaling.y, 0.001f, 1000.0f);
+                        go->transform->scaling.z = glm::clamp(go->transform->scaling.z, 0.001f, 1000.0f);
                     }
+                }
+
+                // Clear stored data when manipulation ends
+                if (!ImGuizmo::IsUsing())
+                {
+                    originalScales.clear();
+                    originalPositions.clear();
                 }
             }
 
@@ -2062,7 +2263,7 @@ void ModuleEditor::DrawGuizmo()
             {
                 editing = false;
                 
-                // Reset de rotaciones/escalas acumuladas cuando se suelta el Gizmo
+                // Reset acomulated scale/rotation
                 lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
                 lastMultiSelectionScale = glm::vec3(1, 1, 1);
                 wasManipulating = false;
@@ -2171,29 +2372,14 @@ bool ModuleEditor::LoadScene(const std::string& filepath)
         return false;
     }
 
-    // Ask user to save current scene if modified
-    if (sceneModified && !currentScenePath.empty())
-    {
-        // In a real implementation, you would show a dialog here
-        LOG_WARNING("Current scene has unsaved changes");
-    }
+    ClearCurrentScene();
 
+    // load saved scene
     std::vector<GameObject*> loadedGameObjects;
     if (SceneSerializer::LoadScene(filepath, loadedGameObjects))
     {
-        // Clear current scene
-        for (GameObject* go : opengl->gameObjects)
-        {
-            delete go;
-        }
-        opengl->gameObjects.clear();
-
         // Set loaded GameObjects
         opengl->gameObjects = loadedGameObjects;
-
-        // Clear selection
-        selectedGameObjects.empty();
-        opengl->selectedGameObject = nullptr;
 
         currentScenePath = filepath;
         sceneModified = false;
@@ -2204,6 +2390,46 @@ bool ModuleEditor::LoadScene(const std::string& filepath)
 
     LOG_ERROR("Failed to load scene: " + filepath);
     return false;
+}
+
+void ModuleEditor::ClearCurrentScene()
+{
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl)
+    {
+        LOG_ERROR("Failed to clear scene: OpenGL module not available");
+        return;
+    }
+
+    LOG("Clearing current scene...");
+
+    // Clear selection first
+    selectedGameObjects.clear();
+    opengl->selectedGameObject = nullptr;
+
+    // Breake childs/parents
+    for (GameObject* go : opengl->gameObjects)
+    {
+        if (go != nullptr)
+        {
+            go->parent = nullptr;
+            go->children.clear();
+        }
+    }
+
+    // delete GameObjects
+    for (GameObject* go : opengl->gameObjects)
+    {
+        if (go != nullptr)
+        {
+            go->m_IsBeingDestroyed = true;
+            delete go;
+        }
+    }
+
+    opengl->gameObjects.clear();
+
+    LOG("Scene cleared successfully");
 }
 
 void ModuleEditor::SetupImGuiStyle()
@@ -2273,13 +2499,13 @@ void ModuleEditor::SelectGameObject(GameObject* go, bool includeDescendants)
     if (go == nullptr)
         return;
 
-    // Limpiar selección anterior
+    // Clean previous selection
     selectedGameObjects.clear();
 
-    // Añadir el objeto principal
+    // Add main GO
     selectedGameObjects.push_back(go);
 
-    // Si incluimos descendientes, añadirlos también
+    // Add descendants
     if (includeDescendants)
     {
         std::vector<GameObject*> descendants;
@@ -2291,7 +2517,7 @@ void ModuleEditor::SelectGameObject(GameObject* go, bool includeDescendants)
         }
     }
 
-    // Actualizar selección en OpenGL
+    // Update OpenGL selection
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (opengl && !selectedGameObjects.empty())
     {
@@ -2331,4 +2557,104 @@ glm::vec3 ModuleEditor::GetSelectionCenter() const
 
     float count = static_cast<float>(selectedGameObjects.size());
     return center / count;
+}
+
+void ModuleEditor::MarkForDeletion(GameObject* go)
+{
+    if (!go) return;
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl) return;
+
+    // Collect all descendants
+    std::vector<GameObject*> toMark;
+    toMark.push_back(go);
+    go->GetAllDescendants(toMark);
+
+    // Mark all for deletion
+    for (GameObject* obj : toMark)
+    {
+        if (obj && !obj->m_MarkedForDeletion)
+        {
+            obj->m_MarkedForDeletion = true;
+
+            // Add to deletion queue if not already there
+            if (std::find(m_ObjectsToDelete.begin(), m_ObjectsToDelete.end(), obj) == m_ObjectsToDelete.end())
+            {
+                m_ObjectsToDelete.push_back(obj);
+            }
+        }
+    }
+
+    // Deselect if selected
+    DeselectAll();
+
+    LOG("Marked " + std::to_string(toMark.size()) + " object(s) for deletion");
+}
+
+void ModuleEditor::ProcessDeletions()
+{
+    if (m_ObjectsToDelete.empty())
+        return;
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl)
+        return;
+
+    // Identify root objects (those without parent or whose parent is also being deleted)
+    std::vector<GameObject*> rootsToDelete;
+
+    for (GameObject* go : m_ObjectsToDelete)
+    {
+        if (!go) continue;
+
+        bool isRoot = (go->parent == nullptr);
+
+        // Or parent is not marked for deletion
+        if (go->parent != nullptr)
+        {
+            if (std::find(m_ObjectsToDelete.begin(), m_ObjectsToDelete.end(), go->parent) == m_ObjectsToDelete.end())
+            {
+                // Parent exists but is NOT being deleted, so this is effectively a root
+                isRoot = true;
+            }
+        }
+
+        if (isRoot)
+        {
+            rootsToDelete.push_back(go);
+        }
+    }
+
+    // Remove ALL marked objects from gameObjects list FIRST
+    for (GameObject* go : m_ObjectsToDelete)
+    {
+        auto it = std::find(opengl->gameObjects.begin(), opengl->gameObjects.end(), go);
+        if (it != opengl->gameObjects.end())
+        {
+            opengl->gameObjects.erase(it);
+        }
+
+        // Unlink from parent
+        if (go->parent != nullptr)
+        {
+            go->parent->RemoveChild(go);
+            go->parent = nullptr;
+        }
+    }
+
+    // Now delete only the roots - their destructors will handle children
+    for (GameObject* go : rootsToDelete)
+    {
+        if (go)
+        {
+            LOG("Deleting root GameObject: " + go->name);
+            delete go;
+        }
+    }
+
+    m_ObjectsToDelete.clear();
+    sceneModified = true;
+
+    LOG("Deletion processing complete");
 }

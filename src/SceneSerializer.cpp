@@ -72,12 +72,11 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 	}
 	file.close();
 
-	// Clear current scene
-	for (GameObject* go : gameObjects)
+	if (!gameObjects.empty())
 	{
-		delete go;
+		LOG_WARNING("LoadScene called with non-empty gameObjects vector. This should be cleared first.");
+		gameObjects.clear();
 	}
-	gameObjects.clear();
 
 	// Deserialize GameObjects
 	if (sceneJson.contains("GameObjects") && sceneJson["GameObjects"].is_array())

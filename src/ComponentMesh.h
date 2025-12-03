@@ -15,6 +15,7 @@ public:
 
 	void Update() override;
 	void Draw(Camera* camera);
+	void DrawOutline(Camera* camera, const glm::vec3& color, float thickness);
 	void DrawVertexNormals(Camera* camera, float length = 0.3f);
 	void DrawFaceNormals(Camera* camera, float length = 0.5f);
 	void DrawAABB(Camera* camera);

@@ -29,6 +29,8 @@ public:
 	bool showGrid = true;
 	unsigned int gridVAO = 0;
 	unsigned int normalShaderProgram;
+	unsigned int edgeDetectionShader = 0;
+	unsigned int maskShader = 0;
 	unsigned int gridVBO = 0;
 	int gridLineCount = 0;
 
@@ -60,6 +62,11 @@ public:
 	int depthTextureWidth = 0;
 	int depthTextureHeight = 0;
 
+	unsigned int selectionFBO = 0;
+	unsigned int selectionTexture = 0;
+	int selectionTextureWidth = 0;
+	int selectionTextureHeight = 0;
+
 	glm::vec3 debugRayStart;
 	glm::vec3 debugRayEnd;
 
@@ -78,8 +85,6 @@ private:
 	bool CleanUp() override;
 	bool Update() override;
 	bool Draw();
-
-	void MySaveFunction();
 
 	void CreateGrid(int size);
 	void DrawGrid();

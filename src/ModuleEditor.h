@@ -53,6 +53,9 @@ public:
     void UpdateLayout(int windowWidth, int windowHeight);
     void ResetLayout();
 
+    void MarkForDeletion(GameObject* go);
+    void ProcessDeletions();
+
     // ImGuizmo
     void DrawGuizmo();
     ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
@@ -104,6 +107,9 @@ private:
     void DrawAbout();
     void AssignCheckerboardTexture(GameObject* go);
     void DrawSceneViewport();
+    void ClearCurrentScene();
+
+    std::vector<GameObject*> m_ObjectsToDelete;
 
     // Console
     std::deque<LogEntry> logs;
@@ -181,8 +187,10 @@ private:
     bool showLoadSceneConfirmation = false;
     std::string pendingSceneToLoad = "";
 
+    // Multi-selection Gizmo tracking
     glm::quat lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
     glm::vec3 lastMultiSelectionScale = glm::vec3(1, 1, 1);
+    glm::vec3 initialMultiSelectionScale = glm::vec3(1, 1, 1);
     bool wasManipulating = false;
 };
 

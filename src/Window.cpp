@@ -34,6 +34,9 @@ bool Window::Start()
     // Set depth buffer to 24 bits for proper 3D rendering
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
+    // Enable stencil buffer
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+
     // Create window WITH OpenGL flag
     window = SDL_CreateWindow(
         "Ilium Engine",

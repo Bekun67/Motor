@@ -27,17 +27,6 @@ void ComponentMesh::Update()
 {
 }
 
-//void ComponentMesh::SetMeshIndex(int index)
-//{
-//    meshIndex = index;
-//
-//    if (meshIndex >= 0 && gameObject)
-//    {
-//        gameObject->UpdateAABB();
-//        std::cout << "AABB calculated for " << gameObject->name << " (meshIndex: " << meshIndex << ")" << std::endl;
-//    }
-//}
-
 void ComponentMesh::Draw(Camera* camera)
 {
     if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())
@@ -705,4 +694,65 @@ void ComponentMesh::DrawDebugRay(Camera* camera)
     glBindVertexArray(0);
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
+}
+
+void ComponentMesh::DrawOutline(Camera* camera, const glm::vec3& color, float thickness)
+{
+    if (meshIndex < 0 || meshIndex >= (int)g_Meshes.size())
+    {
+        return;
+    }
+
+    MeshData& meshdata = g_Meshes[meshIndex];
+
+    if (meshdata.VAO == 0 || meshdata.numIndices == 0)
+    {
+        return;
+    }
+
+    ComponentTransform* transform = gameObject->transform;
+    if (transform == nullptr)
+    {
+        return;
+    }
+
+    // Calculate model matrix
+    glm::mat4 model = glm::mat4(1.0f);
+
+    model = glm::translate(model, glm::vec3(
+        transform->translation.x,
+        transform->translation.y,
+        transform->translation.z
+    ));
+
+    glm::quat quat(
+        transform->rotation.w,
+        transform->rotation.x,
+        transform->rotation.y,
+        transform->rotation.z
+    );
+    model *= glm::mat4_cast(quat);
+
+    // Scale slightly larger for outline
+    float scaleMultiplier = 1.0f + thickness;
+    model = glm::scale(model, glm::vec3(
+        transform->scaling.x * scaleMultiplier,
+        transform->scaling.y * scaleMultiplier,
+        transform->scaling.z * scaleMultiplier
+    ));
+
+    // Get matrices
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+
+    // Disable depth writing
+    glDepthMask(GL_FALSE);
+
+    // Draw the scaled-up mesh
+    glBindVertexArray(meshdata.VAO);
+    glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    // Re-enable depth writing
+    glDepthMask(GL_TRUE);
 }

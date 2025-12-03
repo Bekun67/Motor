@@ -78,6 +78,9 @@ public:
 	bool isVisibleInFrustum = true;
 	bool culledLastFrame = false;
 
+	bool m_MarkedForDeletion = false;
+	bool m_IsBeingDestroyed = false;
+	
 	//quadtree
 	bool isStatic = false;
 	bool needsQuadtreeUpdate = false;
@@ -85,5 +88,4 @@ public:
 private:
 	UUID m_UUID;
 	UUID m_ParentUUID;
-	bool m_IsBeingDestroyed = false;
 };

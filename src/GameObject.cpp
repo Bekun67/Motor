@@ -48,24 +48,61 @@ GameObject::~GameObject()
 
 void GameObject::DestroyHierarchy()
 {
-	//delete childrens first
+	if (m_IsBeingDestroyed && children.empty() && parent == nullptr)
+	{
+		if (transform != nullptr)
+		{
+			delete transform;
+			transform = nullptr;
+		}
+
+		if (mesh != nullptr)
+		{
+			delete mesh;
+			mesh = nullptr;
+		}
+
+		if (texture != nullptr)
+		{
+			delete texture;
+			texture = nullptr;
+		}
+
+		if (camera != nullptr)
+		{
+			delete camera;
+			camera = nullptr;
+		}
+
+		for (Component* component : components)
+		{
+			if (component != nullptr)
+			{
+				delete component;
+			}
+		}
+		components.clear();
+		return;
+	}
+
+	// Delete children first 
 	if (!children.empty())
 	{
 		std::vector<GameObject*> childrenCopy = children;
-		children.clear();
+		children.clear(); 
 
 		for (GameObject* child : childrenCopy)
 		{
 			if (child != nullptr && !child->m_IsBeingDestroyed)
 			{
-				child->parent = nullptr;
-				delete child; 
+				child->parent = nullptr; 
+				delete child;
 			}
 		}
 	}
 
-	//delete parents
-	if (parent != nullptr)
+	// Remove from parent's children list 
+	if (parent != nullptr && !m_IsBeingDestroyed)
 	{
 		auto it = std::find(parent->children.begin(), parent->children.end(), this);
 		if (it != parent->children.end())
@@ -75,7 +112,7 @@ void GameObject::DestroyHierarchy()
 		parent = nullptr;
 	}
 
-	// clean components
+	// Clean components
 	if (transform != nullptr)
 	{
 		delete transform;
@@ -100,7 +137,7 @@ void GameObject::DestroyHierarchy()
 		camera = nullptr;
 	}
 
-	// clean extra components
+	// Clean extra components
 	for (Component* component : components)
 	{
 		if (component != nullptr)
