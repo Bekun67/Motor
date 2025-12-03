@@ -64,6 +64,7 @@ public:
 
 	unsigned int selectionFBO = 0;
 	unsigned int selectionTexture = 0;
+	unsigned int selectionDepthBuffer = 0;
 	int selectionTextureWidth = 0;
 	int selectionTextureHeight = 0;
 

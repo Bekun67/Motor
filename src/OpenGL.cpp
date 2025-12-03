@@ -657,18 +657,22 @@ bool OpenGL::Start()
 
     glGenTextures(1, &selectionTexture);
     glBindTexture(GL_TEXTURE_2D, selectionTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 1024, 1024, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+    Window* windowSize = Application::GetInstance().window.get();
+    int windowWidth, windowHeight;
+    windowSize->GetWindowSize(windowWidth, windowHeight);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, windowWidth, windowHeight, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selectionTexture, 0);
 
-    // Attach depth buffer for proper depth testing
+    // dynamic size for renderbuffer
     GLuint selectionDepthBuffer;
     glGenRenderbuffers(1, &selectionDepthBuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, selectionDepthBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1024, 1024);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, windowWidth, windowHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, selectionDepthBuffer);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -676,9 +680,8 @@ bool OpenGL::Start()
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    selectionTextureWidth = 1024;
-    selectionTextureHeight = 1024;
-
+    selectionTextureWidth = windowWidth;
+    selectionTextureHeight = windowHeight;
 
     std::cout << "OpenGL initialized successfully" << std::endl;
     return true;
@@ -993,14 +996,23 @@ bool OpenGL::Update()
     {
         ModuleEditor* editor = Application::GetInstance().editor.get();
 
-        // Resize selection texture if needed
+        // Resize selection texture and depth buffer
         if (editor && (selectionTextureWidth != viewportWidth || selectionTextureHeight != viewportHeight))
         {
             selectionTextureWidth = viewportWidth;
             selectionTextureHeight = viewportHeight;
 
+            // Resize color texture
             glBindTexture(GL_TEXTURE_2D, selectionTexture);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, viewportWidth, viewportHeight, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            // Resize depthbuffer
+            glBindRenderbuffer(GL_RENDERBUFFER, selectionDepthBuffer);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, viewportWidth, viewportHeight);
+            glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+            std::cout << "Selection FBO resized to: " << viewportWidth << "x" << viewportHeight << std::endl;
         }
 
         // Render selected objects to selection mask
@@ -1068,13 +1080,6 @@ bool OpenGL::Update()
 
         DrawGrid();
 
-        //draw quad
-        if (showQuadtree && useQuadtree)
-        {
-            quadtree.DebugDraw();
-        }
-
-        //first we draw opaque
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
 
@@ -1111,7 +1116,13 @@ bool OpenGL::Update()
             glm::vec3 outlineColor(0.3f, 0.5f, 1.0f);
             glUniform3f(glGetUniformLocation(edgeDetectionShader, "outlineColor"),
                 outlineColor.r, outlineColor.g, outlineColor.b);
-            glUniform1f(glGetUniformLocation(edgeDetectionShader, "outlineThickness"), 2.0f);
+
+            float baseThickness = 2.0f;
+            float scaleFactor = sqrtf((viewportWidth + viewportHeight) / 2.0f / 800.0f);
+            float scaledThickness = baseThickness * scaleFactor;
+            scaledThickness = glm::clamp(scaledThickness, 1.0f, 5.0f);
+
+            glUniform1f(glGetUniformLocation(edgeDetectionShader, "outlineThickness"), scaledThickness);
             glUniform2f(glGetUniformLocation(edgeDetectionShader, "texelSize"),
                 1.0f / viewportWidth, 1.0f / viewportHeight);
 
@@ -1243,6 +1254,11 @@ bool OpenGL::CleanUp()
     if (normalShaderProgram) {
         glDeleteProgram(normalShaderProgram);
         normalShaderProgram = 0;
+    }
+
+    if (selectionDepthBuffer) {
+        glDeleteRenderbuffers(1, &selectionDepthBuffer);
+        selectionDepthBuffer = 0;
     }
 
     if (glContext != nullptr)
