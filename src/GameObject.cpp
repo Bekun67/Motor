@@ -1,5 +1,7 @@
 #include "GameObject.h"
 #include "Component.h"
+#include "OpenGL.h"
+#include "Application.h"
 #include <algorithm>
 
 GameObject::GameObject()
@@ -40,6 +42,15 @@ GameObject::~GameObject()
 	// Prevent multiple deletes
 	if (m_IsBeingDestroyed)
 		return;
+
+	if (isStatic)
+	{
+		OpenGL* opengl = Application::GetInstance().opengl.get();
+		if (opengl && opengl->useQuadtree)
+		{
+			opengl->quadtree.Remove(this);
+		}
+	}
 
 	m_IsBeingDestroyed = true;
 
