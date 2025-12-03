@@ -1087,10 +1087,10 @@ void OpenGL::RebuildQuadtree()
         return;
     }
 
-    float padding = 10.0f;
+    float padding = 5.0f;
 
-    glm::vec3 boundaryMin(sceneMin.x - padding, sceneMin.y, sceneMin.z - padding);
-    glm::vec3 boundaryMax(sceneMax.x + padding, sceneMax.y, sceneMax.z + padding);
+    glm::vec3 boundaryMin(sceneMin.x - padding, sceneMin.y - padding, sceneMin.z - padding);
+    glm::vec3 boundaryMax(sceneMax.x + padding, sceneMax.y + padding, sceneMax.z + padding);
 
     AABB boundary(boundaryMin, boundaryMax);
 

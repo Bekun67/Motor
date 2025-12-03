@@ -48,7 +48,7 @@ public:
         //try all children
         if (!IsLeaf())
         {
-            for (int i = 0; i < 4; ++i)
+            for (int i = 0; i < 8; ++i)
             {
                 if (children[i] != nullptr)
                 {
@@ -68,7 +68,7 @@ private:
 
     AABB boundary;
     std::vector<GameObject*> objects;
-    QuadtreeNode* children[4];
+    QuadtreeNode* children[8];
 
     int maxObjects;
     int maxLevels;
