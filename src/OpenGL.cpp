@@ -672,7 +672,7 @@ bool OpenGL::Start()
     GLuint selectionDepthBuffer;
     glGenRenderbuffers(1, &selectionDepthBuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, selectionDepthBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, windowWidth, windowHeight);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 3840, 2160);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, selectionDepthBuffer);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
