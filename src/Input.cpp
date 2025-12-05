@@ -337,6 +337,8 @@ bool Input::PreUpdate()
                         float t = -camPos.y / rayWorld.y;
                         glm::vec3 dropPosition = camPos + rayWorld * t;
 
+                        //get min y
+                        float modelMinY = FLT_MAX;
                         for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i) 
                         {
                             glm::vec3 meshCenter = g_Meshes[i].center;
