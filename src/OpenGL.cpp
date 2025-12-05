@@ -715,7 +715,7 @@ bool OpenGL::Update()
 
         if (needsRebuild)
         {
-            LOG("Static object moved - Rebuilding Quadtree");
+            LOG("Static object moved - Rebuilding Octree");
             RebuildQuadtree();
         }
     }
@@ -842,19 +842,19 @@ bool OpenGL::Update()
             std::vector<GameObject*> candidateObjects;
             quadtree.CollectIntersections(candidateObjects, *frustum);
 
-            quadtreeTestsCount = candidateObjects.size();
             quadtreeCulledCount = staticObjects.size() - candidateObjects.size();
 
             //frustum over all candidates
+            quadtreeTestsCount = 0;
             for (GameObject* go : candidateObjects)
             {
                 if (go == nullptr || go->mesh == nullptr || go->mesh->meshIndex < 0) continue;
-
                 if (go->mesh->meshIndex >= (int)g_Meshes.size()) continue;
+
+                quadtreeTestsCount++;
 
                 WorldAABB worldAABB = go->mesh->GetWorldAABB();
 
-                //test individual aabb against frustum
                 if (frustum->Intersects(worldAABB))
                 {
                     visibleStatic.push_back(go);
@@ -874,7 +874,8 @@ bool OpenGL::Update()
         {
             //if frustum is not active all are visible
             quadtree.GetAllObjects(visibleStatic);
-            quadtreeTestsCount = visibleStatic.size();
+            quadtreeTestsCount = 0;
+            quadtreeCulledCount = 0;
             renderedCount += visibleStatic.size();
 
             for (GameObject* go : visibleStatic)
@@ -1293,7 +1294,7 @@ bool OpenGL::EmptyQuadtree()
 
 void OpenGL::RebuildQuadtree()
 {
-    LOG("Rebuilding Quadtree...");
+    LOG("Rebuilding Octree...");
 
     //calculate aabb that contains all static
     glm::vec3 sceneMin(FLT_MAX);
@@ -1321,7 +1322,7 @@ void OpenGL::RebuildQuadtree()
 
     if (staticCount == 0)
     {
-        LOG_WARNING("No static objects found to build Quadtree");
+        LOG_WARNING("No static objects found to build Octree");
         quadtree.Clear();
         return;
     }
@@ -1348,7 +1349,7 @@ void OpenGL::RebuildQuadtree()
         }
     }
 
-    LOG("Quadtree rebuilt with " + std::to_string(insertedCount) + " static objects");
+    LOG("Octree rebuilt with " + std::to_string(insertedCount) + " static objects");
     LOG("Boundary: Min(" + std::to_string(sceneMin.x) + ", " + std::to_string(sceneMin.z) +
         ") Max(" + std::to_string(sceneMax.x) + ", " + std::to_string(sceneMax.z) + ")");
 }

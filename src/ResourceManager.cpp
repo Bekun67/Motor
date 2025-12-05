@@ -308,6 +308,9 @@ int ResourceManager::LoadMeshToEngine(const std::string& customMeshPath)
     md.aabbMin = glm::vec3(mesh.aabbMinX, mesh.aabbMinY, mesh.aabbMinZ);
     md.aabbMax = glm::vec3(mesh.aabbMaxX, mesh.aabbMaxY, mesh.aabbMaxZ);
 
+    //center
+    md.center = glm::vec3(mesh.centerX, mesh.centerY, mesh.centerZ);
+
     // Create VAO and VBO
     glGenVertexArrays(1, &md.VAO);
     glBindVertexArray(md.VAO);

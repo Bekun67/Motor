@@ -145,6 +145,14 @@ bool Input::PreUpdate()
                 }
 
                 editor->sceneModified = true;
+                if (opengl->useQuadtree) {
+                    if (opengl->EmptyQuadtree()) {
+                        LOG("Quadtree is now empty");
+                    }
+                    else {
+                        opengl->RebuildQuadtree();
+                    }
+                }
             }
         }
 
@@ -293,9 +301,11 @@ bool Input::PreUpdate()
                         LOG_WARNING("Drop mesh in scene");
                         break;
                     }
-                    //if fbx we load its mesh
-                    size_t meshCountBefore = g_Meshes.size();
+
                     std::cout << "=========MESH===========" << std::endl;
+
+                    size_t meshCountBefore = g_Meshes.size();
+                    size_t instanceCountBefore = g_MeshInstances.size();
 
                     if (LoadFile(path.c_str())) {
                         std::cout << "FBX loaded" << std::endl;
@@ -327,24 +337,44 @@ bool Input::PreUpdate()
                         float t = -camPos.y / rayWorld.y;
                         glm::vec3 dropPosition = camPos + rayWorld * t;
 
+                        for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i) 
+                        {
+                            glm::vec3 meshCenter = g_Meshes[i].center;
+                            glm::vec3 meshAABBMin = g_Meshes[i].aabbMin;
+
+                            float meshBottomY = meshCenter.y + meshAABBMin.y;
+                            modelMinY = std::min(modelMinY, meshBottomY);
+                        }
+
+                        //to place it in Y=0
+                        float groundOffset = (modelMinY - g_ModelCenter.y) * normalizeScale;
+
                         for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
                         {
                             //create gameobject with mesh
+                            const MeshData& meshData = g_Meshes[i];
+
                             GameObject* go = new GameObject();
                             int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
                             go->meshPath = path;
                             go->meshIndexInFBX = (int)(i - meshCountBefore);
+                            go->mesh->meshIndex = (int)i;
+
+                            glm::vec3 meshCenter = meshData.center;
+
+                            glm::vec3 normalizedPosition = (meshCenter - g_ModelCenter) * normalizeScale;
+
+                            glm::vec3 finalPos = dropPosition + normalizedPosition;
+                            finalPos.y -= groundOffset; 
 
                             //change the translation to match the obtained coordinates
-                            go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);
+                            go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);
                             go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
                             go->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
 
-                            go->mesh->meshIndex = (int)i;
-
                             //try to load texture
-                            std::string texturePath = GetTexturePathFromFBX(path.c_str(), (int)(i - meshCountBefore));
+                            std::string texturePath = GetTexturePathFromFBX(path.c_str(), go->meshIndexInFBX);
 
                             bool textureLoaded = false;
                             if (!texturePath.empty()) {
@@ -393,17 +423,22 @@ bool Input::PreUpdate()
                             }
 
                             Application::GetInstance().opengl->gameObjects.push_back(go);
-                            std::cout << "Created GameObject " << go->name << std::endl;
+                            std::cout << "Created GameObject " << go->name
+                                << " at position (" << go->transform->translation.x
+                                << ", " << go->transform->translation.y
+                                << ", " << go->transform->translation.z << ")" << std::endl;
                             LOG("Created GameObject " + go->name + " with mesh " + path);
 
                             ModuleEditor* editor = Application::GetInstance().editor.get();
                             if (editor) editor->sceneModified = true;
                         }
 
+                        std::cout << "Total GameObjects created: " << (g_Meshes.size() - meshCountBefore) << std::endl;
                         std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
                         std::cout << std::endl;
                     }
                 }
+
                 else if (extension == ".png" || extension == ".jpg" || extension == ".jpeg") {
                     //get mouse pos
                     if (!mouseInsideScene && !mouseInsideTextureInspector)

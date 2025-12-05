@@ -46,15 +46,10 @@ bool QuadtreeNode::Insert(GameObject* object)
 
     if (IsLeaf())
     {
-        //if there is space for a new game object in the node we add it
-        if (objects.size() < (size_t)maxObjects || level >= maxLevels)
+        objects.push_back(object);
+
+        if (objects.size() > (size_t)maxObjects && level < maxLevels)
         {
-            objects.push_back(object);
-            return true;
-        }
-        else
-        {
-            //if there's no space (>8) we subdivide
             Subdivide();
 
             std::vector<GameObject*> tempObjects = objects;
@@ -62,55 +57,40 @@ bool QuadtreeNode::Insert(GameObject* object)
 
             for (GameObject* obj : tempObjects)
             {
-                bool inserted = false;
+                bool addedToChild = false;
 
                 for (int i = 0; i < 8; ++i)
                 {
-                    if (children[i]->CanContainCompletely(obj))
+                    if (children[i]->Intersects(obj))
                     {
-                        children[i]->Insert(obj);
-                        inserted = true;
-                        break;
+                        children[i]->objects.push_back(obj);
+                        addedToChild = true;
                     }
                 }
 
-                if (!inserted)
+                if (!addedToChild)
                 {
                     objects.push_back(obj);
                 }
             }
-
-            bool inserted = false;
-            for (int i = 0; i < 8; ++i)
-            {
-                if (children[i]->CanContainCompletely(object))
-                {
-                    children[i]->Insert(object);
-                    inserted = true;
-                    break;
-                }
-            }
-
-            if (!inserted)
-            {
-                objects.push_back(object);
-            }
-
-            return true;
         }
+
+        return true;
     }
     else
     {
+        bool addedToChild = false;
+
         for (int i = 0; i < 8; ++i)
         {
-            if (children[i]->CanContainCompletely(object))
+            if (children[i]->Intersects(object))
             {
-                return children[i]->Insert(object);
+                children[i]->Insert(object);
+                addedToChild = true;
             }
         }
 
-        objects.push_back(object);
-        return true;
+        return addedToChild;
     }
 }
 
@@ -223,7 +203,10 @@ void QuadtreeNode::Intersect(std::vector<GameObject*>& results, const AABB& area
     {
         if (obj != nullptr)
         {
-            results.push_back(obj);
+            if (std::find(results.begin(), results.end(), obj) == results.end())
+            {
+                results.push_back(obj);
+            }
         }
     }
 
@@ -246,7 +229,10 @@ void QuadtreeNode::Intersect(std::vector<GameObject*>& results, const Ray& ray) 
     {
         if (obj != nullptr)
         {
-            results.push_back(obj);
+            if (std::find(results.begin(), results.end(), obj) == results.end())
+            {
+                results.push_back(obj);
+            }
         }
     }
 
@@ -265,7 +251,10 @@ void QuadtreeNode::GetAllObjects(std::vector<GameObject*>& results) const
     {
         if (obj != nullptr)
         {
-            results.push_back(obj);
+            if (std::find(results.begin(), results.end(), obj) == results.end())
+            {
+                results.push_back(obj);
+            }
         }
     }
 
@@ -288,8 +277,6 @@ void QuadtreeNode::DebugDraw() const
 
     glm::vec3 min = boundary.min;
     glm::vec3 max = boundary.max;
-
-    float y = 0.0f;
 
     lineData.insert(lineData.end(), { min.x, min.y, min.z });
     lineData.insert(lineData.end(), { max.x, min.y, min.z });
@@ -365,6 +352,37 @@ void QuadtreeNode::DebugDraw() const
         for (int i = 0; i < 8; ++i)
         {
             children[i]->DebugDraw();
+        }
+    }
+}
+
+void QuadtreeNode::CollectIntersections(std::vector<GameObject*>& results, const Ray& ray) const
+{
+    float tMin, tMax;
+    if (!boundary.IntersectRay(ray, tMin, tMax))
+    {
+        return;
+    }
+
+    for (GameObject* obj : objects)
+    {
+        if (obj != nullptr && obj->mesh != nullptr && obj->mesh->meshIndex >= 0)
+        {
+            if (std::find(results.begin(), results.end(), obj) == results.end())
+            {
+                results.push_back(obj);
+            }
+        }
+    }
+
+    if (!IsLeaf())
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+            if (children[i] != nullptr)
+            {
+                children[i]->CollectIntersections(results, ray);
+            }
         }
     }
 }
@@ -458,38 +476,6 @@ const AABB& Quadtree::GetBoundary() const
         return root->GetBoundary();
     }
     return emptyAABB;
-}
-
-void QuadtreeNode::CollectIntersections(std::vector<GameObject*>& results, const Ray& ray) const
-{
-    float tMin, tMax;
-    if (!boundary.IntersectRay(ray, tMin, tMax))
-    {
-        //if the ray doesn't touch this node we discard it
-        return;
-    }
-
-    for (GameObject* obj : objects)
-    {
-        if (obj != nullptr && obj->mesh != nullptr && obj->mesh->meshIndex >= 0)
-        {
-            if (std::find(results.begin(), results.end(), obj) == results.end())
-            {
-                results.push_back(obj);
-            }
-        }
-    }
-
-    if (!IsLeaf())
-    {
-        for (int i = 0; i < 8; ++i)
-        {
-            if (children[i] != nullptr)
-            {
-                children[i]->CollectIntersections(results, ray);
-            }
-        }
-    }
 }
 
 void Quadtree::CollectIntersections(std::vector<GameObject*>& results, const Ray& ray) const

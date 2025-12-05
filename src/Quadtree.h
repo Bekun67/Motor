@@ -41,7 +41,10 @@ public:
         {
             if (obj != nullptr && obj->mesh != nullptr)
             {
-                results.push_back(obj);
+                if (std::find(results.begin(), results.end(), obj) == results.end())
+                {
+                    results.push_back(obj);
+                }
             }
         }
 

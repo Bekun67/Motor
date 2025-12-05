@@ -28,6 +28,14 @@ struct MeshData {
     glm::vec3 maxBound = glm::vec3(0.0f);
 };
 
+struct MeshWithTransform 
+{
+    int meshIndex;
+    glm::mat4 transform;
+};
+
+extern std::vector<MeshWithTransform> g_MeshInstances;
+
 bool LoadFile(const char* file_path);
 
 extern glm::vec3 g_ModelCenter;
@@ -39,3 +47,5 @@ bool LoadFileCustomFormat(const char* file_path);
 
 // Import, Save and Load workflow
 bool ImportSaveLoad(const char* file_path);
+
+void DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::quat& rotation, glm::vec3& scale);

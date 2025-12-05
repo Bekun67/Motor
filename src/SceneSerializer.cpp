@@ -107,7 +107,8 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 	OpenGL* opengl = Application::GetInstance().opengl.get();
 	if (opengl && opengl->useQuadtree)
 	{
-		opengl->useQuadtree = false;
+		opengl->RebuildQuadtree();
+		LOG("Octree rebuilt after loading scene");
 	}
 
 	LOG("Scene loaded successfully from: " + filepath);

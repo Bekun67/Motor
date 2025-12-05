@@ -2,216 +2,229 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <fstream>
 #include <iostream>
-#include <chrono>
 #include <filesystem>
-#include <sstream>
+#include <chrono>
+#include <glm/glm.hpp>
 
 namespace fs = std::filesystem;
 
-namespace MeshImporter {
+std::vector<CustomMesh> MeshImporter::ImportFBX(const std::string& fbxPath)
+{
+    std::vector<CustomMesh> meshes;
 
-    // Internal function - Import single mesh from Assimp
-    CustomMesh ImportFromAssimp(const aiMesh* mesh) {
+    Assimp::Importer importer;
+    unsigned int flags =
+        aiProcess_Triangulate |
+        aiProcess_GenSmoothNormals |
+        aiProcess_ImproveCacheLocality |
+        aiProcess_FlipUVs |
+        aiProcess_GlobalScale |
+        aiProcess_PreTransformVertices;
+
+    const aiScene* scene = importer.ReadFile(fbxPath, flags);
+
+    if (!scene || !scene->HasMeshes())
+    {
+        std::cerr << "Failed to import FBX: " << fbxPath << std::endl;
+        return meshes;
+    }
+
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
+    {
+        aiMesh* mesh = scene->mMeshes[m];
         CustomMesh customMesh;
 
-        if (!mesh) return customMesh;
+        glm::vec3 meshMin(FLT_MAX);
+        glm::vec3 meshMax(-FLT_MAX);
 
-        customMesh.numVertices = mesh->mNumVertices;
-        customMesh.vertices.reserve(mesh->mNumVertices * 8); // 8 floats per vertex
+        for (unsigned int v = 0; v < mesh->mNumVertices; ++v)
+        {
+            const aiVector3D& pos = mesh->mVertices[v];
+            meshMin.x = std::min(meshMin.x, pos.x);
+            meshMin.y = std::min(meshMin.y, pos.y);
+            meshMin.z = std::min(meshMin.z, pos.z);
+            meshMax.x = std::max(meshMax.x, pos.x);
+            meshMax.y = std::max(meshMax.y, pos.y);
+            meshMax.z = std::max(meshMax.z, pos.z);
+        }
 
-        customMesh.aabbMinX = std::numeric_limits<float>::max();
-        customMesh.aabbMinY = std::numeric_limits<float>::max();
-        customMesh.aabbMinZ = std::numeric_limits<float>::max();
-        customMesh.aabbMaxX = std::numeric_limits<float>::lowest();
-        customMesh.aabbMaxY = std::numeric_limits<float>::lowest();
-        customMesh.aabbMaxZ = std::numeric_limits<float>::lowest();
+        glm::vec3 meshCenter = (meshMin + meshMax) * 0.5f;
 
-        // Copy vertices, normals, and UVs
-        for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-            float x = mesh->mVertices[i].x;
-            float y = mesh->mVertices[i].y;
-            float z = mesh->mVertices[i].z;
+        customMesh.centerX = meshCenter.x;
+        customMesh.centerY = meshCenter.y;
+        customMesh.centerZ = meshCenter.z;
 
-            // Position
-            customMesh.vertices.push_back(mesh->mVertices[i].x);
-            customMesh.vertices.push_back(mesh->mVertices[i].y);
-            customMesh.vertices.push_back(mesh->mVertices[i].z);
+        for (unsigned int v = 0; v < mesh->mNumVertices; ++v)
+        {
+            const aiVector3D& pos = mesh->mVertices[v];
 
-            //aabb
-            if (x < customMesh.aabbMinX) customMesh.aabbMinX = x;
-            if (y < customMesh.aabbMinY) customMesh.aabbMinY = y;
-            if (z < customMesh.aabbMinZ) customMesh.aabbMinZ = z;
-            if (x > customMesh.aabbMaxX) customMesh.aabbMaxX = x;
-            if (y > customMesh.aabbMaxY) customMesh.aabbMaxY = y;
-            if (z > customMesh.aabbMaxZ) customMesh.aabbMaxZ = z;
+            customMesh.vertices.push_back(pos.x - meshCenter.x);
+            customMesh.vertices.push_back(pos.y - meshCenter.y);
+            customMesh.vertices.push_back(pos.z - meshCenter.z);
 
-            // Normal
-            if (mesh->HasNormals()) {
-                customMesh.vertices.push_back(mesh->mNormals[i].x);
-                customMesh.vertices.push_back(mesh->mNormals[i].y);
-                customMesh.vertices.push_back(mesh->mNormals[i].z);
+            aiVector3D normal = mesh->HasNormals() ? mesh->mNormals[v] : aiVector3D(0.0f, 0.0f, 1.0f);
+            customMesh.vertices.push_back(normal.x);
+            customMesh.vertices.push_back(normal.y);
+            customMesh.vertices.push_back(normal.z);
+
+            if (mesh->HasTextureCoords(0))
+            {
+                aiVector3D uv = mesh->mTextureCoords[0][v];
+                customMesh.vertices.push_back(uv.x);
+                customMesh.vertices.push_back(uv.y);
             }
-            else {
-                customMesh.vertices.push_back(0.0f);
-                customMesh.vertices.push_back(1.0f);
-                customMesh.vertices.push_back(0.0f);
-            }
-
-            // UV
-            if (mesh->HasTextureCoords(0)) {
-                customMesh.vertices.push_back(mesh->mTextureCoords[0][i].x);
-                customMesh.vertices.push_back(mesh->mTextureCoords[0][i].y);
-            }
-            else {
+            else
+            {
                 customMesh.vertices.push_back(0.0f);
                 customMesh.vertices.push_back(0.0f);
             }
         }
 
-        // Copy indices
-        customMesh.numIndices = mesh->mNumFaces * 3;
-        customMesh.indices.reserve(customMesh.numIndices);
-
-        for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
-            const aiFace& face = mesh->mFaces[i];
-            if (face.mNumIndices == 3) {
+        for (unsigned int f = 0; f < mesh->mNumFaces; ++f)
+        {
+            const aiFace& face = mesh->mFaces[f];
+            if (face.mNumIndices == 3)
+            {
                 customMesh.indices.push_back(face.mIndices[0]);
                 customMesh.indices.push_back(face.mIndices[1]);
                 customMesh.indices.push_back(face.mIndices[2]);
             }
         }
 
-        return customMesh;
+        customMesh.numIndices = customMesh.indices.size();
+
+        customMesh.aabbMinX = meshMin.x - meshCenter.x;
+        customMesh.aabbMinY = meshMin.y - meshCenter.y;
+        customMesh.aabbMinZ = meshMin.z - meshCenter.z;
+        customMesh.aabbMaxX = meshMax.x - meshCenter.x;
+        customMesh.aabbMaxY = meshMax.y - meshCenter.y;
+        customMesh.aabbMaxZ = meshMax.z - meshCenter.z;
+
+        meshes.push_back(customMesh);
     }
 
-    // Import FBX file and return all meshes
-    std::vector<CustomMesh> ImportFBX(const std::string& fbxPath) {
-        std::vector<CustomMesh> meshes;
+    return meshes;
+}
 
-        auto startTime = std::chrono::high_resolution_clock::now();
+bool MeshImporter::SaveMesh(const CustomMesh& mesh, const std::string& filepath)
+{
+    fs::path filePath(filepath);
+    fs::create_directories(filePath.parent_path());
 
-        Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(fbxPath,
-            aiProcess_Triangulate |
-            aiProcess_GenSmoothNormals |
-            aiProcess_JoinIdenticalVertices |
-            aiProcess_FlipUVs |
-            aiProcess_GlobalScale |  
-            aiProcess_PreTransformVertices);
-
-        if (!scene || !scene->HasMeshes()) {
-            std::cerr << "[MeshImporter] Failed to load FBX: " << fbxPath << std::endl;
-            if (!scene) {
-                std::cerr << "[MeshImporter] Assimp error: " << importer.GetErrorString() << std::endl;
-            }
-            return meshes;
-        }
-
-        auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-
-        std::cout << "[MeshImporter] FBX loaded in " << duration.count() << " ms" << std::endl;
-        std::cout << "[MeshImporter] Found " << scene->mNumMeshes << " meshes" << std::endl;
-
-        // Convert all meshes
-        for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
-            CustomMesh customMesh = ImportFromAssimp(scene->mMeshes[i]);
-            meshes.push_back(customMesh);
-            std::cout << "[MeshImporter] Mesh " << i << ": "
-                << customMesh.numVertices << " vertices, "
-                << customMesh.numIndices << " indices" << std::endl;
-        }
-
-        return meshes;
+    std::ofstream file(filepath, std::ios::binary);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to save mesh: " << filepath << std::endl;
+        return false;
     }
 
-    // Save custom mesh to binary format
-    bool SaveMesh(const CustomMesh& mesh, const std::string& outputPath) {
-        std::ofstream file(outputPath, std::ios::binary);
+    uint32_t magic = 0x4D455348; 
+    file.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
-        if (!file.is_open()) {
-            std::cerr << "[MeshImporter] Failed to open file for writing: " << outputPath << std::endl;
-            return false;
-        }
+    uint32_t version = 2; 
+    file.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
-        // Header: numVertices, numIndices
-        file.write(reinterpret_cast<const char*>(&mesh.numVertices), sizeof(unsigned int));
-        file.write(reinterpret_cast<const char*>(&mesh.numIndices), sizeof(unsigned int));
+    uint32_t vertexCount = mesh.vertices.size();
+    file.write(reinterpret_cast<const char*>(&vertexCount), sizeof(vertexCount));
+    file.write(reinterpret_cast<const char*>(mesh.vertices.data()), vertexCount * sizeof(float));
 
-        // Vertex data
-        size_t vertexDataSize = mesh.vertices.size() * sizeof(float);
-        file.write(reinterpret_cast<const char*>(mesh.vertices.data()), vertexDataSize);
+    uint32_t indexCount = mesh.indices.size();
+    file.write(reinterpret_cast<const char*>(&indexCount), sizeof(indexCount));
+    file.write(reinterpret_cast<const char*>(mesh.indices.data()), indexCount * sizeof(unsigned int));
 
-        // Index data
-        size_t indexDataSize = mesh.indices.size() * sizeof(unsigned int);
-        file.write(reinterpret_cast<const char*>(mesh.indices.data()), indexDataSize);
+    file.write(reinterpret_cast<const char*>(&mesh.numIndices), sizeof(mesh.numIndices));
 
-        //aabb data
-        file.write(reinterpret_cast<const char*>(&mesh.aabbMinX), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&mesh.aabbMinY), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&mesh.aabbMinZ), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&mesh.aabbMaxX), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&mesh.aabbMaxY), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&mesh.aabbMaxZ), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.aabbMinX), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.aabbMinY), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.aabbMinZ), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.aabbMaxX), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.aabbMaxY), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.aabbMaxZ), sizeof(float));
 
-        file.close();
+    file.write(reinterpret_cast<const char*>(&mesh.centerX), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.centerY), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&mesh.centerZ), sizeof(float));
 
-        std::cout << "[MeshImporter] Saved mesh to: " << outputPath << std::endl;
-        return true;
+    file.close();
+    return true;
+}
+
+bool MeshImporter::LoadMesh(CustomMesh& mesh, const std::string& filepath)
+{
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::ifstream file(filepath, std::ios::binary);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to load mesh: " << filepath << std::endl;
+        return false;
     }
 
-    // Load custom mesh from binary format
-    bool LoadMesh(CustomMesh& mesh, const std::string& inputPath) {
-        auto startTime = std::chrono::high_resolution_clock::now();
-
-        std::ifstream file(inputPath, std::ios::binary);
-
-        if (!file.is_open()) {
-            std::cerr << "[MeshImporter] Failed to open file for reading: " << inputPath << std::endl;
-            return false;
-        }
-
-        // Read header
-        file.read(reinterpret_cast<char*>(&mesh.numVertices), sizeof(unsigned int));
-        file.read(reinterpret_cast<char*>(&mesh.numIndices), sizeof(unsigned int));
-
-        // Read vertex data
-        size_t vertexDataSize = mesh.numVertices * 8; // 8 floats per vertex
-        mesh.vertices.resize(vertexDataSize);
-        file.read(reinterpret_cast<char*>(mesh.vertices.data()), vertexDataSize * sizeof(float));
-
-        // Read index data
-        mesh.indices.resize(mesh.numIndices);
-        file.read(reinterpret_cast<char*>(mesh.indices.data()), mesh.numIndices * sizeof(unsigned int));
-
-        //read aabb data
-        file.read(reinterpret_cast<char*>(&mesh.aabbMinX), sizeof(float));
-        file.read(reinterpret_cast<char*>(&mesh.aabbMinY), sizeof(float));
-        file.read(reinterpret_cast<char*>(&mesh.aabbMinZ), sizeof(float));
-        file.read(reinterpret_cast<char*>(&mesh.aabbMaxX), sizeof(float));
-        file.read(reinterpret_cast<char*>(&mesh.aabbMaxY), sizeof(float));
-        file.read(reinterpret_cast<char*>(&mesh.aabbMaxZ), sizeof(float));
-
-        file.close();
-
-        auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-
-        std::cout << "[MeshImporter] Custom mesh loaded in " << duration.count() << " ms" << std::endl;
-        std::cout << "[MeshImporter] " << mesh.numVertices << " vertices, "
-            << mesh.numIndices << " indices" << std::endl;
-
-        return true;
+    // Magic number
+    uint32_t magic;
+    file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
+    if (magic != 0x4D455348)
+    {
+        std::cerr << "Invalid mesh file format" << std::endl;
+        return false;
     }
 
-    // Get the custom mesh file path
-    std::string GetCustomMeshPath(const std::string& fbxPath, int meshIndex) {
-        fs::path p(fbxPath);
-        std::string filename = p.stem().string();
+    // Version
+    uint32_t version;
+    file.read(reinterpret_cast<char*>(&version), sizeof(version));
 
-        std::stringstream ss;
-        ss << "Library/Meshes/" << filename << "_" << meshIndex << ".ilmesh";
-        return ss.str();
+    // Vertices
+    uint32_t vertexCount;
+    file.read(reinterpret_cast<char*>(&vertexCount), sizeof(vertexCount));
+    mesh.vertices.resize(vertexCount);
+    file.read(reinterpret_cast<char*>(mesh.vertices.data()), vertexCount * sizeof(float));
+
+    // Indices
+    uint32_t indexCount;
+    file.read(reinterpret_cast<char*>(&indexCount), sizeof(indexCount));
+    mesh.indices.resize(indexCount);
+    file.read(reinterpret_cast<char*>(mesh.indices.data()), indexCount * sizeof(unsigned int));
+
+    // Num indices
+    file.read(reinterpret_cast<char*>(&mesh.numIndices), sizeof(mesh.numIndices));
+
+    // AABB
+    file.read(reinterpret_cast<char*>(&mesh.aabbMinX), sizeof(float));
+    file.read(reinterpret_cast<char*>(&mesh.aabbMinY), sizeof(float));
+    file.read(reinterpret_cast<char*>(&mesh.aabbMinZ), sizeof(float));
+    file.read(reinterpret_cast<char*>(&mesh.aabbMaxX), sizeof(float));
+    file.read(reinterpret_cast<char*>(&mesh.aabbMaxY), sizeof(float));
+    file.read(reinterpret_cast<char*>(&mesh.aabbMaxZ), sizeof(float));
+
+    if (version >= 2)
+    {
+        file.read(reinterpret_cast<char*>(&mesh.centerX), sizeof(float));
+        file.read(reinterpret_cast<char*>(&mesh.centerY), sizeof(float));
+        file.read(reinterpret_cast<char*>(&mesh.centerZ), sizeof(float));
     }
+    else
+    {
+        mesh.centerX = (mesh.aabbMinX + mesh.aabbMaxX) * 0.5f;
+        mesh.centerY = (mesh.aabbMinY + mesh.aabbMaxY) * 0.5f;
+        mesh.centerZ = (mesh.aabbMinZ + mesh.aabbMaxZ) * 0.5f;
+    }
+
+    file.close();
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "[MeshImporter] Custom mesh loaded in " << duration.count() << " ms" << std::endl;
+    std::cout << "[MeshImporter] " << (vertexCount / 8) << " vertices, " << indexCount << " indices" << std::endl;
+
+    return true;
+}
+
+std::string MeshImporter::GetCustomMeshPath(const std::string& fbxPath, int meshIndex)
+{
+    fs::path path(fbxPath);
+    std::string baseName = path.stem().string();
+    std::string customPath = "Library/Meshes/" + baseName + "_" + std::to_string(meshIndex) + ".ilmesh";
+    return customPath;
 }
