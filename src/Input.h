@@ -26,6 +26,7 @@ enum KeyState
 
 class GameObject;
 
+class EditorPlaySystem;
 class Input : public Module
 {
 public:

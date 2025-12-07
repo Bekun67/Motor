@@ -2,6 +2,7 @@
 #include "LoadFBX.h"
 #include "Time.h" 
 #include <iostream>
+#include "EditorPlaySystem.h"
 
 Application* app = nullptr;
 
@@ -11,6 +12,7 @@ Application::Application() : isRunning(true)
     std::cout << "Application Constructor" << std::endl;
 
     Time::Init(); 
+    EditorPlaySystem::Init();
 
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
@@ -139,6 +141,7 @@ bool Application::CleanUp()
             break;
         }
     }
+    EditorPlaySystem::Shutdown();
 
     return result;
 }

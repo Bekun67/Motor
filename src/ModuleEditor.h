@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <ImGuizmo.h>
 #include "PrimitiveGenerator.h"
+#include "EditorPlaySystem.h"
 #include <glm/gtc/quaternion.hpp>
 
 class GameObject;

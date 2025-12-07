@@ -7,6 +7,7 @@
 #include "imgui_impl_sdl3.h"
 #include <imgui.h>     
 #include <ImGuizmo.h>  
+#include "EditorPlaySystem.h"
 
 #define MAX_KEYS 300
 
@@ -184,6 +185,36 @@ bool Input::PreUpdate()
             LOG("Deselecting all GameObjects");
             editor->DeselectAll();
             opengl->selectedGameObject = nullptr;
+        }
+    }
+
+    if (!moduleEditor->editing)
+    {
+        // F5 - Play
+        if (keyboard[SDL_SCANCODE_F5] == KEY_DOWN)
+        {
+            if (EditorPlaySystem::IsStopped() || EditorPlaySystem::IsPaused())
+            {
+                EditorPlaySystem::Play();
+            }
+        }
+
+        // F6 - Pause
+        if (keyboard[SDL_SCANCODE_F6] == KEY_DOWN)
+        {
+            if (EditorPlaySystem::IsPlaying())
+            {
+                EditorPlaySystem::Pause();
+            }
+        }
+
+        // F7 - Stop
+        if (keyboard[SDL_SCANCODE_F7] == KEY_DOWN)
+        {
+            if (EditorPlaySystem::IsPlaying())
+            {
+                EditorPlaySystem::Stop();
+            }
         }
     }
 
