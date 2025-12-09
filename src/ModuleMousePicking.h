@@ -33,7 +33,7 @@ public:
     RaycastHit CastRay(const Ray& ray, const std::vector<GameObject*>& gameObjects);
 
     // Test ray in AABB
-    bool RayIntersectsAABB(const Ray& ray, const AABB& aabb, float& distance);
+    bool RayIntersectsAABB(const Ray& ray, const AABB& aabb, float& tMin, float& tMax);
 
     // Test ray with triangle
     bool RayIntersectsTriangle(const Ray& ray, const Triangle& triangle, float& distance, glm::vec3& hitPoint);
