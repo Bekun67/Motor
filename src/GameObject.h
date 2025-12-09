@@ -33,11 +33,11 @@ public:
 	void UpdateAABB();
 
 	AABB GetWorldAABB() const;
-	UUID GetUUID() const { return m_UUID; }
-	void SetUUID(UUID uuid) { m_UUID = uuid; }
+	EngineUUID GetUUID() const { return m_UUID; }
+	void SetUUID(EngineUUID uuid) { m_UUID = uuid; }
 
-	UUID GetParentUUID() const { return m_ParentUUID; }
-	void SetParentUUID(UUID uuid) { m_ParentUUID = uuid; }
+	EngineUUID GetParentUUID() const { return m_ParentUUID; }
+	void SetParentUUID(EngineUUID uuid) { m_ParentUUID = uuid; }
 
 	// Hierarchy management
 	void SetParent(GameObject* newParent);
@@ -86,6 +86,6 @@ public:
 	bool needsQuadtreeUpdate = false;
 
 private:
-	UUID m_UUID;
-	UUID m_ParentUUID;
+	EngineUUID m_UUID;
+	EngineUUID m_ParentUUID;
 };

@@ -28,6 +28,7 @@ void MenuBarWindow::Draw()
         editor->layout.menuBarHeight = menuBarHeight;
 
         DrawFileMenu();
+        DrawEditMenu();
         DrawViewMenu();
         DrawGameObjectMenu();
         DrawHelpMenu();
@@ -458,5 +459,68 @@ void MenuBarWindow::DrawPopups()
         }
 
         ImGui::EndPopup();
+    }
+}
+
+void MenuBarWindow::DrawEditMenu()
+{
+    if (ImGui::BeginMenu("Edit"))
+    {
+        bool canUndo = editor->commandHistory.CanUndo();
+        bool canRedo = editor->commandHistory.CanRedo();
+
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo))
+        {
+            editor->commandHistory.Undo();
+        }
+
+        if (canUndo)
+        {
+            ImGui::SetTooltip("%s", editor->commandHistory.GetUndoDescription().c_str());
+        }
+
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo))
+        {
+            editor->commandHistory.Redo();
+        }
+
+        if (canRedo)
+        {
+            ImGui::SetTooltip("%s", editor->commandHistory.GetRedoDescription().c_str());
+        }
+
+        ImGui::Separator();
+
+        bool hasSelection = !editor->selectedGameObjects.empty();
+
+        if (ImGui::MenuItem("Copy", "Ctrl+C", false, hasSelection))
+        {
+            // TODO: Implement copy
+            LOG("Copy not yet implemented");
+        }
+
+        if (ImGui::MenuItem("Paste", "Ctrl+V", false, false))
+        {
+            // TODO: Implement paste
+            LOG("Paste not yet implemented");
+        }
+
+        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, hasSelection))
+        {
+            // TODO: Implement duplicate
+            LOG("Duplicate not yet implemented");
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Delete", "Delete", false, hasSelection))
+        {
+            for (GameObject* go : editor->selectedGameObjects)
+            {
+                editor->MarkForDeletion(go);
+            }
+        }
+
+        ImGui::EndMenu();
     }
 }

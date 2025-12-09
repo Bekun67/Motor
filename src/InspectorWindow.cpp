@@ -337,6 +337,26 @@ void InspectorWindow::DrawSingleObjectInspector()
             ImGui::Text("Texture Preview:");
             ImGui::Image((ImTextureID)(intptr_t)texture->texturedata->id, ImVec2(128, 128));
 
+            if (ImGui::Button("Load Texture...", ImVec2(-1, 0)))
+            {
+                std::string filepath = editor->OpenFileDialog(
+                    "Image Files (*.png;*.jpg;*.jpeg;*.tga;*.dds)\0*.png;*.jpg;*.jpeg;*.tga;*.dds\0All Files (*.*)\0*.*\0"
+                );
+
+                if (!filepath.empty())
+                {
+                    if (texture->LoadTexture(filepath))
+                    {
+                        LOG("Loaded texture: " + filepath);
+                        editor->sceneModified = true;
+                    }
+                    else
+                    {
+                        LOG_ERROR("Failed to load texture: " + filepath);
+                    }
+                }
+            }
+
             if (ImGui::Button("Use Checkerboard"))
             {
                 // Delete old texture

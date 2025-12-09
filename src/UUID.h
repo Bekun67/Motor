@@ -5,16 +5,16 @@
 #include <sstream>
 #include <iomanip>
 
-class UUID
+class EngineUUID
 {
 public:
-    UUID();
-    UUID(uint32_t uuid);
+    EngineUUID();
+    EngineUUID(uint32_t uuid);
 
     operator uint32_t() const { return m_UUID; }
 
     std::string ToString() const;
-    static UUID FromString(const std::string& str);
+    static EngineUUID FromString(const std::string& str);
 
 private:
     uint32_t m_UUID;
@@ -22,9 +22,9 @@ private:
 
 namespace std {
     template<>
-    struct hash<UUID>
+    struct hash<EngineUUID>
     {
-        size_t operator()(const UUID& uuid) const
+        size_t operator()(const EngineUUID& uuid) const
         {
             return hash<uint32_t>()((uint32_t)uuid);
         }

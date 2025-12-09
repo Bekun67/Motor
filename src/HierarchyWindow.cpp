@@ -161,6 +161,18 @@ void HierarchyWindow::DrawGameObjectNode(GameObject* go)
 
         ImGui::Separator();
 
+        if (go->parent != nullptr)
+        {
+            if (ImGui::MenuItem("Unparent", "Shift+P"))
+            {
+                go->SetParent(nullptr);
+                editor->sceneModified = true;
+                LOG("Unparented GameObject: " + go->name);
+            }
+        }
+
+		ImGui::Separator();
+
         if (ImGui::MenuItem("Move Up"))
         {
             go->MoveUp();

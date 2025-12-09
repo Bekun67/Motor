@@ -12,6 +12,7 @@ public:
 
 private:
     void DrawFileMenu();
+    void DrawEditMenu();
     void DrawViewMenu();
     void DrawGameObjectMenu();
     void DrawHelpMenu();

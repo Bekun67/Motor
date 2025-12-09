@@ -29,6 +29,8 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <ImGuizmo.h>
+#include <windows.h>
+#include <commdlg.h>
 
 // window headers
 #include "EditorWindow.h"
@@ -157,6 +159,10 @@ bool ModuleEditor::Update()
 
     ImGuizmo::BeginFrame();
 
+    // Handle keyboard shortcuts
+    bool ctrlPressed = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
+    bool shiftPressed = ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift);
+   
     // Handle Gizmo operation changes with W, E, R keys
     if (!editing)
     {
@@ -171,6 +177,45 @@ bool ModuleEditor::Update()
         if (ImGui::IsKeyPressed(ImGuiKey_R))
         {
             currentGizmoOperation = ImGuizmo::SCALE;
+        }
+        // Undo (Ctrl+Z)
+        if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_Z) && !shiftPressed)
+        {
+            if (commandHistory.CanUndo())
+            {
+                commandHistory.Undo();
+            }
+        }
+        // Redo (Ctrl+Y or Ctrl+Shift+Z)
+        if ((ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_Y)) ||
+            (ctrlPressed && shiftPressed && ImGui::IsKeyPressed(ImGuiKey_Z)))
+        {
+            if (commandHistory.CanRedo())
+            {
+                commandHistory.Redo();
+            }
+        }
+        // Save Scene (Ctrl+S)
+        if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_S) && !shiftPressed)
+        {
+            if (currentScenePath.empty())
+            {
+                SaveSceneDialog();
+            }
+            else
+            {
+                SaveScene(currentScenePath);
+            }
+        }
+        // Save Scene As (Ctrl+Shift+S)
+        if (ctrlPressed && shiftPressed && ImGui::IsKeyPressed(ImGuiKey_S))
+        {
+            SaveSceneDialog();
+        }
+        // Existing W, E, R shortcuts...
+        if (ImGui::IsKeyPressed(ImGuiKey_W))
+        {
+            currentGizmoOperation = ImGuizmo::TRANSLATE;
         }
     }
 
@@ -280,6 +325,13 @@ void ModuleEditor::DrawGuizmo()
 
         glm::mat4 deltaMatrix = glm::mat4(1.0f);
 
+        //Capture state when starting manipulation
+        if (ImGuizmo::IsUsing() && !wasManipulating)
+        {
+            BeginTransformEdit(selected);
+            wasManipulating = true;
+        }
+
         if (ImGuizmo::Manipulate(
             glm::value_ptr(view),
             glm::value_ptr(projection),
@@ -326,6 +378,13 @@ void ModuleEditor::DrawGuizmo()
         }
         else
         {
+            // Save state when finishing manipulation
+            if (editing && wasManipulating)
+            {
+                EndTransformEdit(selected);
+                wasManipulating = false;
+            }
+
             if (editing)
             {
                 editing = false;
@@ -922,4 +981,117 @@ void ModuleEditor::ProcessDeletions()
     sceneModified = true;
 
     LOG("Deletion processing complete");
+}
+
+void ModuleEditor::BeginTransformEdit(GameObject* go)
+{
+    if (!go || !go->transform) return;
+
+    TransformState state;
+    state.position = glm::vec3(
+        go->transform->translation.x,
+        go->transform->translation.y,
+        go->transform->translation.z
+    );
+    state.rotation = glm::quat(
+        go->transform->rotation.w,
+        go->transform->rotation.x,
+        go->transform->rotation.y,
+        go->transform->rotation.z
+    );
+    state.scale = glm::vec3(
+        go->transform->scaling.x,
+        go->transform->scaling.y,
+        go->transform->scaling.z
+    );
+
+    m_TransformStates[go] = state;
+}
+
+void ModuleEditor::EndTransformEdit(GameObject* go)
+{
+    if (!go || !go->transform) return;
+
+    auto it = m_TransformStates.find(go);
+    if (it == m_TransformStates.end()) return;
+
+    TransformState& oldState = it->second;
+
+    glm::vec3 newPos(
+        go->transform->translation.x,
+        go->transform->translation.y,
+        go->transform->translation.z
+    );
+    glm::quat newRot(
+        go->transform->rotation.w,
+        go->transform->rotation.x,
+        go->transform->rotation.y,
+        go->transform->rotation.z
+    );
+    glm::vec3 newScale(
+        go->transform->scaling.x,
+        go->transform->scaling.y,
+        go->transform->scaling.z
+    );
+
+    // Only create command if something actually changed
+    if (oldState.position != newPos ||
+        oldState.rotation != newRot ||
+        oldState.scale != newScale)
+    {
+        auto command = std::make_unique<TransformCommand>(
+            go,
+            oldState.position, oldState.rotation, oldState.scale,
+            newPos, newRot, newScale
+        );
+
+        commandHistory.ExecuteCommand(std::move(command));
+    }
+
+    m_TransformStates.erase(it);
+}
+
+
+std::string ModuleEditor::OpenFileDialog(const char* filter)
+{
+    OPENFILENAMEA ofn;
+    CHAR szFile[260] = { 0 };
+
+    ZeroMemory(&ofn, sizeof(OPENFILENAME));
+    ofn.lStructSize = sizeof(OPENFILENAME);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+    ofn.lpstrFilter = filter;
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+
+    if (GetOpenFileNameA(&ofn) == TRUE)
+    {
+        return ofn.lpstrFile;
+    }
+
+    return "";
+}
+
+std::string ModuleEditor::SaveFileDialog(const char* filter)
+{
+    OPENFILENAMEA ofn;
+    CHAR szFile[260] = { 0 };
+
+    ZeroMemory(&ofn, sizeof(OPENFILENAME));
+    ofn.lStructSize = sizeof(OPENFILENAME);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+    ofn.lpstrFilter = filter;
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
+    if (GetSaveFileNameA(&ofn) == TRUE)
+    {
+        return ofn.lpstrFile;
+    }
+
+    return "";
 }

@@ -2,11 +2,13 @@
 #include "Module.h"
 #include "imgui.h"
 #include "imguizmo.h"
+#include "EditorCommand.h"
 #include <string>
 #include <deque>
 #include <vector>
 #include <memory>
 #include <glm/gtc/quaternion.hpp>
+#include <map>
 
 // Forward declarations
 class EditorWindow;
@@ -194,8 +196,28 @@ public:
     const char* team = "Team Hutao";
     const char* repoURL = "https://github.com/Bekun67/Motor";
 
+    // Command history for undo/redo
+    CommandHistory commandHistory;
+
+    // Capture transform state before manipulation
+    void BeginTransformEdit(GameObject* go);
+    void EndTransformEdit(GameObject* go);
+
+    // File dialogs using native system
+    std::string OpenFileDialog(const char* filter);
+    std::string SaveFileDialog(const char* filter);
+
 private:
     std::vector<GameObject*> m_ObjectsToDelete;
+
+    // Store transform state for undo/redo
+    struct TransformState
+    {
+        glm::vec3 position;
+        glm::quat rotation;
+        glm::vec3 scale;
+    };
+    std::map<GameObject*, TransformState> m_TransformStates;
 };
 
 extern ModuleEditor* g_Editor;

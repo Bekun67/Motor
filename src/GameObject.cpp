@@ -4,8 +4,8 @@
 
 GameObject::GameObject()
 {
-	m_UUID = UUID();
-	m_ParentUUID = UUID(0);
+	m_UUID = EngineUUID();
+	m_ParentUUID = EngineUUID(0);
 	name = "gameObject";
 	parent = nullptr;
 
@@ -17,7 +17,7 @@ GameObject::GameObject()
 
 GameObject::GameObject(GameObject* parent)
 {
-	m_UUID = UUID();
+	m_UUID = EngineUUID();
 	name = "gameObject";
 	this->parent = parent;
 
@@ -26,7 +26,7 @@ GameObject::GameObject(GameObject* parent)
 		parent->children.push_back(this);
 	}
 	else {
-		m_ParentUUID = UUID(0);
+		m_ParentUUID = EngineUUID(0);
 	}
 
 	transform = new ComponentTransform(this);
@@ -188,7 +188,7 @@ void GameObject::SetParent(GameObject* newParent)
 	}
 	else
 	{
-		m_ParentUUID = UUID(0);
+		m_ParentUUID = EngineUUID(0);
 	}
 }
 

@@ -51,6 +51,7 @@ file(GLOB SERIALIZATION_FILES
 
 file(GLOB EDITOR_FILES
     "src/EditorWindow.*"
+    "src/EditorCommand.*"
     "src/SceneViewportWindow.*"
     "src/HierarchyWindow.*"
     "src/InspectorWindow.*"
