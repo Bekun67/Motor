@@ -310,10 +310,10 @@ bool Input::PreUpdate()
                     if (LoadFile(path.c_str())) {
                         std::cout << "FBX loaded" << std::endl;
 
-                        float desiredSize = 5.0f;
-                        float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
+                        size_t newInstanceCount = g_MeshInstances.size() - instanceCountBefore;
 
                         //get mouse pos
+                        float mouseX, mouseY;
                         SDL_GetMouseState(&mouseX, &mouseY);
 
                         //get camera
@@ -337,56 +337,84 @@ bool Input::PreUpdate()
                         float t = -camPos.y / rayWorld.y;
                         glm::vec3 dropPosition = camPos + rayWorld * t;
 
+                        //get normalized scale
+                        float desiredSize = 5.0f;
+                        float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
+
                         //get min y
                         float modelMinY = FLT_MAX;
-                        for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i) 
+                        for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                         {
-                            glm::vec3 meshCenter = g_Meshes[i].center;
-                            glm::vec3 meshAABBMin = g_Meshes[i].aabbMin;
+                            const MeshWithTransform& inst = g_MeshInstances[i];
+                            int meshIdx = inst.meshIndex;
 
-                            float meshBottomY = meshCenter.y + meshAABBMin.y;
-                            modelMinY = std::min(modelMinY, meshBottomY);
+                            if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size()) {
+                                const MeshData& meshData = g_Meshes[meshIdx];
+
+                                glm::vec4 minWorld = inst.transform * glm::vec4(meshData.aabbMin, 1.0f);
+                                modelMinY = std::min(modelMinY, minWorld.y);
+                            }
                         }
 
                         //to place it in Y=0
                         float groundOffset = (modelMinY - g_ModelCenter.y) * normalizeScale;
 
-                        for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
+                        //game object for each model
+                        for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                         {
                             //create gameobject with mesh
-                            const MeshData& meshData = g_Meshes[i];
+                            const MeshWithTransform& inst = g_MeshInstances[i];
+                            int meshIdx = inst.meshIndex;
+
+                            if (meshIdx < 0 || meshIdx >= (int)g_Meshes.size()) {
+                                continue;
+                            }
+
+                            const MeshData& meshData = g_Meshes[meshIdx];
 
                             GameObject* go = new GameObject();
                             int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
                             go->meshPath = path;
-                            go->meshIndexInFBX = (int)(i - meshCountBefore);
-                            go->mesh->meshIndex = (int)i;
+                            go->meshIndexInFBX = meshIdx;
+                            go->mesh->meshIndex = meshIdx;
 
-                            glm::vec3 meshCenter = meshData.center;
+                            glm::vec3 instancePosition, instanceScale;
+                            glm::quat instanceRotation;
+                            DecomposeTransform(inst.transform, instancePosition, instanceRotation, instanceScale);
 
-                            glm::vec3 normalizedPosition = (meshCenter - g_ModelCenter) * normalizeScale;
-
+                            glm::vec3 normalizedPosition = (instancePosition - g_ModelCenter) * normalizeScale;
                             glm::vec3 finalPos = dropPosition + normalizedPosition;
-                            finalPos.y -= groundOffset; 
+                            finalPos.y -= groundOffset;
 
                             //change the translation to match the obtained coordinates
                             go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);
-                            go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-                            go->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
+
+                            //change the rotation to match the obtained rotation
+                            go->transform->rotation = aiQuaternion(
+                                instanceRotation.w,
+                                instanceRotation.x,
+                                instanceRotation.y,
+                                instanceRotation.z
+                            );
+
+                            //change the scale to match the obtained normalized scale
+                            go->transform->scaling = aiVector3D(
+                                instanceScale.x * normalizeScale,
+                                instanceScale.y * normalizeScale,
+                                instanceScale.z * normalizeScale
+                            );
 
                             //try to load texture
                             std::string texturePath = GetTexturePathFromFBX(path.c_str(), go->meshIndexInFBX);
 
                             bool textureLoaded = false;
                             if (!texturePath.empty()) {
+                                std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
                                 textureLoaded = go->texture->LoadTexture(texturePath);
                             }
 
-                            if (textureLoaded) {
-                                std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
-                            }
-                            else {
+                            if (!textureLoaded) {
                                 //if no texture available we use checkerboard
                                 std::cout << "No valid texture found, using checkerboard" << std::endl;
 
@@ -425,19 +453,19 @@ bool Input::PreUpdate()
                             }
 
                             Application::GetInstance().opengl->gameObjects.push_back(go);
+
                             std::cout << "Created GameObject " << go->name
                                 << " at position (" << go->transform->translation.x
                                 << ", " << go->transform->translation.y
-                                << ", " << go->transform->translation.z << ")" << std::endl;
-                            LOG("Created GameObject " + go->name + " with mesh " + path);
-
-                            ModuleEditor* editor = Application::GetInstance().editor.get();
-                            if (editor) editor->sceneModified = true;
+                                << ", " << go->transform->translation.z << ")"
+                                << std::endl;
                         }
 
-                        std::cout << "Total GameObjects created: " << (g_Meshes.size() - meshCountBefore) << std::endl;
+                        ModuleEditor* editor = Application::GetInstance().editor.get();
+                        if (editor) editor->sceneModified = true;
+
+                        std::cout << "Total GameObjects created: " << (g_MeshInstances.size() - instanceCountBefore) << std::endl;
                         std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
-                        std::cout << std::endl;
                     }
                 }
 

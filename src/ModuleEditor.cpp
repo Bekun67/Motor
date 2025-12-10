@@ -822,8 +822,6 @@ void ModuleEditor::DrawConfiguration()
                 LOG("Camera Far Plane changed to " + std::to_string(farPlane));
             }
 
-            ImGui::Separator();
-
             // Frustum Culling Toggle
             if (ImGui::Checkbox("Enable Frustum Culling", &cam->frustumCullingEnabled))
             {
@@ -837,12 +835,28 @@ void ModuleEditor::DrawConfiguration()
                 }
             }
 
-            // Statistics
+            // Show Frustum Statistics checkbox
             if (cam->frustumCullingEnabled)
             {
-                OpenGL* opengl = Application::GetInstance().opengl.get();
+                if (ImGui::Checkbox("Show Frustum Statistics", &showFrustumStats))
+                {
+                    if (showFrustumStats)
+                    {
+                        LOG("Frustum Statistics enabled");
+                    }
+                    else
+                    {
+                        LOG("Frustum Statistics disabled");
+                    }
+                }
+            }
 
+            // Statistics
+            if (cam->frustumCullingEnabled && showFrustumStats)
+            {
+                OpenGL* opengl = Application::GetInstance().opengl.get();
                 ImGui::Separator();
+
                 ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Rendering Statistics:");
 
                 ImGui::Text("Objects Rendered: %d", opengl->renderedCount);
@@ -874,6 +888,8 @@ void ModuleEditor::DrawConfiguration()
                     }
                 }
             }
+
+            ImGui::Separator();
 
             // Debug Raycast Toggle
             if (ImGui::Checkbox("Show Raycast to Game Objects", &editorCam->debugRaycastEnabled))
@@ -1011,41 +1027,52 @@ void ModuleEditor::DrawConfiguration()
                     }
                 }
 
-                if (ImGui::Button("Rebuild Octree", ImVec2(-1, 0)))
+                if (ImGui::Checkbox("Show Octree Statistics", &showOctreeStats))
                 {
-                    opengl->RebuildQuadtree();
+                    if (showOctreeStats)
+                    {
+                        LOG("Octree Statistics enabled");
+                    }
+                    else
+                    {
+                        LOG("Octree Statistics disabled");
+                    }
                 }
 
-
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Octree Statistics:");
-
-                std::vector<GameObject*> allInQuadtree;
-                opengl->quadtree.GetAllObjects(allInQuadtree);
-                ImGui::Text("Objects in Octree: %d", (int)allInQuadtree.size());
-
-                if (opengl->camera.frustumCullingEnabled)
+                //stats
+                if (showOctreeStats)
                 {
-                    //quadtree stats with frustum
-                    ImGui::Text("Frustum tests performed: %d", opengl->quadtreeTestsCount);
-                    ImGui::Text("Discarded by Octree: %d", opengl->quadtreeCulledCount);
-                    ImGui::Text("Discarded by Frustum: %d", opengl->culledCount);
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Octree Statistics:");
 
-                    int totalStatic = (int)allInQuadtree.size();
-                    if (totalStatic > 0)
+                    std::vector<GameObject*> allInQuadtree;
+                    opengl->quadtree.GetAllObjects(allInQuadtree);
+                    ImGui::Text("Objects in Octree: %d", (int)allInQuadtree.size());
+
+                    if (opengl->camera.frustumCullingEnabled)
                     {
-                        float quadtreeEfficiency = 100.0f * (float)opengl->quadtreeCulledCount / (float)totalStatic;
-                        ImGui::ProgressBar(quadtreeEfficiency / 100.0f, ImVec2(-1, 0),
-                            (std::to_string((int)quadtreeEfficiency) + "% skipped by Octree").c_str());
+                        //quadtree stats with frustum
+                        ImGui::Text("Frustum tests performed: %d", opengl->quadtreeTestsCount);
+                        ImGui::Text("Discarded by Octree: %d", opengl->quadtreeCulledCount);
+                        ImGui::Text("Discarded by Frustum: %d", opengl->culledCount);
 
-                        ImGui::Separator();
-                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "WITHOUT Octree: %d frustum tests", totalStatic);
-                        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "WITH Octree: %d frustum tests", opengl->quadtreeTestsCount);
+                        int totalStatic = (int)allInQuadtree.size();
+                        if (totalStatic > 0)
+                        {
+                            float quadtreeEfficiency = 100.0f * (float)opengl->quadtreeCulledCount / (float)totalStatic;
+                            ImGui::ProgressBar(quadtreeEfficiency / 100.0f, ImVec2(-1, 0),
+                                (std::to_string((int)quadtreeEfficiency) + "% skipped by Octree").c_str());
 
-                        int testsSaved = totalStatic - opengl->quadtreeTestsCount;
-                        float savingsPercentage = 100.0f * (float)testsSaved / (float)totalStatic;
-                        ImGui::Text("Tests Saved: %d (%.1f%%)", testsSaved, savingsPercentage);
+                            ImGui::Separator();
+                            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "WITHOUT Octree: %d frustum tests", totalStatic);
+                            ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "WITH Octree: %d frustum tests", opengl->quadtreeTestsCount);
+
+                            int testsSaved = totalStatic - opengl->quadtreeTestsCount;
+                            float savingsPercentage = 100.0f * (float)testsSaved / (float)totalStatic;
+                            ImGui::Text("Tests Saved: %d (%.1f%%)", testsSaved, savingsPercentage);
+                        }
                     }
+                    ImGui::Separator();
                 }
 
                 if (ImGui::Checkbox("Extra Octree LOGs", &opengl->extraQuadtreeInfo))
@@ -1058,6 +1085,11 @@ void ModuleEditor::DrawConfiguration()
                     {
                         LOG("Extra Octree LOGs disabled");
                     }
+                }
+
+                if (ImGui::Button("Rebuild Octree", ImVec2(-1, 0)))
+                {
+                    opengl->RebuildQuadtree();
                 }
             }
         }

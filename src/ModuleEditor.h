@@ -111,6 +111,9 @@ private:
 
     std::vector<GameObject*> m_ObjectsToDelete;
 
+    bool showFrustumStats = false;
+    bool showOctreeStats = false;
+
     // Console
     std::deque<LogEntry> logs;
     const size_t maxLogs = 1000;
