@@ -286,8 +286,6 @@ bool OpenGL::Start()
 
     // Do a depth test
     glEnable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-
 
     // Shader using position normal texcoord and matrix
     const char* vertexShaderSource = "#version 330 core\n"
@@ -512,7 +510,7 @@ bool OpenGL::Update()
         }
     }
 
-    glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     ModuleEditor* editor = Application::GetInstance().editor.get();
@@ -546,7 +544,7 @@ bool OpenGL::Update()
     }
 
     glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
-    glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //resize texture if we change the viewport
@@ -860,15 +858,25 @@ bool OpenGL::Update()
             go->mesh->Draw(&camera);
         }
 
+        std::sort(transparentObjects.begin(), transparentObjects.end(),
+            [](GameObject* a, GameObject* b) {
+                return a->distanceToCamera > b->distanceToCamera;
+            });
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDepthMask(GL_FALSE);
+        glEnable(GL_DEPTH_TEST);
+
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
 
         for (GameObject* go : transparentObjects)
         {
             go->mesh->Draw(&camera);
         }
 
+        glDisable(GL_POLYGON_OFFSET_FILL);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
 

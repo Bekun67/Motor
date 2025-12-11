@@ -141,6 +141,18 @@ bool ComponentTexture::LoadTextureFromCustomFormat(const std::string& path)
         texturedata = nullptr;
     }
 
+    hasTransparency = false;
+    int totalPixels = customTex.width * customTex.height;
+    for (int i = 0; i < totalPixels; i++) 
+    {
+        unsigned char alpha = customTex.data[i * 4 + 3];
+        if (alpha < 255) 
+        {
+            hasTransparency = true;
+            break;
+        }
+    }
+
     // Create OpenGL texture
     GLuint newTextureID;
     glGenTextures(1, &newTextureID);
@@ -167,7 +179,17 @@ bool ComponentTexture::LoadTextureFromCustomFormat(const std::string& path)
     texturePath = path;
     hasTexture = true;
 
-    std::cout << "Custom texture loaded: " << path << " (ID: " << newTextureID << ")" << std::endl;
+    if (hasTransparency) 
+    {
+        std::cout << "Custom texture loaded WITH transparency: " << path
+            << " (ID: " << newTextureID << ")" << std::endl;
+    }
+    else 
+    {
+        std::cout << "Custom texture loaded WITHOUT transparency: " << path
+            << " (ID: " << newTextureID << ")" << std::endl;
+    }
+
     return true;
 }
 

@@ -31,6 +31,7 @@ struct MeshData {
 struct MeshWithTransform 
 {
     int meshIndex;
+    int originalMeshIndex;
     glm::mat4 transform;
 };
 

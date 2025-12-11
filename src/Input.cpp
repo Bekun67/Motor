@@ -316,14 +316,18 @@ bool Input::PreUpdate()
                         float mouseX, mouseY;
                         SDL_GetMouseState(&mouseX, &mouseY);
 
+                        float relativeMouseX = mouseX - moduleEditor->sceneViewportPos.x;
+                        float relativeMouseY = mouseY - moduleEditor->sceneViewportPos.y;
+
                         //get camera
                         Camera* camera = &(Application::GetInstance().opengl->camera);
-                        int viewport[4];
-                        glGetIntegerv(GL_VIEWPORT, viewport);
 
-                        //convert coordinates
-                        float x = (2.0f * mouseX) / viewport[2] - 1.0f;
-                        float y = 1.0f - (2.0f * mouseY) / viewport[3];
+                        int viewportWidth = (int)moduleEditor->sceneViewportSize.x;
+                        int viewportHeight = (int)moduleEditor->sceneViewportSize.y;
+
+                        //convert coordinates usando las coordenadas relativas
+                        float x = (2.0f * relativeMouseX) / viewportWidth - 1.0f;
+                        float y = 1.0f - (2.0f * relativeMouseY) / viewportHeight;
 
                         //calculate ray
                         glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
@@ -337,12 +341,11 @@ bool Input::PreUpdate()
                         float t = -camPos.y / rayWorld.y;
                         glm::vec3 dropPosition = camPos + rayWorld * t;
 
-                        //get normalized scale
-                        float desiredSize = 5.0f;
-                        float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
+                        float normalizeScale = 1.0f;
 
-                        //get min y
-                        float modelMinY = FLT_MAX;
+                        //calculate global minimum Y from ALL geometry
+                        float globalMinY = FLT_MAX;
+
                         for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                         {
                             const MeshWithTransform& inst = g_MeshInstances[i];
@@ -351,13 +354,15 @@ bool Input::PreUpdate()
                             if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size()) {
                                 const MeshData& meshData = g_Meshes[meshIdx];
 
-                                glm::vec4 minWorld = inst.transform * glm::vec4(meshData.aabbMin, 1.0f);
-                                modelMinY = std::min(modelMinY, minWorld.y);
+                                glm::vec4 worldMin = inst.transform * glm::vec4(meshData.aabbMin, 1.0f);
+                                globalMinY = std::min(globalMinY, worldMin.y);
                             }
                         }
 
-                        //to place it in Y=0
-                        float groundOffset = (modelMinY - g_ModelCenter.y) * normalizeScale;
+                        //count unique meshes
+                        Assimp::Importer counter;
+                        const aiScene* countScene = counter.ReadFile(path.c_str(), aiProcess_Triangulate);
+                        int numMeshesInFBX = countScene ? countScene->mNumMeshes : 2;
 
                         //game object for each model
                         for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
@@ -370,22 +375,55 @@ bool Input::PreUpdate()
                                 continue;
                             }
 
-                            const MeshData& meshData = g_Meshes[meshIdx];
+                            MeshData& meshData = g_Meshes[meshIdx];
 
+                            glm::vec3 meshLocalCenter = (meshData.aabbMin + meshData.aabbMax) * 0.5f;
+
+                            glBindBuffer(GL_ARRAY_BUFFER, meshData.VBO);
+                            GLint bufferSize;
+                            glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
+
+                            int vertexSize = 8; // 3 pos + 3 normal + 2 uv
+                            int numVertices = bufferSize / (vertexSize * sizeof(float));
+
+                            std::vector<float> vertexData(bufferSize / sizeof(float));
+                            glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
+
+                            for (int v = 0; v < numVertices; ++v) {
+                                int offset = v * vertexSize;
+                                vertexData[offset + 0] -= meshLocalCenter.x;
+                                vertexData[offset + 1] -= meshLocalCenter.y;  
+                                vertexData[offset + 2] -= meshLocalCenter.z;
+                            }
+
+                            glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
+                            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                            meshData.aabbMin -= meshLocalCenter;
+                            meshData.aabbMax -= meshLocalCenter;
+                            meshData.center = glm::vec3(0, 0, 0);
+
+                            //create game object
                             GameObject* go = new GameObject();
                             int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
                             go->meshPath = path;
-                            go->meshIndexInFBX = meshIdx;
+
+                            go->meshIndexInFBX = (i - instanceCountBefore) % numMeshesInFBX;
+
                             go->mesh->meshIndex = meshIdx;
 
                             glm::vec3 instancePosition, instanceScale;
                             glm::quat instanceRotation;
                             DecomposeTransform(inst.transform, instancePosition, instanceRotation, instanceScale);
 
-                            glm::vec3 normalizedPosition = (instancePosition - g_ModelCenter) * normalizeScale;
-                            glm::vec3 finalPos = dropPosition + normalizedPosition;
-                            finalPos.y -= groundOffset;
+                            glm::vec4 meshWorldCenter4 = inst.transform * glm::vec4(meshLocalCenter, 1.0f);
+                            glm::vec3 meshWorldCenter = glm::vec3(meshWorldCenter4);
+
+                            glm::vec3 finalPos;
+                            finalPos.x = dropPosition.x + (meshWorldCenter.x - g_ModelCenter.x) * normalizeScale;
+                            finalPos.z = dropPosition.z + (meshWorldCenter.z - g_ModelCenter.z) * normalizeScale;
+                            finalPos.y = (meshWorldCenter.y - globalMinY) * normalizeScale;
 
                             //change the translation to match the obtained coordinates
                             go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);

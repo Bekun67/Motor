@@ -37,6 +37,7 @@ void ProcessNode(const aiNode* node, const aiScene* scene, const glm::mat4& pare
     for (unsigned int i = 0; i < node->mNumMeshes; i++) {
         MeshWithTransform instance;
         instance.meshIndex = node->mMeshes[i];
+        instance.originalMeshIndex = node->mMeshes[i];
         instance.transform = globalTransform;
         g_MeshInstances.push_back(instance);
     }
@@ -89,7 +90,7 @@ bool LoadFile(const char* file_path) {
         return false;
     }
 
-    g_MeshInstances.clear();
+    //g_MeshInstances.clear();
 
     glm::vec3 minBound(FLT_MAX);
     glm::vec3 maxBound(-FLT_MAX);

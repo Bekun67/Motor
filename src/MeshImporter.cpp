@@ -1,4 +1,4 @@
-#include "MeshImporter.h"
+﻿#include "MeshImporter.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -15,13 +15,13 @@ std::vector<CustomMesh> MeshImporter::ImportFBX(const std::string& fbxPath)
     std::vector<CustomMesh> meshes;
 
     Assimp::Importer importer;
+
     unsigned int flags =
         aiProcess_Triangulate |
         aiProcess_GenSmoothNormals |
         aiProcess_ImproveCacheLocality |
         aiProcess_FlipUVs |
-        aiProcess_GlobalScale |
-        aiProcess_PreTransformVertices;
+        aiProcess_GlobalScale;
 
     const aiScene* scene = importer.ReadFile(fbxPath, flags);
 

@@ -93,6 +93,7 @@ void ComponentMesh::Draw(Camera* camera)
     //bind texture
     ComponentTexture* texComp = gameObject->texture;
     bool texturebound = false;
+    bool isTransparent = false;
 
     //try to use the texture of component texture
     if (texComp != nullptr && texComp->hasTexture && texComp->texturedata != nullptr)
@@ -102,6 +103,7 @@ void ComponentMesh::Draw(Camera* camera)
         GLint texLoc = glGetUniformLocation(shaderProgram, "uTexture");
         glUniform1i(texLoc, 0);
         texturebound = true;
+        isTransparent = texComp->hasTransparency;
     }
     //if no texture available try to use the fbx one
     else if (!meshdata.textures.empty())
@@ -119,10 +121,29 @@ void ComponentMesh::Draw(Camera* camera)
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    //draw mesh
-    glBindVertexArray(meshdata.VAO);
-    glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    if (isTransparent)
+    {
+        glDisable(GL_DEPTH_TEST);
+
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
+
+        glBindVertexArray(meshdata.VAO);
+        glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+
+        glCullFace(GL_BACK);
+        glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        glDisable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST); 
+    }
+    else
+    {
+        glBindVertexArray(meshdata.VAO);
+        glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+    }
 
     if (texturebound) {
         glBindTexture(GL_TEXTURE_2D, 0);
