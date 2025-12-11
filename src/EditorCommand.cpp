@@ -142,11 +142,17 @@ void DeleteGameObjectCommand::Execute()
     {
         m_Parent->RemoveChild(m_Object);
     }
+
+    // Mark object as deleted but don't actually delete it
+    m_Object->m_MarkedForDeletion = true;
 }
 
 void DeleteGameObjectCommand::Undo()
 {
     if (!m_Object) return;
+
+    // Unmark deletion
+    m_Object->m_MarkedForDeletion = false;
 
     if (m_WasInScene)
     {
@@ -252,3 +258,89 @@ const std::string& CommandHistory::GetRedoDescription() const
     if (!CanRedo()) return empty;
     return m_History[m_CurrentIndex]->GetDescription();
 }
+
+// MultiTransformCommand implementation
+MultiTransformCommand::MultiTransformCommand(const std::vector<GameObject*>& objects,
+    const std::vector<glm::vec3>& oldPositions,
+    const std::vector<glm::quat>& oldRotations,
+    const std::vector<glm::vec3>& oldScales,
+    const std::vector<glm::vec3>& newPositions,
+    const std::vector<glm::quat>& newRotations,
+    const std::vector<glm::vec3>& newScales)
+    : m_Objects(objects)
+    , m_OldPositions(oldPositions), m_NewPositions(newPositions)
+    , m_OldRotations(oldRotations), m_NewRotations(newRotations)
+    , m_OldScales(oldScales), m_NewScales(newScales)
+{
+}
+
+void MultiTransformCommand::Execute()
+{
+    for (size_t i = 0; i < m_Objects.size(); ++i)
+    {
+        if (!m_Objects[i] || !m_Objects[i]->transform) continue;
+
+        m_Objects[i]->transform->translation.x = m_NewPositions[i].x;
+        m_Objects[i]->transform->translation.y = m_NewPositions[i].y;
+        m_Objects[i]->transform->translation.z = m_NewPositions[i].z;
+
+        m_Objects[i]->transform->rotation.w = m_NewRotations[i].w;
+        m_Objects[i]->transform->rotation.x = m_NewRotations[i].x;
+        m_Objects[i]->transform->rotation.y = m_NewRotations[i].y;
+        m_Objects[i]->transform->rotation.z = m_NewRotations[i].z;
+
+        m_Objects[i]->transform->scaling.x = m_NewScales[i].x;
+        m_Objects[i]->transform->scaling.y = m_NewScales[i].y;
+        m_Objects[i]->transform->scaling.z = m_NewScales[i].z;
+    }
+}
+
+void MultiTransformCommand::Undo()
+{
+    for (size_t i = 0; i < m_Objects.size(); ++i)
+    {
+        if (!m_Objects[i] || !m_Objects[i]->transform) continue;
+
+        m_Objects[i]->transform->translation.x = m_OldPositions[i].x;
+        m_Objects[i]->transform->translation.y = m_OldPositions[i].y;
+        m_Objects[i]->transform->translation.z = m_OldPositions[i].z;
+
+        m_Objects[i]->transform->rotation.w = m_OldRotations[i].w;
+        m_Objects[i]->transform->rotation.x = m_OldRotations[i].x;
+        m_Objects[i]->transform->rotation.y = m_OldRotations[i].y;
+        m_Objects[i]->transform->rotation.z = m_OldRotations[i].z;
+
+        m_Objects[i]->transform->scaling.x = m_OldScales[i].x;
+        m_Objects[i]->transform->scaling.y = m_OldScales[i].y;
+        m_Objects[i]->transform->scaling.z = m_OldScales[i].z;
+    }
+}
+
+std::string MultiTransformCommand::GetDescription() const
+{
+    return "Transform " + std::to_string(m_Objects.size()) + " objects";
+}
+
+// ReparentCommand implementation
+ReparentCommand::ReparentCommand(GameObject* object, GameObject* oldParent, GameObject* newParent)
+    : m_Object(object), m_OldParent(oldParent), m_NewParent(newParent)
+{
+}
+
+void ReparentCommand::Execute()
+{
+    if (!m_Object) return;
+    m_Object->SetParent(m_NewParent);
+}
+
+void ReparentCommand::Undo()
+{
+    if (!m_Object) return;
+    m_Object->SetParent(m_OldParent);
+}
+
+std::string ReparentCommand::GetDescription() const
+{
+    return "Reparent " + (m_Object ? m_Object->name : "Unknown");
+}
+

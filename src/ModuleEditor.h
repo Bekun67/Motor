@@ -207,6 +207,12 @@ public:
     std::string OpenFileDialog(const char* filter);
     std::string SaveFileDialog(const char* filter);
 
+    // Copy/Paste/Duplicate
+    void CopySelectedObjects();
+    void PasteObjects();
+    void DuplicateSelectedObjects();
+    bool HasCopiedObjects() const { return !m_CopiedObjects.empty(); }
+
 private:
     std::vector<GameObject*> m_ObjectsToDelete;
 
@@ -218,6 +224,31 @@ private:
         glm::vec3 scale;
     };
     std::map<GameObject*, TransformState> m_TransformStates;
+
+    // Clipboard for copy/paste
+    struct CopiedObjectData
+    {
+        std::string name;
+        std::string meshPath;
+        int meshIndexInFBX;
+        glm::vec3 position;
+        glm::quat rotation;
+        glm::vec3 scale;
+        std::string texturePath;
+        GameObject* originalParent;
+    };
+    std::vector<CopiedObjectData> m_CopiedObjects;
+
+    // Multi-object transform tracking
+    struct MultiTransformState
+    {
+        std::vector<GameObject*> objects;
+        std::vector<glm::vec3> positions;
+        std::vector<glm::quat> rotations;
+        std::vector<glm::vec3> scales;
+    };
+    MultiTransformState m_MultiTransformState;
+    bool m_TrackingMultiTransform = false;
 };
 
 extern ModuleEditor* g_Editor;

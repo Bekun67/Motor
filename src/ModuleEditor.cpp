@@ -13,6 +13,7 @@
 #include "PrimitiveGenerator.h"
 #include "SceneSerializer.h"
 #include "FileSystemManager.h"
+#include "ResourceManager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
@@ -162,22 +163,85 @@ bool ModuleEditor::Update()
     // Handle keyboard shortcuts
     bool ctrlPressed = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
     bool shiftPressed = ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift);
-   
-    // Handle Gizmo operation changes with W, E, R keys
+
     if (!editing)
     {
-        if (ImGui::IsKeyPressed(ImGuiKey_W))
+        // Import Model (Ctrl+I)
+        if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_I))
         {
-            currentGizmoOperation = ImGuizmo::TRANSLATE;
+            std::string filepath = OpenFileDialog(
+                "3D Models (*.fbx;*.obj)\0*.fbx;*.obj\0All Files (*.*)\0*.*\0"
+            );
+
+            if (!filepath.empty())
+            {
+                OpenGL* opengl = Application::GetInstance().opengl.get();
+                size_t meshCountBefore = g_Meshes.size();
+
+                if (LoadFile(filepath.c_str()))
+                {
+                    for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
+                    {
+                        GameObject* go = new GameObject();
+                        int index = CountNames("ImportedMesh_");
+                        go->name = "ImportedMesh_" + std::to_string(index);
+                        go->meshPath = filepath;
+                        go->meshIndexInFBX = (int)(i - meshCountBefore);
+
+                        go->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                        go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                        go->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                        go->mesh->meshIndex = (int)i;
+                        AssignCheckerboardTexture(go);
+
+                        opengl->gameObjects.push_back(go);
+
+                        LOG("Imported model: " + filepath);
+                    }
+
+                    sceneModified = true;
+                }
+            }
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_E))
+
+        // Unparent (Shift+P)
+        if (shiftPressed && ImGui::IsKeyPressed(ImGuiKey_P))
         {
-            currentGizmoOperation = ImGuizmo::ROTATE;
+            if (!selectedGameObjects.empty())
+            {
+                for (GameObject* go : selectedGameObjects)
+                {
+                    if (go && go->parent)
+                    {
+                        GameObject* oldParent = go->parent;
+                        auto command = std::make_unique<ReparentCommand>(go, oldParent, nullptr);
+                        commandHistory.ExecuteCommand(std::move(command));
+                        LOG("Unparented: " + go->name);
+                    }
+                }
+                sceneModified = true;
+            }
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_R))
+
+        // Copy (Ctrl+C)
+        if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_C) && !selectedGameObjects.empty())
         {
-            currentGizmoOperation = ImGuizmo::SCALE;
+            CopySelectedObjects();
         }
+
+        // Paste (Ctrl+V)
+        if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_V) && HasCopiedObjects())
+        {
+            PasteObjects();
+        }
+
+        // Duplicate (Ctrl+D)
+        if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_D) && !selectedGameObjects.empty())
+        {
+            DuplicateSelectedObjects();
+        }
+
         // Undo (Ctrl+Z)
         if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_Z) && !shiftPressed)
         {
@@ -186,6 +250,7 @@ bool ModuleEditor::Update()
                 commandHistory.Undo();
             }
         }
+
         // Redo (Ctrl+Y or Ctrl+Shift+Z)
         if ((ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_Y)) ||
             (ctrlPressed && shiftPressed && ImGui::IsKeyPressed(ImGuiKey_Z)))
@@ -195,6 +260,7 @@ bool ModuleEditor::Update()
                 commandHistory.Redo();
             }
         }
+
         // Save Scene (Ctrl+S)
         if (ctrlPressed && ImGui::IsKeyPressed(ImGuiKey_S) && !shiftPressed)
         {
@@ -207,15 +273,25 @@ bool ModuleEditor::Update()
                 SaveScene(currentScenePath);
             }
         }
+
         // Save Scene As (Ctrl+Shift+S)
         if (ctrlPressed && shiftPressed && ImGui::IsKeyPressed(ImGuiKey_S))
         {
             SaveSceneDialog();
         }
-        // Existing W, E, R shortcuts...
+
+		// Guizmo operation shortcuts
         if (ImGui::IsKeyPressed(ImGuiKey_W))
         {
             currentGizmoOperation = ImGuizmo::TRANSLATE;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_E))
+        {
+            currentGizmoOperation = ImGuizmo::ROTATE;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_R))
+        {
+            currentGizmoOperation = ImGuizmo::SCALE;
         }
     }
 
@@ -900,6 +976,12 @@ void ModuleEditor::MarkForDeletion(GameObject* go)
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (!opengl) return;
 
+    // Create delete command for undo/redo
+    auto command = std::make_unique<DeleteGameObjectCommand>(go);
+    commandHistory.ExecuteCommand(std::move(command));
+
+    LOG("Marked for deletion: " + go->name);
+
     std::vector<GameObject*> toMark;
     toMark.push_back(go);
     go->GetAllDescendants(toMark);
@@ -987,70 +1069,299 @@ void ModuleEditor::BeginTransformEdit(GameObject* go)
 {
     if (!go || !go->transform) return;
 
-    TransformState state;
-    state.position = glm::vec3(
-        go->transform->translation.x,
-        go->transform->translation.y,
-        go->transform->translation.z
-    );
-    state.rotation = glm::quat(
-        go->transform->rotation.w,
-        go->transform->rotation.x,
-        go->transform->rotation.y,
-        go->transform->rotation.z
-    );
-    state.scale = glm::vec3(
-        go->transform->scaling.x,
-        go->transform->scaling.y,
-        go->transform->scaling.z
-    );
+    // If we're editing multiple objects, track them all
+    if (selectedGameObjects.size() > 1)
+    {
+        if (!m_TrackingMultiTransform)
+        {
+            m_MultiTransformState.objects = selectedGameObjects;
+            m_MultiTransformState.positions.clear();
+            m_MultiTransformState.rotations.clear();
+            m_MultiTransformState.scales.clear();
 
-    m_TransformStates[go] = state;
+            for (GameObject* obj : selectedGameObjects)
+            {
+                if (!obj || !obj->transform) continue;
+
+                m_MultiTransformState.positions.push_back(glm::vec3(
+                    obj->transform->translation.x,
+                    obj->transform->translation.y,
+                    obj->transform->translation.z
+                ));
+                m_MultiTransformState.rotations.push_back(glm::quat(
+                    obj->transform->rotation.w,
+                    obj->transform->rotation.x,
+                    obj->transform->rotation.y,
+                    obj->transform->rotation.z
+                ));
+                m_MultiTransformState.scales.push_back(glm::vec3(
+                    obj->transform->scaling.x,
+                    obj->transform->scaling.y,
+                    obj->transform->scaling.z
+                ));
+            }
+
+            m_TrackingMultiTransform = true;
+        }
+    }
+    else
+    {
+        // Single object tracking (original code)
+        TransformState state;
+        state.position = glm::vec3(
+            go->transform->translation.x,
+            go->transform->translation.y,
+            go->transform->translation.z
+        );
+        state.rotation = glm::quat(
+            go->transform->rotation.w,
+            go->transform->rotation.x,
+            go->transform->rotation.y,
+            go->transform->rotation.z
+        );
+        state.scale = glm::vec3(
+            go->transform->scaling.x,
+            go->transform->scaling.y,
+            go->transform->scaling.z
+        );
+
+        m_TransformStates[go] = state;
+    }
 }
 
 void ModuleEditor::EndTransformEdit(GameObject* go)
 {
-    if (!go || !go->transform) return;
-
-    auto it = m_TransformStates.find(go);
-    if (it == m_TransformStates.end()) return;
-
-    TransformState& oldState = it->second;
-
-    glm::vec3 newPos(
-        go->transform->translation.x,
-        go->transform->translation.y,
-        go->transform->translation.z
-    );
-    glm::quat newRot(
-        go->transform->rotation.w,
-        go->transform->rotation.x,
-        go->transform->rotation.y,
-        go->transform->rotation.z
-    );
-    glm::vec3 newScale(
-        go->transform->scaling.x,
-        go->transform->scaling.y,
-        go->transform->scaling.z
-    );
-
-    // Only create command if something actually changed
-    if (oldState.position != newPos ||
-        oldState.rotation != newRot ||
-        oldState.scale != newScale)
+    if (selectedGameObjects.size() > 1 && m_TrackingMultiTransform)
     {
-        auto command = std::make_unique<TransformCommand>(
-            go,
-            oldState.position, oldState.rotation, oldState.scale,
-            newPos, newRot, newScale
+        // Multi-object transform
+        std::vector<glm::vec3> newPositions;
+        std::vector<glm::quat> newRotations;
+        std::vector<glm::vec3> newScales;
+
+        bool hasChanged = false;
+
+        for (size_t i = 0; i < selectedGameObjects.size(); ++i)
+        {
+            GameObject* obj = selectedGameObjects[i];
+            if (!obj || !obj->transform) continue;
+
+            glm::vec3 newPos(
+                obj->transform->translation.x,
+                obj->transform->translation.y,
+                obj->transform->translation.z
+            );
+            glm::quat newRot(
+                obj->transform->rotation.w,
+                obj->transform->rotation.x,
+                obj->transform->rotation.y,
+                obj->transform->rotation.z
+            );
+            glm::vec3 newScale(
+                obj->transform->scaling.x,
+                obj->transform->scaling.y,
+                obj->transform->scaling.z
+            );
+
+            newPositions.push_back(newPos);
+            newRotations.push_back(newRot);
+            newScales.push_back(newScale);
+
+            if (i < m_MultiTransformState.positions.size())
+            {
+                if (m_MultiTransformState.positions[i] != newPos ||
+                    m_MultiTransformState.rotations[i] != newRot ||
+                    m_MultiTransformState.scales[i] != newScale)
+                {
+                    hasChanged = true;
+                }
+            }
+        }
+
+        if (hasChanged)
+        {
+            auto command = std::make_unique<MultiTransformCommand>(
+                m_MultiTransformState.objects,
+                m_MultiTransformState.positions,
+                m_MultiTransformState.rotations,
+                m_MultiTransformState.scales,
+                newPositions,
+                newRotations,
+                newScales
+            );
+
+            commandHistory.ExecuteCommand(std::move(command));
+        }
+
+        m_TrackingMultiTransform = false;
+        m_MultiTransformState.objects.clear();
+        m_MultiTransformState.positions.clear();
+        m_MultiTransformState.rotations.clear();
+        m_MultiTransformState.scales.clear();
+    }
+    else if (go && go->transform)
+    {
+        // Single object transform 
+        auto it = m_TransformStates.find(go);
+        if (it == m_TransformStates.end()) return;
+
+        TransformState& oldState = it->second;
+
+        glm::vec3 newPos(
+            go->transform->translation.x,
+            go->transform->translation.y,
+            go->transform->translation.z
+        );
+        glm::quat newRot(
+            go->transform->rotation.w,
+            go->transform->rotation.x,
+            go->transform->rotation.y,
+            go->transform->rotation.z
+        );
+        glm::vec3 newScale(
+            go->transform->scaling.x,
+            go->transform->scaling.y,
+            go->transform->scaling.z
         );
 
-        commandHistory.ExecuteCommand(std::move(command));
-    }
+        if (oldState.position != newPos ||
+            oldState.rotation != newRot ||
+            oldState.scale != newScale)
+        {
+            auto command = std::make_unique<TransformCommand>(
+                go,
+                oldState.position, oldState.rotation, oldState.scale,
+                newPos, newRot, newScale
+            );
 
-    m_TransformStates.erase(it);
+            commandHistory.ExecuteCommand(std::move(command));
+        }
+
+        m_TransformStates.erase(it);
+    }
 }
 
+void ModuleEditor::CopySelectedObjects()
+{
+    m_CopiedObjects.clear();
+
+    for (GameObject* go : selectedGameObjects)
+    {
+        if (!go) continue;
+
+        CopiedObjectData data;
+        data.name = go->name;
+        data.meshPath = go->meshPath;
+        data.meshIndexInFBX = go->meshIndexInFBX;
+
+        if (go->transform)
+        {
+            data.position = glm::vec3(
+                go->transform->translation.x,
+                go->transform->translation.y,
+                go->transform->translation.z
+            );
+            data.rotation = glm::quat(
+                go->transform->rotation.w,
+                go->transform->rotation.x,
+                go->transform->rotation.y,
+                go->transform->rotation.z
+            );
+            data.scale = glm::vec3(
+                go->transform->scaling.x,
+                go->transform->scaling.y,
+                go->transform->scaling.z
+            );
+        }
+
+        if (go->texture)
+        {
+            data.texturePath = go->texture->texturePath;
+        }
+
+        data.originalParent = go->parent;
+
+        m_CopiedObjects.push_back(data);
+    }
+
+    LOG("Copied " + std::to_string(m_CopiedObjects.size()) + " object(s)");
+}
+
+void ModuleEditor::PasteObjects()
+{
+    if (m_CopiedObjects.empty()) return;
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    if (!opengl) return;
+
+    DeselectAll();
+
+    for (const CopiedObjectData& data : m_CopiedObjects)
+    {
+        GameObject* newGO = new GameObject();
+
+        // Create unique name
+        int index = CountNames(data.name + "_");
+        newGO->name = data.name + "_" + std::to_string(index);
+        newGO->meshPath = data.meshPath;
+        newGO->meshIndexInFBX = data.meshIndexInFBX;
+
+        // Copy transform with offset
+        if (newGO->transform)
+        {
+            newGO->transform->translation.x = data.position.x + 1.0f;
+            newGO->transform->translation.y = data.position.y;
+            newGO->transform->translation.z = data.position.z + 1.0f;
+
+            newGO->transform->rotation.w = data.rotation.w;
+            newGO->transform->rotation.x = data.rotation.x;
+            newGO->transform->rotation.y = data.rotation.y;
+            newGO->transform->rotation.z = data.rotation.z;
+
+            newGO->transform->scaling.x = data.scale.x;
+            newGO->transform->scaling.y = data.scale.y;
+            newGO->transform->scaling.z = data.scale.z;
+        }
+
+        // Load mesh if it has one
+        if (!data.meshPath.empty())
+        {
+            int engineMeshIndex = -1;
+            if (ResourceManager::EnsureMeshExists(data.meshPath, data.meshIndexInFBX, engineMeshIndex))
+            {
+                newGO->mesh->meshIndex = engineMeshIndex;
+            }
+        }
+        else
+        {
+            newGO->mesh->meshIndex = -1;
+        }
+
+        // Load texture
+        if (!data.texturePath.empty() && data.texturePath != "checkerboard")
+        {
+            newGO->texture->LoadTexture(data.texturePath);
+        }
+        else
+        {
+            AssignCheckerboardTexture(newGO);
+        }
+
+        opengl->gameObjects.push_back(newGO);
+        selectedGameObjects.push_back(newGO);
+
+        LOG("Pasted: " + newGO->name);
+    }
+
+    sceneModified = true;
+}
+
+void ModuleEditor::DuplicateSelectedObjects()
+{
+    if (selectedGameObjects.empty()) return;
+
+    CopySelectedObjects();
+    PasteObjects();
+}
 
 std::string ModuleEditor::OpenFileDialog(const char* filter)
 {

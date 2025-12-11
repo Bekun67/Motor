@@ -50,7 +50,7 @@ void MenuBarWindow::DrawFileMenu()
             editor->showNewSceneConfirmation = true;
         }
 
-        if (ImGui::MenuItem("Save Scene"))
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
         {
             if (editor->currentScenePath.empty())
             {
@@ -62,7 +62,7 @@ void MenuBarWindow::DrawFileMenu()
             }
         }
 
-        if (ImGui::MenuItem("Save Scene As..."))
+        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
         {
             editor->SaveSceneDialog();
         }
@@ -74,7 +74,52 @@ void MenuBarWindow::DrawFileMenu()
 
         ImGui::Separator();
 
-        if (ImGui::MenuItem("Exit"))
+        // Import Model option
+        if (ImGui::MenuItem("Import Model...", "Ctrl+I"))
+        {
+            std::string filepath = editor->OpenFileDialog(
+                "3D Models (*.fbx;*.obj)\0*.fbx;*.obj\0All Files (*.*)\0*.*\0"
+            );
+
+            if (!filepath.empty())
+            {
+                OpenGL* opengl = Application::GetInstance().opengl.get();
+                size_t meshCountBefore = g_Meshes.size();
+
+                if (LoadFile(filepath.c_str()))
+                {
+                    for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
+                    {
+                        GameObject* go = new GameObject();
+                        int index = editor->CountNames("ImportedMesh_");
+                        go->name = "ImportedMesh_" + std::to_string(index);
+                        go->meshPath = filepath;
+                        go->meshIndexInFBX = (int)(i - meshCountBefore);
+
+                        go->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                        go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                        go->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                        go->mesh->meshIndex = (int)i;
+                        editor->AssignCheckerboardTexture(go);
+
+                        opengl->gameObjects.push_back(go);
+
+                        LOG("Imported model: " + filepath);
+                    }
+
+                    editor->sceneModified = true;
+                }
+                else
+                {
+                    LOG_ERROR("Failed to import model: " + filepath);
+                }
+            }
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Exit", "Alt+F4"))
         {
             if (editor->sceneModified)
             {
@@ -468,51 +513,38 @@ void MenuBarWindow::DrawEditMenu()
     {
         bool canUndo = editor->commandHistory.CanUndo();
         bool canRedo = editor->commandHistory.CanRedo();
-
+        
         if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo))
         {
             editor->commandHistory.Undo();
         }
-
-        if (canUndo)
-        {
-            ImGui::SetTooltip("%s", editor->commandHistory.GetUndoDescription().c_str());
-        }
-
+        
         if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo))
         {
             editor->commandHistory.Redo();
         }
-
-        if (canRedo)
-        {
-            ImGui::SetTooltip("%s", editor->commandHistory.GetRedoDescription().c_str());
-        }
-
+        
         ImGui::Separator();
-
+        
         bool hasSelection = !editor->selectedGameObjects.empty();
-
+        
         if (ImGui::MenuItem("Copy", "Ctrl+C", false, hasSelection))
         {
-            // TODO: Implement copy
-            LOG("Copy not yet implemented");
+            editor->CopySelectedObjects();
         }
-
-        if (ImGui::MenuItem("Paste", "Ctrl+V", false, false))
+        
+        if (ImGui::MenuItem("Paste", "Ctrl+V", false, editor->HasCopiedObjects()))
         {
-            // TODO: Implement paste
-            LOG("Paste not yet implemented");
+            editor->PasteObjects();
         }
-
+        
         if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, hasSelection))
         {
-            // TODO: Implement duplicate
-            LOG("Duplicate not yet implemented");
+            editor->DuplicateSelectedObjects();
         }
-
+        
         ImGui::Separator();
-
+        
         if (ImGui::MenuItem("Delete", "Delete", false, hasSelection))
         {
             for (GameObject* go : editor->selectedGameObjects)
@@ -520,7 +552,7 @@ void MenuBarWindow::DrawEditMenu()
                 editor->MarkForDeletion(go);
             }
         }
-
+        
         ImGui::EndMenu();
     }
 }

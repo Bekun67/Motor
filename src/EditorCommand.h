@@ -88,3 +88,42 @@ private:
     size_t m_CurrentIndex;
     size_t m_MaxHistory;
 };
+
+// Command for multi-object transform
+class MultiTransformCommand : public EditorCommand
+{
+public:
+    MultiTransformCommand(const std::vector<GameObject*>& objects,
+        const std::vector<glm::vec3>& oldPositions,
+        const std::vector<glm::quat>& oldRotations,
+        const std::vector<glm::vec3>& oldScales,
+        const std::vector<glm::vec3>& newPositions,
+        const std::vector<glm::quat>& newRotations,
+        const std::vector<glm::vec3>& newScales);
+
+    void Execute() override;
+    void Undo() override;
+    std::string GetDescription() const override;
+
+private:
+    std::vector<GameObject*> m_Objects;
+    std::vector<glm::vec3> m_OldPositions, m_NewPositions;
+    std::vector<glm::quat> m_OldRotations, m_NewRotations;
+    std::vector<glm::vec3> m_OldScales, m_NewScales;
+};
+
+// Command for reparenting
+class ReparentCommand : public EditorCommand
+{
+public:
+    ReparentCommand(GameObject* object, GameObject* oldParent, GameObject* newParent);
+
+    void Execute() override;
+    void Undo() override;
+    std::string GetDescription() const override;
+
+private:
+    GameObject* m_Object;
+    GameObject* m_OldParent;
+    GameObject* m_NewParent;
+};
