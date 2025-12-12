@@ -7,7 +7,6 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
-#include "EditorPlaySystem.h"
 #include "LoadFBX.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>
@@ -122,6 +121,19 @@ void InspectorWindow::DrawSingleObjectInspector()
         ComponentTransform* transform = selectedGameObject->transform;
         if (transform)
         {
+            bool isStaticLocked = selectedGameObject->isStatic;
+
+            if (isStaticLocked)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.3f, 1.0f));
+                ImGui::Text("LOCKED - Static object cannot be edited");
+                ImGui::PopStyleColor();
+                ImGui::Spacing();
+            }
+
+            // unable widgets if static
+            ImGui::BeginDisabled(isStaticLocked);
+
             float pos[3] = { transform->translation.x, transform->translation.y, transform->translation.z };
             if (ImGui::DragFloat3("Position", pos, 0.1f))
             {
@@ -237,6 +249,8 @@ void InspectorWindow::DrawSingleObjectInspector()
                 transform->rotation.x,
                 transform->rotation.y,
                 transform->rotation.z);
+
+            ImGui::EndDisabled();
         }
     }
 
@@ -400,142 +414,189 @@ void InspectorWindow::DrawMultiObjectInspector()
     ImGui::Separator();
 
     //Transform   
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Multi-Object Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ComponentTransform* transform = selectedGameObject->transform;
-        if (transform)
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f),
+            "Editing %d objects simultaneously", (int)editor->selectedGameObjects.size());
+        ImGui::Spacing();
+
+        // Calculate average values
+        glm::vec3 avgPosition(0.0f);
+        glm::vec3 avgScale(0.0f);
+        glm::vec3 avgRotation(0.0f);
+
+        int validCount = 0;
+        for (GameObject* go : editor->selectedGameObjects)
         {
-            // block if static
-            bool isStaticLocked = selectedGameObject->isStatic;
-
-            if (isStaticLocked)
+            if (go && go->transform)
             {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.3f, 1.0f));
-                ImGui::Text("LOCKED - Static object cannot be edited");
-                ImGui::PopStyleColor();
-                ImGui::Spacing();
-            }
+                avgPosition.x += go->transform->translation.x;
+                avgPosition.y += go->transform->translation.y;
+                avgPosition.z += go->transform->translation.z;
 
-            // disable widgets if static
-            ImGui::BeginDisabled(isStaticLocked);
+                avgScale.x += go->transform->scaling.x;
+                avgScale.y += go->transform->scaling.y;
+                avgScale.z += go->transform->scaling.z;
 
-            float pos[3] = { transform->translation.x, transform->translation.y, transform->translation.z };
-            if (ImGui::DragFloat3("Position", pos, 0.1f))
-            {
-                transform->translation.x = pos[0];
-                transform->translation.y = pos[1];
-                transform->translation.z = pos[2];
-                editor->sceneModified = true;
-            }
-
-            float scale[3] = { transform->scaling.x, transform->scaling.y, transform->scaling.z };
-            if (ImGui::DragFloat3("Scale", scale, 0.01f, 0.01f, 100.0f))
-            {
-                transform->scaling.x = scale[0];
-                transform->scaling.y = scale[1];
-                transform->scaling.z = scale[2];
-                editor->sceneModified = true;
-            }
-
-            //method to normalize angles (361º -> 1º)
-            auto normalizeAngle = [](float angle) -> float
-                {
-                    angle = fmod(angle, 360.0f);
-
-                    if (angle > 180.0f)
-                    {
-                        angle -= 360.0f;
-                    }
-                    else if (angle < -180.0f)
-                    {
-                        angle += 360.0f;
-                    }
-
-                    return angle;
-                };
-            //rotation
-            static std::map<GameObject*, glm::vec3> rotationEulerMap;
-            static std::map<GameObject*, float[3]> lastAnglesMap;
-
-            //initialize euler angles
-            if (rotationEulerMap.find(selectedGameObject) == rotationEulerMap.end()) {
-                glm::quat q(transform->rotation.w, transform->rotation.x, transform->rotation.y, transform->rotation.z);
+                // Convert quaternion to euler for averaging
+                glm::quat q(go->transform->rotation.w, go->transform->rotation.x,
+                    go->transform->rotation.y, go->transform->rotation.z);
                 glm::vec3 euler = glm::degrees(glm::eulerAngles(q));
+                avgRotation += euler;
 
-                //normalized euler angles
-                euler.x = normalizeAngle(euler.x);
-                euler.y = normalizeAngle(euler.y);
-                euler.z = normalizeAngle(euler.z);
-
-                //apply
-                rotationEulerMap[selectedGameObject] = euler;
-                lastAnglesMap[selectedGameObject][0] = euler.x;
-                lastAnglesMap[selectedGameObject][1] = euler.y;
-                lastAnglesMap[selectedGameObject][2] = euler.z;
+                validCount++;
             }
+        }
 
-            glm::vec3& rotationEuler = rotationEulerMap[selectedGameObject];
-            float* lastAngles = lastAnglesMap[selectedGameObject];
+        if (validCount > 0)
+        {
+            avgPosition /= (float)validCount;
+            avgScale /= (float)validCount;
+            avgRotation /= (float)validCount;
+        }
 
-            //update angles 
-            if (editor->updatedAngles) {
-                glm::quat q(transform->rotation.w, transform->rotation.x, transform->rotation.y, transform->rotation.z);
-                glm::vec3 euler = glm::degrees(glm::eulerAngles(q));
+        // position
+        float pos[3] = { avgPosition.x, avgPosition.y, avgPosition.z };
+        if (ImGui::DragFloat3("Position", pos, 0.1f))
+        {
+            // Calculate delta
+            glm::vec3 delta(
+                pos[0] - avgPosition.x,
+                pos[1] - avgPosition.y,
+                pos[2] - avgPosition.z
+            );
 
-                //normalized
-                euler.x = normalizeAngle(euler.x);
-                euler.y = normalizeAngle(euler.y);
-                euler.z = normalizeAngle(euler.z);
-
-                rotationEuler = euler;
-                lastAngles[0] = euler.x;
-                lastAngles[1] = euler.y;
-                lastAngles[2] = euler.z;
-
-                editor->updatedAngles = false;
-            }
-
-            //edit tab
-            float angles[3] = { rotationEuler.x, rotationEuler.y, rotationEuler.z };
-            ImGui::DragFloat3("Rotation", angles, 0.5f);
-
-            //if the value was changed
-            bool changed = false;
-            for (int i = 0; i < 3; ++i)
+            // Apply delta to all objects
+            for (GameObject* go : editor->selectedGameObjects)
             {
-                if (angles[i] != lastAngles[i])
+                if (go && go->transform)
                 {
-                    changed = true;
-
-                    //normalize
-                    angles[i] = normalizeAngle(angles[i]);
-                    lastAngles[i] = angles[i];
+                    go->transform->translation.x += delta.x;
+                    go->transform->translation.y += delta.y;
+                    go->transform->translation.z += delta.z;
                 }
             }
+            editor->sceneModified = true;
+            editor->editing = true;
+        }
+        if (ImGui::IsItemDeactivated())
+        {
+            editor->editing = false;
+        }
 
-            //if it was changed we apply the rotation
-            if (changed)
+        // Rotation
+        float rot[3] = { avgRotation.x, avgRotation.y, avgRotation.z };
+        if (ImGui::DragFloat3("Rotation", rot, 0.5f))
+        {
+            // Calculate delta
+            glm::vec3 delta(
+                rot[0] - avgRotation.x,
+                rot[1] - avgRotation.y,
+                rot[2] - avgRotation.z
+            );
+
+            // Apply delta to all objects
+            for (GameObject* go : editor->selectedGameObjects)
             {
-                rotationEuler = glm::vec3(angles[0], angles[1], angles[2]);
+                if (go && go->transform)
+                {
+                    // Get current rotation as euler
+                    glm::quat currentQuat(go->transform->rotation.w, go->transform->rotation.x,
+                        go->transform->rotation.y, go->transform->rotation.z);
+                    glm::vec3 currentEuler = glm::degrees(glm::eulerAngles(currentQuat));
 
-                //convert to quat
-                glm::quat newQuat = glm::quat(glm::radians(rotationEuler));
-                transform->rotation.w = newQuat.w;
-                transform->rotation.x = newQuat.x;
-                transform->rotation.y = newQuat.y;
-                transform->rotation.z = newQuat.z;
-                editor->sceneModified = true;
+                    // Add delta
+                    glm::vec3 newEuler = currentEuler + delta;
+
+                    // Convert back to quaternion
+                    glm::quat newQuat = glm::quat(glm::radians(newEuler));
+                    go->transform->rotation.w = newQuat.w;
+                    go->transform->rotation.x = newQuat.x;
+                    go->transform->rotation.y = newQuat.y;
+                    go->transform->rotation.z = newQuat.z;
+                }
             }
+            editor->sceneModified = true;
+            editor->editing = true;
+        }
+        if (ImGui::IsItemDeactivated())
+        {
+            editor->editing = false;
+        }
 
-            //show quat (not editable)
-            ImGui::Text("Rotation (Quaternion):");
-            ImGui::Text("W: %.3f, X: %.3f, Y: %.3f, Z: %.3f",
-                transform->rotation.w,
-                transform->rotation.x,
-                transform->rotation.y,
-                transform->rotation.z);
+        // scale
+        float scale[3] = { avgScale.x, avgScale.y, avgScale.z };
+        if (ImGui::DragFloat3("Scale", scale, 0.01f, 0.01f, 100.0f))
+        {
+            // Calculate scale factor
+            glm::vec3 scaleFactor(
+                scale[0] / avgScale.x,
+                scale[1] / avgScale.y,
+                scale[2] / avgScale.z
+            );
 
-            ImGui::EndDisabled();
+            // Apply scale factor to all objects
+            for (GameObject* go : editor->selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    go->transform->scaling.x *= scaleFactor.x;
+                    go->transform->scaling.y *= scaleFactor.y;
+                    go->transform->scaling.z *= scaleFactor.z;
+                }
+            }
+            editor->sceneModified = true;
+            editor->editing = true;
+        }
+        if (ImGui::IsItemDeactivated())
+        {
+            editor->editing = false;
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // reset
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Quick Actions:");
+
+        if (ImGui::Button("Reset Position", ImVec2(-1, 0)))
+        {
+            for (GameObject* go : editor->selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    go->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                }
+            }
+            editor->sceneModified = true;
+            LOG("Reset position for " + std::to_string(editor->selectedGameObjects.size()) + " objects");
+        }
+
+        if (ImGui::Button("Reset Rotation", ImVec2(-1, 0)))
+        {
+            for (GameObject* go : editor->selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                }
+            }
+            editor->sceneModified = true;
+            LOG("Reset rotation for " + std::to_string(editor->selectedGameObjects.size()) + " objects");
+        }
+
+        if (ImGui::Button("Reset Scale", ImVec2(-1, 0)))
+        {
+            for (GameObject* go : editor->selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    go->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+                }
+            }
+            editor->sceneModified = true;
+            LOG("Reset scale for " + std::to_string(editor->selectedGameObjects.size()) + " objects");
         }
     }
 
