@@ -16,6 +16,5 @@ private:
     void DrawViewMenu();
     void DrawGameObjectMenu();
     void DrawHelpMenu();
-    void DrawPlayControls();
     void DrawPopups();
 };
