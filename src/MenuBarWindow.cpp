@@ -6,6 +6,7 @@
 #include "GameObject.h"
 #include "PrimitiveGenerator.h"
 #include "FileSystemManager.h"
+#include "EditorPlaySystem.h"
 #include <SDL3/SDL.h>
 #include <filesystem>
 
@@ -34,6 +35,100 @@ void MenuBarWindow::Draw()
         DrawHelpMenu();
 
         ImGui::EndMainMenuBar();
+
+        // Play/Pause/Stop toolbar 
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImVec2 toolbarPos = ImVec2(
+            viewport->Pos.x + viewport->Size.x * 0.5f - 140.0f,
+            viewport->Pos.y + menuBarHeight + 5.0f
+        );
+
+        ImGui::SetNextWindowPos(toolbarPos);
+        ImGui::SetNextWindowSize(ImVec2(280, 45));
+
+        ImGuiWindowFlags toolbarFlags =
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_NoScrollWithMouse;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
+        ImGui::Begin("##PlayToolbar", nullptr, toolbarFlags);
+
+        bool isPlaying = EditorPlaySystem::IsPlaying();
+        bool isPaused = EditorPlaySystem::IsPaused();
+        bool isStopped = EditorPlaySystem::IsStopped();
+
+        // PLAY button
+        if (isPlaying && !isPaused)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+        else
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.2f, 1.0f));
+
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.9f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.7f, 0.1f, 1.0f));
+
+        if (ImGui::Button("Play", ImVec2(80, 30)))
+        {
+            if (isStopped || isPaused)
+            {
+                EditorPlaySystem::Play();
+            }
+        }
+        ImGui::PopStyleColor(3);
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Start game simulation");
+
+        ImGui::SameLine();
+
+        // PAUSE button
+        ImGui::BeginDisabled(isStopped);
+
+        if (isPaused)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.6f, 0.2f, 1.0f));
+        else
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.4f, 0.2f, 1.0f));
+
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.7f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.5f, 0.1f, 1.0f));
+
+        if (ImGui::Button("Pause", ImVec2(80, 30)))
+        {
+            if (isPlaying)
+            {
+                EditorPlaySystem::Pause();
+            }
+        }
+        ImGui::PopStyleColor(3);
+        ImGui::EndDisabled();
+
+        if (ImGui::IsItemHovered() && !isStopped)
+            ImGui::SetTooltip("Pause game simulation");
+
+        ImGui::SameLine();
+
+        // STOP button
+        ImGui::BeginDisabled(isStopped);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+        if (ImGui::Button("Stop", ImVec2(80, 30)))
+        {
+            EditorPlaySystem::Stop();
+        }
+        ImGui::PopStyleColor(3);
+        ImGui::EndDisabled();
+
+        if (ImGui::IsItemHovered() && !isStopped)
+            ImGui::SetTooltip("Stop game and restore scene");
+
+        ImGui::End();
+        ImGui::PopStyleVar();
     }
 
     DrawPopups();

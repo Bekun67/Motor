@@ -241,13 +241,13 @@ bool EditorPlaySystem::RestoreSceneState(std::vector<GameObject*>& gameObjects)
             if (goJson.contains("UUID"))
             {
                 std::string uuidStr = goJson["UUID"];
-                go->SetUUID(UUID::FromString(uuidStr));
+                go->SetUUID(EngineUUID::FromString(uuidStr));
             }
 
             if (goJson.contains("ParentUUID"))
             {
                 std::string parentUuidStr = goJson["ParentUUID"];
-                go->SetParentUUID(UUID::FromString(parentUuidStr));
+                go->SetParentUUID(EngineUUID::FromString(parentUuidStr));
             }
 
             if (goJson.contains("Name"))
