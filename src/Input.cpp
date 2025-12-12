@@ -7,6 +7,7 @@
 #include "imgui_impl_sdl3.h"
 #include <imgui.h>     
 #include <ImGuizmo.h>  
+#include <functional>
 
 #define MAX_KEYS 300
 
@@ -161,27 +162,64 @@ bool Input::PreUpdate()
         {
             int index = -1;
             if (opengl->gameObjects.size() > 0) {
-                GameObject* currentSelection = editor->selectedGameObjects.empty() ? nullptr : editor->selectedGameObjects[0];
+                //list with hierarchy order
+                std::vector<GameObject*> flatHierarchy;
 
-                for (int i = 0; i < opengl->gameObjects.size(); i++)
+                std::vector<GameObject*> roots;
+                for (GameObject* go : opengl->gameObjects)
                 {
-                    if (currentSelection == opengl->gameObjects[i]) index = i;
+                    if (go != nullptr && go->parent == nullptr)
+                    {
+                        roots.push_back(go);
+                    }
                 }
 
-                if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < opengl->gameObjects.size() - 1) {
-                    GameObject* nextObject = opengl->gameObjects[index + 1];
-                    editor->SelectGameObject(nextObject, false);
-                    opengl->selectedGameObject = nextObject;
-                    LOG("Selecting next Game Object, " + nextObject->name);
+                std::function<void(GameObject*)> addWithChildren = [&](GameObject* go) 
+                {
+                    if (go == nullptr) return;
+                    flatHierarchy.push_back(go);
+                    for (GameObject* child : go->children)
+                    {
+                        addWithChildren(child);
+                    }
+                };
+
+                for (GameObject* root : roots)
+                {
+                    addWithChildren(root);
                 }
-                if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
-                    GameObject* prevObject = opengl->gameObjects[index - 1];
-                    editor->SelectGameObject(prevObject, false);
-                    opengl->selectedGameObject = prevObject;
-                    LOG("Selecting previous Game Object, " + prevObject->name);
+
+                if (flatHierarchy.empty())
+                {
+                    //no game objects
+                    LOG("No Game Objects in scene to select");
+                }
+                else
+                {
+                    GameObject* currentSelection = editor->selectedGameObjects.empty() ? nullptr : editor->selectedGameObjects[0];
+
+                    for (int i = 0; i < flatHierarchy.size(); i++)
+                    {
+                        if (currentSelection == flatHierarchy[i]) index = i;
+                    }
+
+                    if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < flatHierarchy.size() - 1) {
+                        GameObject* nextObject = flatHierarchy[index + 1];
+                        editor->SelectGameObject(nextObject, false);
+                        opengl->selectedGameObject = nextObject;
+                        LOG("Selecting next Game Object, " + nextObject->name);
+                    }
+                    if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
+                        GameObject* prevObject = flatHierarchy[index - 1];
+                        editor->SelectGameObject(prevObject, false);
+                        opengl->selectedGameObject = prevObject;
+                        LOG("Selecting previous Game Object, " + prevObject->name);
+                    }
                 }
             }
-            else {
+            else 
+            {
+                //no game objects
                 LOG("No Game Objects in scene to select");
             }
         }
