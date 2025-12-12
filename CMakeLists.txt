@@ -18,7 +18,9 @@ file(GLOB CORE_FILES
     "src/Application.*" 
     "src/Main.*"
     "src/Structures.*"
-    "src/Window.*")
+    "src/Window.*"
+    "src/Time.*"
+    "src/EditorPlaySystem.*")
 
 file(GLOB COMPONENT_FILES 
     "src/Component*.*")

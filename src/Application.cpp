@@ -1,6 +1,8 @@
 #include "Application.h"
 #include "LoadFBX.h"
+#include "Time.h" 
 #include <iostream>
+#include "EditorPlaySystem.h"
 
 Application* app = nullptr;
 
@@ -8,6 +10,10 @@ Application::Application() : isRunning(true)
 {
     app = this;
     std::cout << "Application Constructor" << std::endl;
+
+    Time::Init(); 
+    EditorPlaySystem::Init();
+
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
     opengl = std::make_shared<OpenGL>();
@@ -61,6 +67,8 @@ bool Application::Update()
 {
     bool ret = true;
 
+    Time::Update(); 
+
     if (input->GetWindowEvent(WE_QUIT) == true)
         ret = false;
 
@@ -94,7 +102,9 @@ bool Application::PreUpdate()
 bool Application::DoUpdate()
 {
     //Iterates the module list and calls Update on each module
+
     bool result = true;
+
     for (const auto& module : moduleList) {
         result = module.get()->Update();
         if (!result) {
@@ -131,6 +141,7 @@ bool Application::CleanUp()
             break;
         }
     }
+    EditorPlaySystem::Shutdown();
 
     return result;
 }
