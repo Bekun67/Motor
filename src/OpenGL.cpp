@@ -918,6 +918,12 @@ bool OpenGL::Update()
             glEnable(GL_DEPTH_TEST);
             glDisable(GL_BLEND);
         }
+
+        // Draw Octree debug visualization
+        if (useQuadtree && showQuadtree)
+        {
+            quadtree.DebugDraw();
+        }
     }
     else
     {
