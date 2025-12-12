@@ -260,7 +260,7 @@ void Camera::FrameSelected(const glm::vec3& target, float distance)
     float fovRadians = glm::radians(fov);
     float distanceFromRadius = distance / tan(fovRadians * 0.5f);
 
-    distanceToFocus = distanceFromRadius * 1.5f;
+    distanceToFocus = distanceFromRadius * 0.6f;
 
     distanceToFocus = glm::clamp(distanceToFocus, minZoomDistance, maxZoomDistance);
 

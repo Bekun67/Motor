@@ -18,9 +18,13 @@ struct CustomMesh {
     float aabbMinX, aabbMinY, aabbMinZ;
     float aabbMaxX, aabbMaxY, aabbMaxZ;
 
+    float centerX, centerY, centerZ;
+
     CustomMesh() : numVertices(0), numIndices(0),
         aabbMinX(0), aabbMinY(0), aabbMinZ(0),
-        aabbMaxX(0), aabbMaxY(0), aabbMaxZ(0) {}
+        aabbMaxX(0), aabbMaxY(0), aabbMaxZ(0),
+        centerX(0), centerY(0), centerZ(0) {
+    }
 };
 
 namespace MeshImporter {
