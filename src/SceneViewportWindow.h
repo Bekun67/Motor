@@ -9,4 +9,7 @@ public:
     ~SceneViewportWindow() override = default;
 
     void Draw() override;
+
+private:
+    void DrawPlayControls();
 };
