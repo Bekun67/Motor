@@ -34,10 +34,100 @@ void MenuBarWindow::Draw()
         DrawGameObjectMenu();
         DrawHelpMenu();
 
+        // Add spacing to center the play controls
+        float menuWidth = ImGui::GetCursorPosX();
+        float playControlsWidth = 280.0f;
+        float availableWidth = ImGui::GetContentRegionAvail().x;
+        float spacing = (availableWidth - playControlsWidth) * 0.5f;
+
+        if (spacing > 0)
+        {
+            ImGui::SetCursorPosX(menuWidth + spacing);
+        }
+
+        // Draw Play/Pause/Stop controls directly in the menu bar
+        DrawPlayControls();
+
         ImGui::EndMainMenuBar();
     }
 
     DrawPopups();
+}
+
+void MenuBarWindow::DrawPlayControls()
+{
+    bool isPlaying = EditorPlaySystem::IsPlaying();
+    bool isPaused = EditorPlaySystem::IsPaused();
+    bool isStopped = EditorPlaySystem::IsStopped();
+
+    // Reduce button size to fit in menu bar
+    ImVec2 buttonSize(70, 0); // 0 height = use default height
+
+    // PLAY button
+    if (isPlaying && !isPaused)
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+    else
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.2f, 1.0f));
+
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.9f, 0.3f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.7f, 0.1f, 1.0f));
+
+    if (ImGui::Button("Play", buttonSize))
+    {
+        if (isStopped || isPaused)
+        {
+            EditorPlaySystem::Play();
+        }
+    }
+    ImGui::PopStyleColor(3);
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Start game simulation (F5)");
+
+    ImGui::SameLine();
+
+    // PAUSE button
+    ImGui::BeginDisabled(isStopped);
+
+    if (isPaused)
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.6f, 0.2f, 1.0f));
+    else
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.4f, 0.2f, 1.0f));
+
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.7f, 0.3f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.5f, 0.1f, 1.0f));
+
+    if (ImGui::Button("Pause", buttonSize))
+    {
+        if (isPlaying)
+        {
+            EditorPlaySystem::Pause();
+        }
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::EndDisabled();
+
+    if (ImGui::IsItemHovered() && !isStopped)
+        ImGui::SetTooltip("Pause game simulation (F6)");
+
+    ImGui::SameLine();
+
+    // STOP button
+    ImGui::BeginDisabled(isStopped);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+    if (ImGui::Button("Stop", buttonSize))
+    {
+        EditorPlaySystem::Stop();
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::EndDisabled();
+
+    if (ImGui::IsItemHovered() && !isStopped)
+        ImGui::SetTooltip("Stop game and restore scene (F7)");
 }
 
 void MenuBarWindow::DrawFileMenu()
@@ -329,7 +419,7 @@ void MenuBarWindow::DrawHelpMenu()
     }
 }
 
-// Draw handle of popups
+// Draw hadle of popups
 void MenuBarWindow::DrawPopups()
 {
     // Center the popup
@@ -443,7 +533,7 @@ void MenuBarWindow::DrawPopups()
             {
                 if (ImGui::Selectable(sceneName.c_str()))
                 {
-                    // Store the scene to load and show confirmation
+                    // Store the scene to load and show confirmatio
                     editor->pendingSceneToLoad = FileSystemManager::GetScenesDirectory() + sceneName;
                     editor->showLoadSceneConfirmation = true;
                     ImGui::CloseCurrentPopup();
@@ -514,38 +604,38 @@ void MenuBarWindow::DrawEditMenu()
     {
         bool canUndo = editor->commandHistory.CanUndo();
         bool canRedo = editor->commandHistory.CanRedo();
-
+        
         if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo))
         {
             editor->commandHistory.Undo();
         }
-
+        
         if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo))
         {
             editor->commandHistory.Redo();
         }
-
+        
         ImGui::Separator();
-
+        
         bool hasSelection = !editor->selectedGameObjects.empty();
-
+        
         if (ImGui::MenuItem("Copy", "Ctrl+C", false, hasSelection))
         {
             editor->CopySelectedObjects();
         }
-
+        
         if (ImGui::MenuItem("Paste", "Ctrl+V", false, editor->HasCopiedObjects()))
         {
             editor->PasteObjects();
         }
-
+        
         if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, hasSelection))
         {
             editor->DuplicateSelectedObjects();
         }
-
+        
         ImGui::Separator();
-
+        
         if (ImGui::MenuItem("Delete", "Delete", false, hasSelection))
         {
             for (GameObject* go : editor->selectedGameObjects)
@@ -553,7 +643,7 @@ void MenuBarWindow::DrawEditMenu()
                 editor->MarkForDeletion(go);
             }
         }
-
+        
         ImGui::EndMenu();
     }
 }
