@@ -7,6 +7,8 @@
 #include "PrimitiveGenerator.h"
 #include "FileSystemManager.h"
 #include "EditorPlaySystem.h"
+#include <assimp/Importer.hpp>   
+#include <assimp/postprocess.h>  
 #include <SDL3/SDL.h>
 #include <filesystem>
 
@@ -82,31 +84,156 @@ void MenuBarWindow::DrawFileMenu()
             if (!filepath.empty())
             {
                 OpenGL* opengl = Application::GetInstance().opengl.get();
+
                 size_t meshCountBefore = g_Meshes.size();
+                size_t instanceCountBefore = g_MeshInstances.size();
 
                 if (LoadFile(filepath.c_str()))
                 {
-                    for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
+                    LOG("FBX loaded successfully");
+
+                    // Calculate global bounding box for ALL meshes
+                    glm::vec3 globalMin(FLT_MAX);
+                    glm::vec3 globalMax(-FLT_MAX);
+
+                    for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                     {
+                        const MeshWithTransform& inst = g_MeshInstances[i];
+                        int meshIdx = inst.meshIndex;
+
+                        if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size())
+                        {
+                            const MeshData& meshData = g_Meshes[meshIdx];
+
+                            // Transform AABB corners to world space
+                            glm::vec3 corners[8] = {
+                                glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                                glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                                glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                                glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                                glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                                glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                                glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z),
+                                glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMax.z)
+                            };
+
+                            for (int c = 0; c < 8; ++c)
+                            {
+                                glm::vec4 worldCorner = inst.transform * glm::vec4(corners[c], 1.0f);
+                                glm::vec3 corner3 = glm::vec3(worldCorner);
+
+                                globalMin = glm::min(globalMin, corner3);
+                                globalMax = glm::max(globalMax, corner3);
+                            }
+                        }
+                    }
+
+                    glm::vec3 globalCenter = (globalMin + globalMax) * 0.5f;
+
+                    // Calculate the minimum Y of the entire model
+                    float globalMinY = FLT_MAX;
+                    for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
+                    {
+                        const MeshWithTransform& inst = g_MeshInstances[i];
+                        int meshIdx = inst.meshIndex;
+
+                        if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size())
+                        {
+                            const MeshData& meshData = g_Meshes[meshIdx];
+                            glm::vec4 worldMin = inst.transform * glm::vec4(meshData.aabbMin, 1.0f);
+                            globalMinY = std::min(globalMinY, worldMin.y);
+                        }
+                    }
+
+                    // Count unique meshes in FBX
+                    Assimp::Importer counter;
+                    const aiScene* countScene = counter.ReadFile(filepath.c_str(), aiProcess_Triangulate);
+                    int numMeshesInFBX = countScene ? countScene->mNumMeshes : 1;
+
+                    // Create GameObjects
+                    for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
+                    {
+                        const MeshWithTransform& inst = g_MeshInstances[i];
+                        int meshIdx = inst.meshIndex;
+
+                        if (meshIdx < 0 || meshIdx >= (int)g_Meshes.size())
+                            continue;
+
+                        MeshData& meshData = g_Meshes[meshIdx];
+
+                        // Center vertices locally
+                        glm::vec3 meshLocalCenter = (meshData.aabbMin + meshData.aabbMax) * 0.5f;
+
+                        glBindBuffer(GL_ARRAY_BUFFER, meshData.VBO);
+                        GLint bufferSize;
+                        glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
+
+                        int vertexSize = 8;
+                        int numVertices = bufferSize / (vertexSize * sizeof(float));
+
+                        std::vector<float> vertexData(bufferSize / sizeof(float));
+                        glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
+
+                        for (int v = 0; v < numVertices; ++v)
+                        {
+                            int offset = v * vertexSize;
+                            vertexData[offset + 0] -= meshLocalCenter.x;
+                            vertexData[offset + 1] -= meshLocalCenter.y;
+                            vertexData[offset + 2] -= meshLocalCenter.z;
+                        }
+
+                        glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
+                        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                        meshData.aabbMin -= meshLocalCenter;
+                        meshData.aabbMax -= meshLocalCenter;
+                        meshData.center = glm::vec3(0, 0, 0);
+
+                        // Create GameObject
                         GameObject* go = new GameObject();
                         int index = editor->CountNames("ImportedMesh_");
                         go->name = "ImportedMesh_" + std::to_string(index);
                         go->meshPath = filepath;
-                        go->meshIndexInFBX = (int)(i - meshCountBefore);
+                        go->meshIndexInFBX = (i - instanceCountBefore) % numMeshesInFBX;
+                        go->mesh->meshIndex = meshIdx;
 
-                        go->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
-                        go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-                        go->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+                        // Decompose transform
+                        glm::vec3 instancePosition, instanceScale;
+                        glm::quat instanceRotation;
+                        DecomposeTransform(inst.transform, instancePosition, instanceRotation, instanceScale);
 
-                        go->mesh->meshIndex = (int)i;
+                        // Calculate world position of mesh center
+                        glm::vec4 meshWorldCenter4 = inst.transform * glm::vec4(meshLocalCenter, 1.0f);
+                        glm::vec3 meshWorldCenter = glm::vec3(meshWorldCenter4);
+
+                        // Position relative to global center, on the floor (Y=0)
+                        glm::vec3 finalPos;
+                        finalPos.x = meshWorldCenter.x - globalCenter.x;
+                        finalPos.y = meshWorldCenter.y - globalMinY;
+                        finalPos.z = meshWorldCenter.z - globalCenter.z;
+
+                        go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);
+                        go->transform->rotation = aiQuaternion(
+                            instanceRotation.w,
+                            instanceRotation.x,
+                            instanceRotation.y,
+                            instanceRotation.z
+                        );
+                        go->transform->scaling = aiVector3D(
+                            instanceScale.x,
+                            instanceScale.y,
+                            instanceScale.z
+                        );
+
+                        // Load texture or use checkerboard
                         editor->AssignCheckerboardTexture(go);
 
                         opengl->gameObjects.push_back(go);
-
-                        LOG("Imported model: " + filepath);
+                        LOG("Created GameObject: " + go->name);
                     }
 
                     editor->sceneModified = true;
+                    LOG("Imported " + std::to_string(g_MeshInstances.size() - instanceCountBefore) + " meshes from: " + filepath);
                 }
                 else
                 {
