@@ -18,7 +18,6 @@
 #include "TextureImporter.h"
 #include <chrono>
 
-
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
 {
     std::cout << "OpenGL Constructor" << std::endl;
@@ -271,6 +270,7 @@ bool OpenGL::Start()
         return false;
     }
 
+    editor = Application::GetInstance().editor.get();
 
     // Start Imgui
     IMGUI_CHECKVERSION();
@@ -286,8 +286,6 @@ bool OpenGL::Start()
 
     // Do a depth test
     glEnable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-
 
     // Shader using position normal texcoord and matrix
     const char* vertexShaderSource = "#version 330 core\n"
@@ -343,230 +341,6 @@ bool OpenGL::Start()
     maskShader = CreateMaskShader();
 
     lastTicks = SDL_GetTicks();
-
-    const char* fbxPath = "Assets/Models/BakerHouse.fbx";
-    const char* texturePath = "Assets/Textures/Baker_house.png";
-
-    // Check if we need to reimport MESH
-    std::string customMeshPath = MeshImporter::GetCustomMeshPath(fbxPath, 0);
-    bool needsMeshReimport = FileSystemManager::NeedsReimport(fbxPath, customMeshPath);
-
-    // Check if we need to reimport TEXTURE
-    std::string customTexturePath = TextureImporter::GetCustomTexturePath(texturePath);
-    bool needsTextureReimport = FileSystemManager::NeedsReimport(texturePath, customTexturePath);
-
-    // Mesh import
-    if (needsMeshReimport) {
-        std::cout << "\n========================================" << std::endl;
-        std::cout << "BAKER HOUSE - First time or FBX modified" << std::endl;
-        std::cout << "========================================" << std::endl;
-
-        // Import from FBX
-        std::cout << "[BakerHouse] Importing from FBX..." << std::endl;
-        auto importStart = std::chrono::high_resolution_clock::now();
-        std::vector<CustomMesh> meshes = MeshImporter::ImportFBX(fbxPath);
-        auto importEnd = std::chrono::high_resolution_clock::now();
-        auto importDuration = std::chrono::duration_cast<std::chrono::milliseconds>(importEnd - importStart);
-
-        if (meshes.empty()) {
-            std::cerr << "[BakerHouse] Failed to import FBX" << std::endl;
-        }
-        else {
-            std::cout << "[BakerHouse] Import completed in " << importDuration.count() << " ms" << std::endl;
-
-            // Save to custom format
-            std::cout << "[BakerHouse] Saving to custom format..." << std::endl;
-            for (size_t i = 0; i < meshes.size(); ++i) {
-                std::string savePath = MeshImporter::GetCustomMeshPath(fbxPath, i);
-                if (!MeshImporter::SaveMesh(meshes[i], savePath)) {
-                    std::cerr << "[BakerHouse] Failed to save mesh " << i << std::endl;
-                }
-            }
-        }
-    }
-
-    // texture import
-    if (needsTextureReimport) {
-        std::cout << "\n[BakerHouse] Texture needs reimport" << std::endl;
-
-        // Import texture
-        auto texImportStart = std::chrono::high_resolution_clock::now();
-        CustomTexture customTex = TextureImporter::ImportTexture(texturePath);
-        auto texImportEnd = std::chrono::high_resolution_clock::now();
-        auto texImportDuration = std::chrono::duration_cast<std::chrono::milliseconds>(texImportEnd - texImportStart);
-
-        if (customTex.width > 0 && customTex.height > 0) {
-            std::cout << "[BakerHouse] Texture imported in " << texImportDuration.count() << " ms" << std::endl;
-
-            // Save to custom format
-            if (TextureImporter::SaveTexture(customTex, customTexturePath)) {
-                std::cout << "[BakerHouse] Texture saved to custom format" << std::endl;
-            }
-        }
-        else {
-            std::cerr << "[BakerHouse] Failed to import texture" << std::endl;
-        }
-    }
-
-    // Load mesh from custom format
-    std::cout << "\n[BakerHouse] Loading mesh from custom format..." << std::endl;
-    if (!LoadFileCustomFormat(fbxPath)) {
-        std::cerr << "[BakerHouse] Failed to load mesh from custom format" << std::endl;
-    }
-
-    // Create game object
-    if (!g_Meshes.empty()) {
-        GameObject* house = new GameObject();
-        house->meshPath = fbxPath;
-        house->name = "BakerHouse";
-        house->meshIndexInFBX = 0;
-        std::cout << "Created GameObject " << house->name << std::endl;
-
-        house->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
-        aiQuaternion rotX(aiVector3D(1.0f, 0.0f, 0.0f), glm::radians(90.0f));
-        house->transform->rotation = rotX;
-        house->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-
-        house->mesh->meshIndex = 0;
-
-        // Load texture from custom format
-        CustomTexture loadedTexture;
-        if (TextureImporter::LoadTexture(loadedTexture, customTexturePath)) {
-            std::cout << "[BakerHouse] Loading texture from custom format..." << std::endl;
-
-            // Create OpenGL texture from custom data
-            GLuint textureID;
-            glGenTextures(1, &textureID);
-            glBindTexture(GL_TEXTURE_2D, textureID);
-
-            // Upload texture data
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-                loadedTexture.width, loadedTexture.height, 0,
-                GL_RGBA, GL_UNSIGNED_BYTE, loadedTexture.data.data());
-
-            glGenerateMipmap(GL_TEXTURE_2D);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-
-            // Assign to GameObject
-            house->texture->hasTexture = true;
-            if (house->texture->texturedata == nullptr) {
-                house->texture->texturedata = new TextureData();
-            }
-            house->texture->texturedata->id = textureID;
-            house->texture->texturedata->type = "diffuse";
-            house->texture->texturedata->path = customTexturePath;
-            house->texture->texturePath = customTexturePath;
-
-            std::cout << "[BakerHouse] Texture loaded from custom format (ID: " << textureID << ")" << std::endl;
-        }
-        else {
-            std::cerr << "[BakerHouse] Failed to load texture from custom format, using fallback" << std::endl;
-            // Fallback to loading original texture
-            if (!house->texture->LoadTexture(texturePath)) {
-                std::cerr << "[BakerHouse] Failed to load original texture" << std::endl;
-            }
-        }
-
-        gameObjects.push_back(house);
-        std::cout << "[BakerHouse] Added to scene" << std::endl;
-    }
-    else {
-        std::cerr << "[BakerHouse] No meshes loaded!" << std::endl;
-    }
-
-    std::cout << "\n========================================\n" << std::endl;
-    //load cannon FBX
-    const char* cannonPath = "Assets/Models/Cannon.fbx";
-    size_t meshCountBefore = g_Meshes.size();
-
-    if (!LoadFile(cannonPath)) {
-        std::cerr << "Failed to load model: " << cannonPath << std::endl;
-    }
-    else {
-        std::cout << "Cannon FBX loaded" << std::endl;
-
-        //create the one that has texture
-        GameObject* cannon1 = new GameObject();
-        cannon1->meshPath = cannonPath;
-        cannon1->name = "Cannon_Left";
-        cannon1->meshIndexInFBX = 0;
-        std::cout << "Created GameObject " << cannon1->name << std::endl;
-
-        cannon1->transform->translation = aiVector3D(-5.0f, 0.0f, 0.0f);
-        cannon1->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-        cannon1->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-
-        if (meshCountBefore < g_Meshes.size()) {
-            cannon1->mesh->meshIndex = (int)meshCountBefore;
-        }
-
-        //assing lenna texture
-        if (cannon1->texture->LoadTexture("Assets/Textures/lenna.png")) {
-            std::cout << "Texture assigned to " << cannon1->name << std::endl;
-        }
-        else {
-            std::cout << "Failed to load texture for " << cannon1->name << std::endl;
-        }
-
-        gameObjects.push_back(cannon1);
-
-        //create the one that has no texture
-        GameObject* cannon2 = new GameObject();
-        cannon2->meshPath = cannonPath;
-        cannon2->name = "Cannon_Right";
-        cannon2->meshIndexInFBX = 0;
-        std::cout << "Created GameObject " << cannon2->name << std::endl;
-
-        cannon2->transform->translation = aiVector3D(5.0f, 0.0f, 0.0f);
-        cannon2->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-        cannon2->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
-
-        if (meshCountBefore < g_Meshes.size()) {
-            cannon2->mesh->meshIndex = (int)meshCountBefore;
-        }
-
-        const int size = 64;
-        GLubyte checkerImage[64][64][4];
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                int c = ((((i & 0x8) == 0) ^ ((j & 0x8) == 0))) * 255;
-                checkerImage[i][j][0] = (GLubyte)c;
-                checkerImage[i][j][1] = (GLubyte)c;
-                checkerImage[i][j][2] = (GLubyte)c;
-                checkerImage[i][j][3] = (GLubyte)255;
-            }
-        }
-
-        GLuint checkID;
-        glGenTextures(1, &checkID);
-        glBindTexture(GL_TEXTURE_2D, checkID);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerImage);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        cannon2->texture->hasTexture = true;
-        if (cannon2->texture->texturedata == nullptr) {
-            cannon2->texture->texturedata = new TextureData();
-        }
-        cannon2->texture->texturedata->id = checkID;
-        cannon2->texture->texturedata->type = "checkerboard";
-        cannon2->texture->texturedata->path = "checkerboard";
-
-        std::cout << cannon2->name << " created without texture (will use checkerboard)" << std::endl;
-        gameObjects.push_back(cannon2);
-
-        std::cout << "Total GameObjects in scene: " << gameObjects.size() << std::endl;
-    }
-    std::cout << std::endl;
 
     camera.Start();
     CreateGrid(50);
@@ -695,7 +469,7 @@ bool OpenGL::Update()
     lastTicks = currentTicks;
 
     // Use camera input handling
-    camera.HandleInput(deltaTime);
+    if (!editor->editing) camera.HandleInput(deltaTime);
 
     if (useQuadtree)
     {
@@ -718,7 +492,7 @@ bool OpenGL::Update()
 
         if (needsRebuild)
         {
-            LOG("Static object moved - Rebuilding Quadtree");
+            LOG("Static object moved - Rebuilding Octree");
             RebuildQuadtree();
         }
     }
@@ -739,7 +513,7 @@ bool OpenGL::Update()
         }
     }
 
-    glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     ModuleEditor* editor = Application::GetInstance().editor.get();
@@ -773,7 +547,7 @@ bool OpenGL::Update()
     }
 
     glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
-    glClearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //resize texture if we change the viewport
@@ -845,19 +619,19 @@ bool OpenGL::Update()
             std::vector<GameObject*> candidateObjects;
             quadtree.CollectIntersections(candidateObjects, *frustum);
 
-            quadtreeTestsCount = candidateObjects.size();
             quadtreeCulledCount = staticObjects.size() - candidateObjects.size();
 
             //frustum over all candidates
+            quadtreeTestsCount = 0;
             for (GameObject* go : candidateObjects)
             {
                 if (go == nullptr || go->mesh == nullptr || go->mesh->meshIndex < 0) continue;
-
                 if (go->mesh->meshIndex >= (int)g_Meshes.size()) continue;
+
+                quadtreeTestsCount++;
 
                 WorldAABB worldAABB = go->mesh->GetWorldAABB();
 
-                //test individual aabb against frustum
                 if (frustum->Intersects(worldAABB))
                 {
                     visibleStatic.push_back(go);
@@ -877,7 +651,8 @@ bool OpenGL::Update()
         {
             //if frustum is not active all are visible
             quadtree.GetAllObjects(visibleStatic);
-            quadtreeTestsCount = visibleStatic.size();
+            quadtreeTestsCount = 0;
+            quadtreeCulledCount = 0;
             renderedCount += visibleStatic.size();
 
             for (GameObject* go : visibleStatic)
@@ -1088,15 +863,25 @@ bool OpenGL::Update()
             go->mesh->Draw(&camera);
         }
 
+        std::sort(transparentObjects.begin(), transparentObjects.end(),
+            [](GameObject* a, GameObject* b) {
+                return a->distanceToCamera > b->distanceToCamera;
+            });
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDepthMask(GL_FALSE);
+        glEnable(GL_DEPTH_TEST);
+
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
 
         for (GameObject* go : transparentObjects)
         {
             go->mesh->Draw(&camera);
         }
 
+        glDisable(GL_POLYGON_OFFSET_FILL);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
 
@@ -1132,6 +917,12 @@ bool OpenGL::Update()
 
             glEnable(GL_DEPTH_TEST);
             glDisable(GL_BLEND);
+        }
+
+        // Draw Octree debug visualization
+        if (useQuadtree && showQuadtree)
+        {
+            quadtree.DebugDraw();
         }
     }
     else
@@ -1309,7 +1100,7 @@ bool OpenGL::EmptyQuadtree()
 
 void OpenGL::RebuildQuadtree()
 {
-    LOG("Rebuilding Quadtree...");
+    LOG("Rebuilding Octree...");
 
     //calculate aabb that contains all static
     glm::vec3 sceneMin(FLT_MAX);
@@ -1337,15 +1128,15 @@ void OpenGL::RebuildQuadtree()
 
     if (staticCount == 0)
     {
-        LOG_WARNING("No static objects found to build Quadtree");
+        LOG_WARNING("No static objects found to build Octree");
         quadtree.Clear();
         return;
     }
 
-    float padding = 10.0f;
+    float padding = 5.0f;
 
-    glm::vec3 boundaryMin(sceneMin.x - padding, sceneMin.y, sceneMin.z - padding);
-    glm::vec3 boundaryMax(sceneMax.x + padding, sceneMax.y, sceneMax.z + padding);
+    glm::vec3 boundaryMin(sceneMin.x - padding, sceneMin.y - padding, sceneMin.z - padding);
+    glm::vec3 boundaryMax(sceneMax.x + padding, sceneMax.y + padding, sceneMax.z + padding);
 
     AABB boundary(boundaryMin, boundaryMax);
 
@@ -1364,7 +1155,7 @@ void OpenGL::RebuildQuadtree()
         }
     }
 
-    LOG("Quadtree rebuilt with " + std::to_string(insertedCount) + " static objects");
+    LOG("Octree rebuilt with " + std::to_string(insertedCount) + " static objects");
     LOG("Boundary: Min(" + std::to_string(sceneMin.x) + ", " + std::to_string(sceneMin.z) +
         ") Max(" + std::to_string(sceneMax.x) + ", " + std::to_string(sceneMax.z) + ")");
 }

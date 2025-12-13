@@ -8,6 +8,7 @@
 #include <imgui.h>     
 #include <ImGuizmo.h>  
 #include "EditorPlaySystem.h"
+#include <functional>
 
 #define MAX_KEYS 300
 
@@ -146,6 +147,14 @@ bool Input::PreUpdate()
                 }
 
                 editor->sceneModified = true;
+                if (opengl->useQuadtree) {
+                    if (opengl->EmptyQuadtree()) {
+                        LOG("Quadtree is now empty");
+                    }
+                    else {
+                        opengl->RebuildQuadtree();
+                    }
+                }
             }
         }
 
@@ -154,27 +163,64 @@ bool Input::PreUpdate()
         {
             int index = -1;
             if (opengl->gameObjects.size() > 0) {
-                GameObject* currentSelection = editor->selectedGameObjects.empty() ? nullptr : editor->selectedGameObjects[0];
+                //list with hierarchy order
+                std::vector<GameObject*> flatHierarchy;
 
-                for (int i = 0; i < opengl->gameObjects.size(); i++)
+                std::vector<GameObject*> roots;
+                for (GameObject* go : opengl->gameObjects)
                 {
-                    if (currentSelection == opengl->gameObjects[i]) index = i;
+                    if (go != nullptr && go->parent == nullptr)
+                    {
+                        roots.push_back(go);
+                    }
                 }
 
-                if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < opengl->gameObjects.size() - 1) {
-                    GameObject* nextObject = opengl->gameObjects[index + 1];
-                    editor->SelectGameObject(nextObject, false);
-                    opengl->selectedGameObject = nextObject;
-                    LOG("Selecting next Game Object, " + nextObject->name);
+                std::function<void(GameObject*)> addWithChildren = [&](GameObject* go) 
+                {
+                    if (go == nullptr) return;
+                    flatHierarchy.push_back(go);
+                    for (GameObject* child : go->children)
+                    {
+                        addWithChildren(child);
+                    }
+                };
+
+                for (GameObject* root : roots)
+                {
+                    addWithChildren(root);
                 }
-                if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
-                    GameObject* prevObject = opengl->gameObjects[index - 1];
-                    editor->SelectGameObject(prevObject, false);
-                    opengl->selectedGameObject = prevObject;
-                    LOG("Selecting previous Game Object, " + prevObject->name);
+
+                if (flatHierarchy.empty())
+                {
+                    //no game objects
+                    LOG("No Game Objects in scene to select");
+                }
+                else
+                {
+                    GameObject* currentSelection = editor->selectedGameObjects.empty() ? nullptr : editor->selectedGameObjects[0];
+
+                    for (int i = 0; i < flatHierarchy.size(); i++)
+                    {
+                        if (currentSelection == flatHierarchy[i]) index = i;
+                    }
+
+                    if (keyboard[SDL_SCANCODE_F2] == KEY_DOWN && index < flatHierarchy.size() - 1) {
+                        GameObject* nextObject = flatHierarchy[index + 1];
+                        editor->SelectGameObject(nextObject, false);
+                        opengl->selectedGameObject = nextObject;
+                        LOG("Selecting next Game Object, " + nextObject->name);
+                    }
+                    if (keyboard[SDL_SCANCODE_F1] == KEY_DOWN && index > 0) {
+                        GameObject* prevObject = flatHierarchy[index - 1];
+                        editor->SelectGameObject(prevObject, false);
+                        opengl->selectedGameObject = prevObject;
+                        LOG("Selecting previous Game Object, " + prevObject->name);
+                    }
                 }
             }
-            else {
+            else 
+            {
+                //no game objects
                 LOG("No Game Objects in scene to select");
             }
         }
@@ -324,27 +370,33 @@ bool Input::PreUpdate()
                         LOG_WARNING("Drop mesh in scene");
                         break;
                     }
-                    //if fbx we load its mesh
-                    size_t meshCountBefore = g_Meshes.size();
+
                     std::cout << "=========MESH===========" << std::endl;
+
+                    size_t meshCountBefore = g_Meshes.size();
+                    size_t instanceCountBefore = g_MeshInstances.size();
 
                     if (LoadFile(path.c_str())) {
                         std::cout << "FBX loaded" << std::endl;
 
-                        float desiredSize = 5.0f;
-                        float normalizeScale = (g_ModelRadius > 0.001f) ? (desiredSize / g_ModelRadius) : 1.0f;
+                        size_t newInstanceCount = g_MeshInstances.size() - instanceCountBefore;
 
                         //get mouse pos
+                        float mouseX, mouseY;
                         SDL_GetMouseState(&mouseX, &mouseY);
+
+                        float relativeMouseX = mouseX - moduleEditor->sceneViewportPos.x;
+                        float relativeMouseY = mouseY - moduleEditor->sceneViewportPos.y;
 
                         //get camera
                         Camera* camera = &(Application::GetInstance().opengl->camera);
-                        int viewport[4];
-                        glGetIntegerv(GL_VIEWPORT, viewport);
 
-                        //convert coordinates
-                        float x = (2.0f * mouseX) / viewport[2] - 1.0f;
-                        float y = 1.0f - (2.0f * mouseY) / viewport[3];
+                        int viewportWidth = (int)moduleEditor->sceneViewportSize.x;
+                        int viewportHeight = (int)moduleEditor->sceneViewportSize.y;
+
+                        //convert coordinates usando las coordenadas relativas
+                        float x = (2.0f * relativeMouseX) / viewportWidth - 1.0f;
+                        float y = 1.0f - (2.0f * relativeMouseY) / viewportHeight;
 
                         //calculate ray
                         glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
@@ -358,34 +410,118 @@ bool Input::PreUpdate()
                         float t = -camPos.y / rayWorld.y;
                         glm::vec3 dropPosition = camPos + rayWorld * t;
 
-                        for (size_t i = meshCountBefore; i < g_Meshes.size(); ++i)
+                        float normalizeScale = 1.0f;
+
+                        //calculate global minimum Y from ALL geometry
+                        float globalMinY = FLT_MAX;
+
+                        for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
+                        {
+                            const MeshWithTransform& inst = g_MeshInstances[i];
+                            int meshIdx = inst.meshIndex;
+
+                            if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size()) {
+                                const MeshData& meshData = g_Meshes[meshIdx];
+
+                                glm::vec4 worldMin = inst.transform * glm::vec4(meshData.aabbMin, 1.0f);
+                                globalMinY = std::min(globalMinY, worldMin.y);
+                            }
+                        }
+
+                        //count unique meshes
+                        Assimp::Importer counter;
+                        const aiScene* countScene = counter.ReadFile(path.c_str(), aiProcess_Triangulate);
+                        int numMeshesInFBX = countScene ? countScene->mNumMeshes : 2;
+
+                        //game object for each model
+                        for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                         {
                             //create gameobject with mesh
+                            const MeshWithTransform& inst = g_MeshInstances[i];
+                            int meshIdx = inst.meshIndex;
+
+                            if (meshIdx < 0 || meshIdx >= (int)g_Meshes.size()) {
+                                continue;
+                            }
+
+                            MeshData& meshData = g_Meshes[meshIdx];
+
+                            glm::vec3 meshLocalCenter = (meshData.aabbMin + meshData.aabbMax) * 0.5f;
+
+                            glBindBuffer(GL_ARRAY_BUFFER, meshData.VBO);
+                            GLint bufferSize;
+                            glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
+
+                            int vertexSize = 8; // 3 pos + 3 normal + 2 uv
+                            int numVertices = bufferSize / (vertexSize * sizeof(float));
+
+                            std::vector<float> vertexData(bufferSize / sizeof(float));
+                            glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
+
+                            for (int v = 0; v < numVertices; ++v) {
+                                int offset = v * vertexSize;
+                                vertexData[offset + 0] -= meshLocalCenter.x;
+                                vertexData[offset + 1] -= meshLocalCenter.y;  
+                                vertexData[offset + 2] -= meshLocalCenter.z;
+                            }
+
+                            glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
+                            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                            meshData.aabbMin -= meshLocalCenter;
+                            meshData.aabbMax -= meshLocalCenter;
+                            meshData.center = glm::vec3(0, 0, 0);
+
+                            //create game object
                             GameObject* go = new GameObject();
                             int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
                             go->meshPath = path;
-                            go->meshIndexInFBX = (int)(i - meshCountBefore);
+
+                            go->meshIndexInFBX = (i - instanceCountBefore) % numMeshesInFBX;
+
+                            go->mesh->meshIndex = meshIdx;
+
+                            glm::vec3 instancePosition, instanceScale;
+                            glm::quat instanceRotation;
+                            DecomposeTransform(inst.transform, instancePosition, instanceRotation, instanceScale);
+
+                            glm::vec4 meshWorldCenter4 = inst.transform * glm::vec4(meshLocalCenter, 1.0f);
+                            glm::vec3 meshWorldCenter = glm::vec3(meshWorldCenter4);
+
+                            glm::vec3 finalPos;
+                            finalPos.x = dropPosition.x + (meshWorldCenter.x - g_ModelCenter.x) * normalizeScale;
+                            finalPos.z = dropPosition.z + (meshWorldCenter.z - g_ModelCenter.z) * normalizeScale;
+                            finalPos.y = (meshWorldCenter.y - globalMinY) * normalizeScale;
 
                             //change the translation to match the obtained coordinates
-                            go->transform->translation = aiVector3D(dropPosition.x, 0.0f, dropPosition.z);
-                            go->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-                            go->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
+                            go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);
 
-                            go->mesh->meshIndex = (int)i;
+                            //change the rotation to match the obtained rotation
+                            go->transform->rotation = aiQuaternion(
+                                instanceRotation.w,
+                                instanceRotation.x,
+                                instanceRotation.y,
+                                instanceRotation.z
+                            );
+
+                            //change the scale to match the obtained normalized scale
+                            go->transform->scaling = aiVector3D(
+                                instanceScale.x * normalizeScale,
+                                instanceScale.y * normalizeScale,
+                                instanceScale.z * normalizeScale
+                            );
 
                             //try to load texture
-                            std::string texturePath = GetTexturePathFromFBX(path.c_str(), (int)(i - meshCountBefore));
+                            std::string texturePath = GetTexturePathFromFBX(path.c_str(), go->meshIndexInFBX);
 
                             bool textureLoaded = false;
                             if (!texturePath.empty()) {
+                                std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
                                 textureLoaded = go->texture->LoadTexture(texturePath);
                             }
 
-                            if (textureLoaded) {
-                                std::cout << "Assigned texture from FBX: " << texturePath << std::endl;
-                            }
-                            else {
+                            if (!textureLoaded) {
                                 //if no texture available we use checkerboard
                                 std::cout << "No valid texture found, using checkerboard" << std::endl;
 
@@ -424,17 +560,22 @@ bool Input::PreUpdate()
                             }
 
                             Application::GetInstance().opengl->gameObjects.push_back(go);
-                            std::cout << "Created GameObject " << go->name << std::endl;
-                            LOG("Created GameObject " + go->name + " with mesh " + path);
 
-                            ModuleEditor* editor = Application::GetInstance().editor.get();
-                            if (editor) editor->sceneModified = true;
+                            std::cout << "Created GameObject " << go->name
+                                << " at position (" << go->transform->translation.x
+                                << ", " << go->transform->translation.y
+                                << ", " << go->transform->translation.z << ")"
+                                << std::endl;
                         }
 
+                        ModuleEditor* editor = Application::GetInstance().editor.get();
+                        if (editor) editor->sceneModified = true;
+
+                        std::cout << "Total GameObjects created: " << (g_MeshInstances.size() - instanceCountBefore) << std::endl;
                         std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
-                        std::cout << std::endl;
                     }
                 }
+
                 else if (extension == ".png" || extension == ".jpg" || extension == ".jpeg") {
                     //get mouse pos
                     if (!mouseInsideScene && !mouseInsideTextureInspector)

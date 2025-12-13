@@ -3,8 +3,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 13,
+                "meshIndex": 24,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -36,8 +37,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 14,
+                "meshIndex": 25,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -69,8 +71,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 15,
+                "meshIndex": 26,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -102,8 +105,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 16,
+                "meshIndex": 27,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -135,8 +139,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 17,
+                "meshIndex": 28,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -168,8 +173,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 18,
+                "meshIndex": 29,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -201,8 +207,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 19,
+                "meshIndex": 30,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -234,8 +241,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 20,
+                "meshIndex": 31,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -267,8 +275,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 21,
+                "meshIndex": 32,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -300,8 +309,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 22,
+                "meshIndex": 33,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -333,8 +343,9 @@
         {
             "Active": true,
             "IsEmpty": false,
+            "IsStatic": true,
             "Mesh": {
-                "meshIndex": 23,
+                "meshIndex": 34,
                 "showAABB": false,
                 "showFaceNormals": false,
                 "showVertexNormals": false
@@ -366,6 +377,7 @@
         {
             "Active": true,
             "IsEmpty": true,
+            "IsStatic": false,
             "Mesh": {
                 "meshIndex": -1,
                 "showAABB": false,
@@ -394,6 +406,7 @@
         {
             "Active": true,
             "IsEmpty": true,
+            "IsStatic": false,
             "Mesh": {
                 "meshIndex": -1,
                 "showAABB": false,
@@ -422,6 +435,7 @@
         {
             "Active": true,
             "IsEmpty": true,
+            "IsStatic": false,
             "Mesh": {
                 "meshIndex": -1,
                 "showAABB": false,

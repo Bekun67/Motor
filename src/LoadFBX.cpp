@@ -2,15 +2,14 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include <assimp/cimport.h>
-#include <assimp/Logger.hpp>
-#include <assimp/DefaultLogger.hpp>
 #include <cstdio>
 #include <vector>
-#include <cstring>
 #include <iostream>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include "MeshImporter.h"
 #include "FileSystemManager.h"
 
@@ -19,6 +18,55 @@
 std::vector<MeshData> g_Meshes;
 glm::vec3 g_ModelCenter(0.0f);
 float g_ModelRadius = 1.0f;
+std::vector<MeshWithTransform> g_MeshInstances;
+
+glm::mat4 aiMatrixToGlm(const aiMatrix4x4& mat) {
+    return glm::mat4(
+        mat.a1, mat.b1, mat.c1, mat.d1,
+        mat.a2, mat.b2, mat.c2, mat.d2,
+        mat.a3, mat.b3, mat.c3, mat.d3,
+        mat.a4, mat.b4, mat.c4, mat.d4
+    );
+}
+
+void ProcessNode(const aiNode* node, const aiScene* scene, const glm::mat4& parentTransform) 
+{
+    glm::mat4 nodeTransform = aiMatrixToGlm(node->mTransformation);
+    glm::mat4 globalTransform = parentTransform * nodeTransform;
+
+    for (unsigned int i = 0; i < node->mNumMeshes; i++) {
+        MeshWithTransform instance;
+        instance.meshIndex = node->mMeshes[i];
+        instance.originalMeshIndex = node->mMeshes[i];
+        instance.transform = globalTransform;
+        g_MeshInstances.push_back(instance);
+    }
+
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        ProcessNode(node->mChildren[i], scene, globalTransform);
+    }
+}
+
+void DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::quat& rotation, glm::vec3& scale) 
+{
+    translation = glm::vec3(transform[3]);
+
+    glm::vec3 row[3];
+    for (int i = 0; i < 3; i++) {
+        row[i] = glm::vec3(transform[i]);
+    }
+
+    scale.x = glm::length(row[0]);
+    scale.y = glm::length(row[1]);
+    scale.z = glm::length(row[2]);
+
+    if (scale.x != 0) row[0] /= scale.x;
+    if (scale.y != 0) row[1] /= scale.y;
+    if (scale.z != 0) row[2] /= scale.z;
+
+    glm::mat3 rotationMatrix(row[0], row[1], row[2]);
+    rotation = glm::quat_cast(rotationMatrix);
+}
 
 bool LoadFile(const char* file_path) {
     Assimp::Importer importer;
@@ -26,11 +74,9 @@ bool LoadFile(const char* file_path) {
     unsigned int flags = 
         aiProcess_Triangulate |
         aiProcess_GenSmoothNormals |
-        aiProcess_JoinIdenticalVertices |
         aiProcess_ImproveCacheLocality |
         aiProcess_FlipUVs |
-        aiProcess_GlobalScale |
-        aiProcess_PreTransformVertices;
+        aiProcess_GlobalScale;
 
     const aiScene* scene = importer.ReadFile(file_path, flags);
 
@@ -44,17 +90,27 @@ bool LoadFile(const char* file_path) {
         return false;
     }
 
+    //g_MeshInstances.clear();
+
     glm::vec3 minBound(FLT_MAX);
     glm::vec3 maxBound(-FLT_MAX);
+
+    ProcessNode(scene->mRootNode, scene, glm::mat4(1.0f));
+
+    int totalInstances = g_MeshInstances.size();
+    LOG("Total instances found: %d", totalInstances);
+
+    //get all unique meshes (will be duplicated if needed)
+    std::vector<MeshData> uniqueMeshes;
 
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
         aiMesh* mesh = scene->mMeshes[m];
 
-        std::vector<float> vertexData;         
+        std::vector<float> vertexData;
         std::vector<uint32_t> indices;
 
-        vertexData.reserve(mesh->mNumVertices * 8); //vertexs
-        indices.reserve(mesh->mNumFaces * 3); //faces
+        vertexData.reserve(mesh->mNumVertices * 8);
+        indices.reserve(mesh->mNumFaces * 3);
 
         //aabb
         glm::vec3 meshMin(FLT_MAX);
@@ -62,24 +118,29 @@ bool LoadFile(const char* file_path) {
 
         for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
             const aiVector3D& pos = mesh->mVertices[v];
-            minBound.x = std::min(minBound.x, pos.x);
-            minBound.y = std::min(minBound.y, pos.y);
-            minBound.z = std::min(minBound.z, pos.z);
-            maxBound.x = std::max(maxBound.x, pos.x);
-            maxBound.y = std::max(maxBound.y, pos.y);
-            maxBound.z = std::max(maxBound.z, pos.z);
-
-            //aabb
             meshMin.x = std::min(meshMin.x, pos.x);
             meshMin.y = std::min(meshMin.y, pos.y);
             meshMin.z = std::min(meshMin.z, pos.z);
             meshMax.x = std::max(meshMax.x, pos.x);
             meshMax.y = std::max(meshMax.y, pos.y);
             meshMax.z = std::max(meshMax.z, pos.z);
+        }
+
+        glm::vec3 meshCenter = (meshMin + meshMax) * 0.5f;
+
+        for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
+            const aiVector3D& pos = mesh->mVertices[v];
 
             vertexData.push_back(pos.x);
             vertexData.push_back(pos.y);
             vertexData.push_back(pos.z);
+
+            minBound.x = std::min(minBound.x, pos.x);
+            minBound.y = std::min(minBound.y, pos.y);
+            minBound.z = std::min(minBound.z, pos.z);
+            maxBound.x = std::max(maxBound.x, pos.x);
+            maxBound.y = std::max(maxBound.y, pos.y);
+            maxBound.z = std::max(maxBound.z, pos.z);
 
             aiVector3D normal = mesh->HasNormals() ? mesh->mNormals[v] : aiVector3D(0.0f, 0.0f, 1.0f);
             vertexData.push_back(normal.x);
@@ -99,33 +160,33 @@ bool LoadFile(const char* file_path) {
             }
         }
 
+        //load indices
         for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
             const aiFace& face = mesh->mFaces[f];
             if (face.mNumIndices != 3) {
                 LOG("ERROR: face with not 3 indices detected (mesh %i face %i)", m, f);
                 continue;
             }
-            else {
-                indices.push_back(face.mIndices[0]);
-                indices.push_back(face.mIndices[1]);
-                indices.push_back(face.mIndices[2]);
-            }
+            indices.push_back(face.mIndices[0]);
+            indices.push_back(face.mIndices[1]);
+            indices.push_back(face.mIndices[2]);
         }
 
         MeshData md;
-
+        //local aabb
         md.aabbMin = meshMin;
         md.aabbMax = meshMax;
+        md.center = meshCenter;
 
         //create vao and vbo to associate them
         glGenVertexArrays(1, &md.VAO);
         glBindVertexArray(md.VAO);
 
+        //load faces
         glGenBuffers(1, &md.VBO);
         glBindBuffer(GL_ARRAY_BUFFER, md.VBO);
         glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(float), vertexData.data(), GL_STATIC_DRAW);
 
-        //load faces
         glGenBuffers(1, &md.EBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, md.EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
@@ -151,12 +212,81 @@ bool LoadFile(const char* file_path) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
         //add the new mesh to the list and iterate to the next one
-        g_Meshes.push_back(md);
+        uniqueMeshes.push_back(md);
+
         LOG("Loaded mesh %i -> VAO %u VBO %u EBO %u indices %i", m, md.VAO, md.VBO, md.EBO, md.numIndices);
+    }
+
+    //for each instance we duplicate the mesh in g_meshes
+    for (size_t i = 0; i < g_MeshInstances.size(); ++i)
+    {
+        MeshWithTransform& inst = g_MeshInstances[i];
+        int originalMeshIndex = inst.meshIndex;
+
+        if (originalMeshIndex >= 0 && originalMeshIndex < (int)uniqueMeshes.size())
+        {
+            //duplicate
+            MeshData duplicatedMesh = uniqueMeshes[originalMeshIndex];
+
+            glGenVertexArrays(1, &duplicatedMesh.VAO);
+            glBindVertexArray(duplicatedMesh.VAO);
+
+            //copy VBO
+            GLint vboSize;
+            glBindBuffer(GL_ARRAY_BUFFER, uniqueMeshes[originalMeshIndex].VBO);
+            glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vboSize);
+
+            glGenBuffers(1, &duplicatedMesh.VBO);
+            glBindBuffer(GL_COPY_READ_BUFFER, uniqueMeshes[originalMeshIndex].VBO);
+            glBindBuffer(GL_COPY_WRITE_BUFFER, duplicatedMesh.VBO);
+            glBufferData(GL_COPY_WRITE_BUFFER, vboSize, nullptr, GL_STATIC_DRAW);
+            glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, vboSize);
+
+            //copy EBO
+            GLint eboSize;
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, uniqueMeshes[originalMeshIndex].EBO);
+            glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &eboSize);
+
+            glGenBuffers(1, &duplicatedMesh.EBO);
+            glBindBuffer(GL_COPY_READ_BUFFER, uniqueMeshes[originalMeshIndex].EBO);
+            glBindBuffer(GL_COPY_WRITE_BUFFER, duplicatedMesh.EBO);
+            glBufferData(GL_COPY_WRITE_BUFFER, eboSize, nullptr, GL_STATIC_DRAW);
+            glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, eboSize);
+
+            //vertex attributes
+            glBindVertexArray(duplicatedMesh.VAO);
+            glBindBuffer(GL_ARRAY_BUFFER, duplicatedMesh.VBO);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, duplicatedMesh.EBO);
+
+            GLsizei vertexSize = 8 * sizeof(float);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(0));
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)(3 * sizeof(float)));
+            glEnableVertexAttribArray(2);
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)(6 * sizeof(float)));
+
+            glBindVertexArray(0);
+
+            //add to g_meshes
+            int newMeshIndex = (int)g_Meshes.size();
+            g_Meshes.push_back(duplicatedMesh);
+            inst.meshIndex = newMeshIndex;
+        }
+    }
+
+    //clean up original unique meshes
+    for (MeshData& md : uniqueMeshes) {
+        if (md.EBO) glDeleteBuffers(1, &md.EBO);
+        if (md.VBO) glDeleteBuffers(1, &md.VBO);
+        if (md.VAO) glDeleteVertexArrays(1, &md.VAO);
     }
 
     g_ModelCenter = (minBound + maxBound) * 0.5f;
     g_ModelRadius = glm::length(maxBound - g_ModelCenter);
+
+    LOG("Total mesh instances: %d", (int)g_MeshInstances.size());
+    LOG("Total meshes in g_Meshes: %d", (int)g_Meshes.size());
 
     return true;
 }
@@ -171,7 +301,7 @@ bool LoadFileCustomFormat(const char* file_path) {
         std::string customPath = MeshImporter::GetCustomMeshPath(file_path, meshIndex);
 
         if (!FileSystemManager::FileExists(customPath)) {
-            break; // No more meshes
+            break;
         }
 
         CustomMesh mesh;
@@ -232,6 +362,9 @@ bool LoadFileCustomFormat(const char* file_path) {
         //aabb
         md.aabbMin = glm::vec3(customMesh.aabbMinX, customMesh.aabbMinY, customMesh.aabbMinZ);
         md.aabbMax = glm::vec3(customMesh.aabbMaxX, customMesh.aabbMaxY, customMesh.aabbMaxZ);
+
+        //center
+        md.center = (md.aabbMin + md.aabbMax) * 0.5f;
 
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);

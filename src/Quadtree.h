@@ -41,14 +41,17 @@ public:
         {
             if (obj != nullptr && obj->mesh != nullptr)
             {
-                results.push_back(obj);
+                if (std::find(results.begin(), results.end(), obj) == results.end())
+                {
+                    results.push_back(obj);
+                }
             }
         }
 
         //try all children
         if (!IsLeaf())
         {
-            for (int i = 0; i < 4; ++i)
+            for (int i = 0; i < 8; ++i)
             {
                 if (children[i] != nullptr)
                 {
@@ -68,7 +71,7 @@ private:
 
     AABB boundary;
     std::vector<GameObject*> objects;
-    QuadtreeNode* children[4];
+    QuadtreeNode* children[8];
 
     int maxObjects;
     int maxLevels;

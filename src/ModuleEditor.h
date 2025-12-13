@@ -124,13 +124,15 @@ public:
     std::unique_ptr<ConfigurationWindow> configurationWindow;
     std::unique_ptr<AboutWindow> aboutWindow;
     std::unique_ptr<MenuBarWindow> menuBarWindow;
+	std::unique_ptr<EditorWindow> assetsWindow;
 
     // Window visibility flags
-    bool showConsole = true;
+    bool showConsole = false;
     bool showConfiguration = false;
     bool showHierarchy = true;
     bool showInspector = true;
     bool showAbout = false;
+	bool showAssets = true;
 
     // Layout
     EditorLayout layout;
@@ -169,6 +171,7 @@ public:
     ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE currentGizmoMode = ImGuizmo::WORLD;
     bool editing = false;
+    bool sceneEditing = false;
     bool updatedAngles = false;
 
     // Multi-selection gizmo tracking

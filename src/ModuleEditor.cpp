@@ -43,6 +43,7 @@
 #include "ConfigurationWindow.h"
 #include "AboutWindow.h"
 #include "MenuBarWindow.h"
+#include "AssetsWindow.h" 
 
 ModuleEditor* g_Editor = nullptr;
 
@@ -127,6 +128,7 @@ bool ModuleEditor::Start()
     configurationWindow = std::make_unique<ConfigurationWindow>(this);
     aboutWindow = std::make_unique<AboutWindow>(this);
     menuBarWindow = std::make_unique<MenuBarWindow>(this);
+    assetsWindow = std::make_unique<AssetsWindow>(this);
 
     LOG("All editor windows created");
 
@@ -146,6 +148,7 @@ bool ModuleEditor::PreUpdate()
 
 bool ModuleEditor::Update()
 {
+    //std::cout << editing << std::endl;
     static Uint64 lastTime = SDL_GetTicks();
     Uint64 currentTime = SDL_GetTicks();
     float deltaTime = (currentTime - lastTime) / 1000.0f;
@@ -306,8 +309,11 @@ bool ModuleEditor::Update()
     if (showInspector)
         inspectorWindow->Draw();
 
-    if (showConsole)
+    // Toggle between console and assets
+    if (showConsole && !showAssets)
         consoleWindow->Draw();
+    else if (showAssets && !showConsole)
+        assetsWindow->Draw();
 
     if (showConfiguration)
         configurationWindow->Draw();
@@ -474,14 +480,11 @@ void ModuleEditor::DrawGuizmo()
         }
         else
         {
-            if (editing && wasManipulating)
+            // Save state when finishing manipulation
+            if (wasManipulating && !ImGuizmo::IsUsing())
             {
                 EndTransformEdit(selected);
                 wasManipulating = false;
-            }
-
-            if (editing)
-            {
                 editing = false;
             }
         }
@@ -661,13 +664,12 @@ void ModuleEditor::DrawGuizmo()
         }
         else
         {
-            if (editing)
+            if (wasManipulating && !ImGuizmo::IsUsing())
             {
-                editing = false;
-
                 lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
                 lastMultiSelectionScale = glm::vec3(1, 1, 1);
                 wasManipulating = false;
+                editing = false;
             }
         }
     }
