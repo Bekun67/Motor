@@ -5,6 +5,7 @@
 #include "Input.h"
 #include "Camera.h"
 #include "Texture.h"
+#include "EditorPlaySystem.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
@@ -362,6 +363,26 @@ void ModuleEditor::DrawGuizmo()
     if (!opengl)
         return;
 
+    // See if there are static objects during PLAY
+    if (EditorPlaySystem::IsPlaying())
+    {
+        bool hasStaticObjects = false;
+        for (GameObject* go : selectedGameObjects)
+        {
+            if (go && go->isStatic)
+            {
+                hasStaticObjects = true;
+                break;
+            }
+        }
+
+        // if there ARE static objects, do not show the guizmo
+        if (hasStaticObjects)
+        {
+            return;
+        }
+    }
+
     Camera* camera = &opengl->camera;
     glm::mat4 view = camera->GetViewMatrix();
     glm::mat4 projection = camera->GetProjectionMatrix();
@@ -402,7 +423,6 @@ void ModuleEditor::DrawGuizmo()
 
         glm::mat4 deltaMatrix = glm::mat4(1.0f);
 
-        //Capture state when starting manipulation
         if (ImGuizmo::IsUsing() && !wasManipulating)
         {
             BeginTransformEdit(selected);
@@ -529,9 +549,7 @@ void ModuleEditor::DrawGuizmo()
                         );
 
                         glm::vec3 offset = objectPos - selectionCenter;
-
                         glm::vec3 rotatedOffset = deltaRotation * offset;
-
                         glm::vec3 newPos = selectionCenter + rotatedOffset;
 
                         go->transform->translation.x = newPos.x;
@@ -611,11 +629,8 @@ void ModuleEditor::DrawGuizmo()
                     if (go && go->transform)
                     {
                         glm::vec3 originalPos = originalPositions[go];
-
                         glm::vec3 offset = originalPos - selectionCenter;
-
                         glm::vec3 scaledOffset = offset * smoothedScaleFactor;
-
                         glm::vec3 newPos = selectionCenter + scaledOffset;
 
                         go->transform->translation.x = newPos.x;

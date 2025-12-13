@@ -128,6 +128,19 @@ void InspectorWindow::DrawSingleObjectInspector()
         ComponentTransform* transform = selectedGameObject->transform;
         if (transform)
         {
+            bool isStaticLocked = selectedGameObject->isStatic;
+
+            if (isStaticLocked)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.3f, 1.0f));
+                ImGui::Text("LOCKED - Static object cannot be edited");
+                ImGui::PopStyleColor();
+                ImGui::Spacing();
+            }
+
+            // unable widgets if static
+            ImGui::BeginDisabled(isStaticLocked);
+
             float pos[3] = { transform->translation.x, transform->translation.y, transform->translation.z };
             if (ImGui::DragFloat3("Position", pos, 0.1f))
             {
@@ -276,6 +289,8 @@ void InspectorWindow::DrawSingleObjectInspector()
                 transform->rotation.x,
                 transform->rotation.y,
                 transform->rotation.z);
+
+            ImGui::EndDisabled();
         }
     }
 
