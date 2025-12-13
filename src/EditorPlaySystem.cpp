@@ -82,6 +82,13 @@ void EditorPlaySystem::Stop()
         return;
     }
 
+    ModuleEditor* editor = Application::GetInstance().editor.get();
+    if (editor)
+    {
+        editor->DeselectAll();
+    }
+    opengl->selectedGameObject = nullptr;
+
     if (m_HasSavedState)
     {
         if (!RestoreSceneState(opengl->gameObjects))
@@ -96,13 +103,6 @@ void EditorPlaySystem::Stop()
     else
     {
         LOG_WARNING("No saved state to restore");
-    }
-
-    ModuleEditor* editor = Application::GetInstance().editor.get();
-    if (editor)
-    {
-        editor->DeselectAll();
-        opengl->selectedGameObject = nullptr;
     }
 
     m_IsPlaying = false;
@@ -152,6 +152,7 @@ bool EditorPlaySystem::SerializeSceneState(const std::vector<GameObject*>& gameO
                 goJson["MeshPath"] = go->meshPath;
                 goJson["IsEmpty"] = go->IsEmpty();
                 goJson["MeshIndexInFBX"] = go->meshIndexInFBX;
+                goJson["IsStatic"] = go->isStatic;
 
                 if (go->transform)
                 {
@@ -217,12 +218,24 @@ bool EditorPlaySystem::RestoreSceneState(std::vector<GameObject*>& gameObjects)
 {
     try
     {
+        for (GameObject* go : gameObjects)
+        {
+            if (go != nullptr)
+            {
+                go->parent = nullptr;
+                go->children.clear();
+            }
+        }
 
         for (GameObject* go : gameObjects)
         {
             if (go != nullptr)
+            {
+                go->m_IsBeingDestroyed = true;
                 delete go;
+            }
         }
+
         gameObjects.clear();
 
         if (!m_SavedSceneState.contains("GameObjects"))
@@ -237,7 +250,7 @@ bool EditorPlaySystem::RestoreSceneState(std::vector<GameObject*>& gameObjects)
         {
             GameObject* go = new GameObject();
 
-            // UUID
+            //UUID
             if (goJson.contains("UUID"))
             {
                 std::string uuidStr = goJson["UUID"];
@@ -261,6 +274,9 @@ bool EditorPlaySystem::RestoreSceneState(std::vector<GameObject*>& gameObjects)
 
             if (goJson.contains("MeshIndexInFBX"))
                 go->meshIndexInFBX = goJson["MeshIndexInFBX"];
+
+            if (goJson.contains("IsStatic"))
+                go->isStatic = goJson["IsStatic"];
 
             if (goJson.contains("Transform") && go->transform)
             {
