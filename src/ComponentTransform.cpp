@@ -1,10 +1,6 @@
 #include "ComponentTransform.h"
 #include "GameObject.h"
 
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <assimp/scene.h>
-
 ComponentTransform::ComponentTransform(GameObject* gameObject)
 	: Component(gameObject, ComponentType::TRANSFORM)
 {

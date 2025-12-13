@@ -1,9 +1,6 @@
 #pragma once
-
 #include "Component.h"
 #include "Camera.h"
-#include <glm/glm.hpp>
-#include "Structures.h"
 
 class MeshData;
 

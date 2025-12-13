@@ -1,10 +1,12 @@
 ﻿#include "ComponentTexture.h"
-#include <iostream>
 #include <IL/il.h>
 #include <IL/ilu.h>
 #include <glad/glad.h>
 #include "TextureImporter.h"
 #include "fileSystemManager.h"
+#include "Structures.h"
+#include "LoadFBX.h"
+#include <iostream>
 
 ComponentTexture::ComponentTexture(GameObject* gameObject)
     : Component(gameObject, ComponentType::TEXTURE),

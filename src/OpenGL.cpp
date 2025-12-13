@@ -18,7 +18,6 @@
 #include "TextureImporter.h"
 #include <chrono>
 
-
 OpenGL::OpenGL() : glContext(nullptr), shaderProgram(0)
 {
     std::cout << "OpenGL Constructor" << std::endl;
