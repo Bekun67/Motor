@@ -8,13 +8,16 @@
 #include "ComponentTexture.h"
 #include "ResourceManager.h"
 #include "LoadFBX.h"
+#include "Ray.h"
+#include "ModuleMousePicking.h"
+#include "Camera.h"
 #include <algorithm>
 #include <functional>
 
 AssetsWindow::AssetsWindow(ModuleEditor* editor)
     : EditorWindow(editor, "Assets")
-    , libraryRoot("Library")
-    , currentPath("Library")
+    , assetsRoot("Assets")
+    , currentPath("Assets")
     , gridView(true)
     , thumbnailSize(80.0f)
     , padding(16.0f)
@@ -24,8 +27,17 @@ AssetsWindow::AssetsWindow(ModuleEditor* editor)
 {
     memset(searchBuffer, 0, sizeof(searchBuffer));
 
-    // Only refresh if Library exists
-    if (fs::exists(libraryRoot) && fs::is_directory(libraryRoot))
+    // Create Assets structure if it doesn't exist
+    if (!fs::exists(assetsRoot))
+    {
+        LOG("Assets folder does not exist - creating it");
+        fs::create_directories(assetsRoot);
+        fs::create_directories(assetsRoot + "/Models");
+        fs::create_directories(assetsRoot + "/Textures");
+        fs::create_directories(assetsRoot + "/Scenes");
+    }
+
+    if (fs::exists(assetsRoot) && fs::is_directory(assetsRoot))
     {
         try
         {
@@ -36,10 +48,6 @@ AssetsWindow::AssetsWindow(ModuleEditor* editor)
             LOG_ERROR("Error initializing AssetsWindow: " + std::string(e.what()));
         }
     }
-    else
-    {
-        LOG("Library folder does not exist yet - will be created when importing assets");
-    }
 }
 void AssetsWindow::Draw()
 {
@@ -49,7 +57,6 @@ void AssetsWindow::Draw()
     int windowWidth, windowHeight;
     window->GetWindowSize(windowWidth, windowHeight);
 
-    // Position where console was
     if (editor->firstTimeSetup || editor->useAdaptiveLayout)
     {
         float x = windowWidth * editor->layout.consoleXPercent;
@@ -63,7 +70,6 @@ void AssetsWindow::Draw()
 
     ImGui::Begin("Assets", &visible);
 
-    // Monitor for changes every second
     timeSinceLastCheck += ImGui::GetIO().DeltaTime;
     if (timeSinceLastCheck >= checkInterval)
     {
@@ -74,7 +80,6 @@ void AssetsWindow::Draw()
     DrawToolbar();
     ImGui::Separator();
 
-    // Two-panel layout: Folder tree | Asset view
     float treeWidth = 200.0f;
 
     ImGui::BeginChild("FolderTree", ImVec2(treeWidth, -25), true);
@@ -101,7 +106,6 @@ void AssetsWindow::Draw()
 
     ImGui::EndChild();
 
-    // Status bar
     ImGui::Separator();
     int inMemoryCount = std::count_if(currentAssets.begin(), currentAssets.end(),
         [](const AssetInfo& a) { return a.isInMemory; });
@@ -112,7 +116,6 @@ void AssetsWindow::Draw()
 
 void AssetsWindow::DrawToolbar()
 {
-    // Navigation buttons
     if (ImGui::Button("< Back"))
     {
         NavigateUp();
@@ -127,7 +130,6 @@ void AssetsWindow::DrawToolbar()
 
     ImGui::SameLine();
 
-    // View mode toggle
     if (ImGui::Button(gridView ? "List" : "Grid"))
     {
         gridView = !gridView;
@@ -135,7 +137,6 @@ void AssetsWindow::DrawToolbar()
 
     ImGui::SameLine();
 
-    // Search box
     ImGui::PushItemWidth(200.0f);
     if (ImGui::InputTextWithHint("##search", "Search...", searchBuffer, sizeof(searchBuffer)))
     {
@@ -145,7 +146,6 @@ void AssetsWindow::DrawToolbar()
 
     ImGui::SameLine();
 
-    // Grid size slider (only in grid view)
     if (gridView)
     {
         ImGui::PushItemWidth(100.0f);
@@ -156,49 +156,33 @@ void AssetsWindow::DrawToolbar()
 
 void AssetsWindow::DrawNavigationBar()
 {
-    // Show current path as breadcrumb
     std::string displayPath = currentPath;
-
-    // Replace backslashes with forward slashes
     std::replace(displayPath.begin(), displayPath.end(), '\\', '/');
-
     ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Current: %s", displayPath.c_str());
 }
 
 void AssetsWindow::DrawFolderTree()
 {
-    // Early exit if Library doesn't exist yet
-    if (!fs::exists(libraryRoot))
+    if (!fs::exists(assetsRoot))
     {
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Library folder not created yet");
-        ImGui::TextWrapped("Import a model or texture to create it");
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Assets folder not found");
         return;
     }
 
-    // Lambda to draw tree nodes recursively
     std::function<void(const std::string&, int)> drawNode = [&](const std::string& path, int depth)
         {
-            // Safety checks
-            if (path.empty())
-                return;
-
-            if (!fs::exists(path))
-                return;
-
-            if (!fs::is_directory(path))
+            if (path.empty() || !fs::exists(path) || !fs::is_directory(path))
                 return;
 
             std::string folderName = fs::path(path).filename().string();
             if (folderName.empty())
-                folderName = "Library";
+                folderName = "Assets";
 
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 
-            // Highlight if selected
             if (path == currentPath)
                 flags |= ImGuiTreeNodeFlags_Selected;
 
-            // Check if has subfolders
             bool hasSubfolders = false;
             try
             {
@@ -211,27 +195,21 @@ void AssetsWindow::DrawFolderTree()
                     }
                 }
             }
-            catch (const std::exception& e)
+            catch (const std::exception&)
             {
-                // Can't access folder, skip it
                 return;
             }
 
             if (!hasSubfolders)
                 flags |= ImGuiTreeNodeFlags_Leaf;
 
-            // Create unique ID using hash of path
             std::hash<std::string> hasher;
             size_t pathHash = hasher(path);
-
             ImGui::PushID((int)pathHash);
 
-            // Icon + name format
             std::string label = std::string(GetAssetTypeIcon(AssetType::FOLDER)) + " " + folderName;
-
             bool nodeOpen = ImGui::TreeNodeEx("##treenode", flags, "%s", label.c_str());
 
-            // Click to navigate
             if (ImGui::IsItemClicked())
             {
                 NavigateToFolder(path);
@@ -242,8 +220,6 @@ void AssetsWindow::DrawFolderTree()
                 try
                 {
                     std::vector<std::string> subfolders;
-
-                    // Collect subfolders first
                     for (const auto& entry : fs::directory_iterator(path))
                     {
                         if (entry.is_directory())
@@ -252,16 +228,14 @@ void AssetsWindow::DrawFolderTree()
                         }
                     }
 
-                    // Sort subfolders
                     std::sort(subfolders.begin(), subfolders.end());
 
-                    // Draw each subfolder
                     for (const auto& subfolder : subfolders)
                     {
                         drawNode(subfolder, depth + 1);
                     }
                 }
-                catch (const std::exception& e)
+                catch (const std::exception&)
                 {
                     ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Error reading folder");
                 }
@@ -272,10 +246,9 @@ void AssetsWindow::DrawFolderTree()
             ImGui::PopID();
         };
 
-    // Start from Library root with safety check
     try
     {
-        drawNode(libraryRoot, 0);
+        drawNode(assetsRoot, 0);
     }
     catch (const std::exception& e)
     {
@@ -307,14 +280,11 @@ void AssetsWindow::DrawAssetGrid()
     {
         const AssetInfo& asset = currentAssets[i];
 
-        // Create unique ID
-        ImGui::PushID(i + 1000); // Offset to avoid ID conflicts
+        ImGui::PushID(i + 1000);
         ImGui::BeginGroup();
 
-        // Asset icon button
         ImVec4 iconColor = GetAssetTypeColor(asset.type);
 
-        // Highlight if selected
         if (i == selectedIndex)
         {
             iconColor = ImVec4(
@@ -338,7 +308,6 @@ void AssetsWindow::DrawAssetGrid()
             ImVec4(iconColor.x * 0.8f, iconColor.y * 0.8f, iconColor.z * 0.8f, 1.0f)
         );
 
-        // Create unique label
         std::string buttonLabel = std::string(GetAssetTypeIcon(asset.type)) + "##btn";
         bool clicked = ImGui::Button(buttonLabel.c_str(), ImVec2(thumbnailSize, thumbnailSize));
 
@@ -349,13 +318,10 @@ void AssetsWindow::DrawAssetGrid()
             selectedIndex = i;
         }
 
-        // Double-click to navigate folder
+        // Double-click handler
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
         {
-            if (asset.isDirectory)
-            {
-                NavigateToFolder(asset.path);
-            }
+            HandleAssetDoubleClick(asset);
         }
 
         // Drag source for assets
@@ -364,11 +330,9 @@ void AssetsWindow::DrawAssetGrid()
             BeginDragDropSource(asset);
         }
 
-        // Asset name (wrapped)
         float textWidth = thumbnailSize;
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + textWidth);
 
-        // Truncate very long names
         std::string displayName = asset.name;
         if (displayName.length() > 20)
         {
@@ -378,7 +342,6 @@ void AssetsWindow::DrawAssetGrid()
         ImGui::TextWrapped("%s", displayName.c_str());
         ImGui::PopTextWrapPos();
 
-        // Show reference count if in memory
         if (asset.isInMemory && asset.referenceCount > 0)
         {
             ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Refs: %d", asset.referenceCount);
@@ -386,7 +349,6 @@ void AssetsWindow::DrawAssetGrid()
 
         ImGui::EndGroup();
 
-        // Context menu
         std::string popupID = "ctx##" + std::to_string(i);
         if (ImGui::BeginPopupContextItem(popupID.c_str()))
         {
@@ -394,7 +356,6 @@ void AssetsWindow::DrawAssetGrid()
             ImGui::EndPopup();
         }
 
-        // Tooltip with info
         if (ImGui::IsItemHovered())
         {
             ImGui::BeginTooltip();
@@ -402,15 +363,12 @@ void AssetsWindow::DrawAssetGrid()
             if (!asset.isDirectory)
             {
                 ImGui::Text("Size: %s", FormatFileSize(asset.fileSize).c_str());
-                const char* typeStr = "Unknown";
-                switch (asset.type)
-                {
-                case AssetType::MESH: typeStr = "Mesh"; break;
-                case AssetType::TEXTURE: typeStr = "Texture"; break;
-                case AssetType::SCENE: typeStr = "Scene"; break;
-                default: break;
-                }
-                ImGui::Text("Type: %s", typeStr);
+                ImGui::Text("Type: %s",
+                    asset.type == AssetType::MESH ? "Mesh" :
+                    asset.type == AssetType::TEXTURE ? "Texture" :
+                    asset.type == AssetType::SCENE ? "Scene" :
+                    asset.type == AssetType::MODEL_SOURCE ? "Model Source" :
+                    asset.type == AssetType::TEXTURE_SOURCE ? "Texture Source" : "Unknown");
             }
             ImGui::EndTooltip();
         }
@@ -444,7 +402,7 @@ void AssetsWindow::DrawAssetList()
         ImGuiTableFlags_Resizable))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed, 80.0f);
         ImGui::TableSetupColumn("Refs", ImGuiTableColumnFlags_WidthFixed, 50.0f);
         ImGui::TableHeadersRow();
@@ -454,16 +412,11 @@ void AssetsWindow::DrawAssetList()
             const AssetInfo& asset = currentAssets[i];
 
             ImGui::TableNextRow();
+            ImGui::PushID(i + 2000);
 
-            // Use unique ID
-            ImGui::PushID(i + 2000); // Different offset for list view
-
-            // Name column
             ImGui::TableNextColumn();
 
             ImVec4 color = GetAssetTypeColor(asset.type);
-
-            // Selectable row
             bool isSelected = (i == selectedIndex);
             std::string selectableID = "##sel" + std::to_string(i);
 
@@ -474,25 +427,26 @@ void AssetsWindow::DrawAssetList()
                 selectedIndex = i;
             }
 
-            // Double-click to open folder
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
             {
                 if (asset.isDirectory)
                 {
                     NavigateToFolder(asset.path);
                 }
+                else if (asset.type == AssetType::SCENE)
+                {
+                    HandleSceneFileDrop(asset.path);
+                }
             }
 
             ImGui::SameLine();
             ImGui::TextColored(color, "%s %s", GetAssetTypeIcon(asset.type), asset.name.c_str());
 
-            // Drag source
             if (!asset.isDirectory)
             {
                 BeginDragDropSource(asset);
             }
 
-            // Type column
             ImGui::TableNextColumn();
             if (asset.isDirectory)
             {
@@ -500,18 +454,15 @@ void AssetsWindow::DrawAssetList()
             }
             else
             {
-                const char* typeStr = "Unknown";
-                switch (asset.type)
-                {
-                case AssetType::MESH: typeStr = "Mesh"; break;
-                case AssetType::TEXTURE: typeStr = "Texture"; break;
-                case AssetType::SCENE: typeStr = "Scene"; break;
-                default: break;
-                }
+                const char* typeStr =
+                    asset.type == AssetType::MESH ? "Mesh" :
+                    asset.type == AssetType::TEXTURE ? "Texture" :
+                    asset.type == AssetType::SCENE ? "Scene" :
+                    asset.type == AssetType::MODEL_SOURCE ? "Model Source" :
+                    asset.type == AssetType::TEXTURE_SOURCE ? "Texture Source" : "Unknown";
                 ImGui::Text("%s", typeStr);
             }
 
-            // Size column
             ImGui::TableNextColumn();
             if (!asset.isDirectory)
             {
@@ -522,7 +473,6 @@ void AssetsWindow::DrawAssetList()
                 ImGui::Text("-");
             }
 
-            // References column
             ImGui::TableNextColumn();
             if (asset.isInMemory && asset.referenceCount > 0)
             {
@@ -533,7 +483,6 @@ void AssetsWindow::DrawAssetList()
                 ImGui::Text("-");
             }
 
-            // Context menu
             std::string ctxID = "listctx##" + std::to_string(i);
             if (ImGui::BeginPopupContextItem(ctxID.c_str()))
             {
@@ -550,13 +499,24 @@ void AssetsWindow::DrawAssetList()
 
 void AssetsWindow::DrawFileDropArea()
 {
-    // Invisible button to capture drop area
     ImVec2 dropSize = ImGui::GetContentRegionAvail();
     dropSize.y = std::min(dropSize.y, 50.0f);
 
     ImGui::InvisibleButton("##dropzone", dropSize);
 
-    // Visual feedback for drop zone
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("FILES"))
+        {
+            const char* droppedPath = (const char*)payload->Data;
+            if (droppedPath)
+            {
+                ImportDroppedFile(std::string(droppedPath));
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     if (ImGui::IsItemHovered())
     {
         ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -599,10 +559,9 @@ void AssetsWindow::RefreshCurrentFolder()
     currentAssets.clear();
     selectedIndex = -1;
 
-    // Safety check
     if (currentPath.empty())
     {
-        currentPath = libraryRoot;
+        currentPath = assetsRoot;
     }
 
     if (!fs::exists(currentPath))
@@ -614,7 +573,7 @@ void AssetsWindow::RefreshCurrentFolder()
     if (!fs::is_directory(currentPath))
     {
         LOG_WARNING("Current path is not a directory: " + currentPath);
-        currentPath = libraryRoot;
+        currentPath = assetsRoot;
         return;
     }
 
@@ -628,13 +587,11 @@ void AssetsWindow::RefreshCurrentFolder()
                 info.path = entry.path().string();
                 info.name = entry.path().filename().string();
 
-                // Skip empty names
                 if (info.name.empty())
                     continue;
 
                 info.isDirectory = entry.is_directory();
 
-                // Apply search filter
                 if (strlen(searchBuffer) > 0)
                 {
                     std::string nameLower = info.name;
@@ -660,11 +617,9 @@ void AssetsWindow::RefreshCurrentFolder()
                     std::string ext = entry.path().extension().string();
                     info.type = GetAssetTypeFromExtension(ext);
 
-                    // Check if in memory
                     info.referenceCount = GetReferenceCount(info.path);
                     info.isInMemory = (info.referenceCount > 0);
 
-                    // Store timestamp for monitoring
                     try
                     {
                         fileTimestamps[info.path] = fs::last_write_time(entry.path());
@@ -678,9 +633,8 @@ void AssetsWindow::RefreshCurrentFolder()
 
                 currentAssets.push_back(info);
             }
-            catch (const std::exception& e)
+            catch (const std::exception&)
             {
-                // Skip problematic files
                 continue;
             }
         }
@@ -691,7 +645,6 @@ void AssetsWindow::RefreshCurrentFolder()
         return;
     }
 
-    // Sort: folders first, then by name
     std::sort(currentAssets.begin(), currentAssets.end(),
         [](const AssetInfo& a, const AssetInfo& b) {
             if (a.isDirectory != b.isDirectory)
@@ -709,7 +662,6 @@ void AssetsWindow::CheckForChanges()
 
     try
     {
-        // Check for new or modified files
         for (const auto& entry : fs::directory_iterator(currentPath))
         {
             if (entry.is_directory())
@@ -721,20 +673,17 @@ void AssetsWindow::CheckForChanges()
             auto it = fileTimestamps.find(path);
             if (it == fileTimestamps.end())
             {
-                // New file detected
                 LOG("New asset detected: " + path);
                 needsRefresh = true;
             }
             else if (it->second != newTime)
             {
-                // File modified
                 LOG("Asset modified: " + path);
                 fileTimestamps[path] = newTime;
                 needsRefresh = true;
             }
         }
 
-        // Check for deleted files
         std::vector<std::string> toRemove;
         for (auto& pair : fileTimestamps)
         {
@@ -779,9 +728,8 @@ void AssetsWindow::NavigateUp()
     {
         fs::path parent = currentPathObj.parent_path();
 
-        // Don't go above Library root
-        if (parent.string() == libraryRoot ||
-            parent.string().find(libraryRoot) != std::string::npos)
+        // Don't go above Assets root
+        if (parent.string().length() >= assetsRoot.length())
         {
             NavigateToFolder(parent.string());
         }
@@ -809,19 +757,89 @@ void AssetsWindow::ScanFolderRecursive(const std::string& path, std::vector<std:
 
 bool AssetsWindow::ImportDroppedFile(const std::string& filePath)
 {
-    LOG("Importing file: " + filePath);
+    LOG("Importing dropped file: " + filePath);
 
     std::string extension = fs::path(filePath).extension().string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
-    // Copy file to Assets folder if from external source
-    // For now just log it
-    LOG("File import requested: " + filePath);
+    std::string targetDir = currentPath;
+    std::string fileName = fs::path(filePath).filename().string();
+    std::string targetPath = targetDir + "/" + fileName;
 
-    return true;
+    try
+    {
+        // Handle model files
+        if (IsModelFile(extension))
+        {
+            // Ensure we're in Models folder or navigate there
+            if (currentPath.find("Models") == std::string::npos)
+            {
+                targetDir = assetsRoot + "/Models";
+                targetPath = targetDir + "/" + fileName;
+            }
+
+            if (!fs::exists(targetDir))
+            {
+                fs::create_directories(targetDir);
+            }
+
+            fs::copy_file(filePath, targetPath, fs::copy_options::overwrite_existing);
+            LOG("Model file copied to: " + targetPath);
+            RefreshCurrentFolder();
+            return true;
+        }
+        // Handle texture files
+        else if (IsTextureFile(extension))
+        {
+            // Ensure we're in Textures folder or navigate there
+            if (currentPath.find("Textures") == std::string::npos)
+            {
+                targetDir = assetsRoot + "/Textures";
+                targetPath = targetDir + "/" + fileName;
+            }
+
+            if (!fs::exists(targetDir))
+            {
+                fs::create_directories(targetDir);
+            }
+
+            fs::copy_file(filePath, targetPath, fs::copy_options::overwrite_existing);
+            LOG("Texture file copied to: " + targetPath);
+            RefreshCurrentFolder();
+            return true;
+        }
+        // Handle scene files
+        else if (IsSceneFile(extension))
+        {
+            // Ensure we're in Scenes folder or navigate there
+            if (currentPath.find("Scenes") == std::string::npos)
+            {
+                targetDir = assetsRoot + "/Scenes";
+                targetPath = targetDir + "/" + fileName;
+            }
+
+            if (!fs::exists(targetDir))
+            {
+                fs::create_directories(targetDir);
+            }
+
+            fs::copy_file(filePath, targetPath, fs::copy_options::overwrite_existing);
+            LOG("Scene file copied to: " + targetPath);
+            RefreshCurrentFolder();
+            return true;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("Failed to copy file: " + std::string(e.what()));
+        return false;
+    }
+
+    LOG_WARNING("Unknown file format: " + extension);
+    return false;
 }
 
-int AssetsWindow::GetReferenceCount(const std::string& libraryPath)
+int AssetsWindow::GetReferenceCount(const std::string& path)
 {
     OpenGL* opengl = Application::GetInstance().opengl.get();
     if (!opengl)
@@ -834,12 +852,10 @@ int AssetsWindow::GetReferenceCount(const std::string& libraryPath)
         if (!go)
             continue;
 
-        // Check mesh
-        if (go->mesh && go->meshPath == libraryPath)
+        if (go->mesh && go->meshPath == path)
             count++;
 
-        // Check texture
-        if (go->texture && go->texture->texturePath == libraryPath)
+        if (go->texture && go->texture->texturePath == path)
             count++;
     }
 
@@ -850,15 +866,21 @@ void AssetsWindow::BeginDragDropSource(const AssetInfo& asset)
 {
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        // Payload type based on asset type
-        const char* payloadType = "ASSET_DRAG";
+        const char* payloadType = "ASSET_FILE";
 
-        if (asset.type == AssetType::MESH)
-            payloadType = "MESH_ASSET";
-        else if (asset.type == AssetType::TEXTURE)
-            payloadType = "TEXTURE_ASSET";
+        // Determine payload type based on asset type
+        if (asset.type == AssetType::MESH || asset.type == AssetType::MODEL_SOURCE)
+        {
+            payloadType = "MESH_FILE";
+        }
+        else if (asset.type == AssetType::TEXTURE || asset.type == AssetType::TEXTURE_SOURCE)
+        {
+            payloadType = "TEXTURE_FILE";
+        }
         else if (asset.type == AssetType::SCENE)
-            payloadType = "SCENE_ASSET";
+        {
+            payloadType = "SCENE_FILE";
+        }
 
         ImGui::SetDragDropPayload(payloadType, asset.path.c_str(), asset.path.size() + 1);
         ImGui::Text("%s %s", GetAssetTypeIcon(asset.type), asset.name.c_str());
@@ -866,17 +888,46 @@ void AssetsWindow::BeginDragDropSource(const AssetInfo& asset)
     }
 }
 
+void AssetsWindow::HandleSceneFileDrop(const std::string& scenePath)
+{
+    if (editor->sceneModified)
+    {
+        LOG_WARNING("Current scene has unsaved changes!");
+    }
+
+    editor->LoadScene(scenePath);
+    LOG("Loaded scene from assets: " + scenePath);
+}
+
+void AssetsWindow::HandleMeshFileDrop(const std::string& meshPath, float mouseX, float mouseY)
+{
+    LOG("Mesh drop from assets: " + meshPath);
+}
+
+void AssetsWindow::HandleTextureFileDrop(const std::string& texturePath)
+{
+    LOG("Texture drop from assets: " + texturePath);
+}
+
 AssetType AssetsWindow::GetAssetTypeFromExtension(const std::string& extension)
 {
     std::string ext = extension;
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
+    // Custom formats
     if (ext == ".ilmesh")
         return AssetType::MESH;
     else if (ext == ".iltex")
         return AssetType::TEXTURE;
     else if (ext == ".ilscene")
         return AssetType::SCENE;
+    // Source model formats
+    else if (ext == ".fbx" || ext == ".obj" || ext == ".dae" || ext == ".gltf" || ext == ".glb")
+        return AssetType::MODEL_SOURCE;
+    // Source texture formats
+    else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" ||
+        ext == ".tga" || ext == ".dds" || ext == ".hdr")
+        return AssetType::TEXTURE_SOURCE;
 
     return AssetType::UNKNOWN;
 }
@@ -892,6 +943,10 @@ ImVec4 AssetsWindow::GetAssetTypeColor(AssetType type)
     case AssetType::TEXTURE:
         return ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
     case AssetType::SCENE:
+        return ImVec4(0.4f, 1.0f, 0.4f, 1.0f);
+    case AssetType::MODEL_SOURCE:
+        return ImVec4(0.4f, 1.0f, 0.4f, 1.0f);
+    case AssetType::TEXTURE_SOURCE:
         return ImVec4(0.4f, 1.0f, 0.4f, 1.0f);
     default:
         return ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
@@ -923,6 +978,58 @@ const char* AssetsWindow::GetAssetTypeIcon(AssetType type)
     case AssetType::MESH:     return "[MESH]";
     case AssetType::TEXTURE:  return "[TEX]";
     case AssetType::SCENE:    return "[SCN]";
+    case AssetType::MODEL_SOURCE:    return "[MODEL_SC]";
+    case AssetType::TEXTURE_SOURCE:    return "[TEX_SC]";
     default:                  return "[?]";
     }
+}
+
+void AssetsWindow::HandleAssetDoubleClick(const AssetInfo& asset)
+{
+    if (asset.isDirectory)
+    {
+        NavigateToFolder(asset.path);
+        return;
+    }
+
+    // Handle scene files
+    if (asset.type == AssetType::SCENE)
+    {
+        if (editor->sceneModified)
+        {
+            LOG_WARNING("Current scene has unsaved changes!");
+        }
+
+        editor->LoadScene(asset.path);
+        LOG("Loaded scene from assets: " + asset.path);
+        return;
+    }
+
+    LOG("Double-clicked asset: " + asset.name);
+}
+
+bool AssetsWindow::IsModelFile(const std::string& extension)
+{
+    std::string ext = extension;
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    return (ext == ".fbx" || ext == ".obj" || ext == ".dae" ||
+        ext == ".gltf" || ext == ".glb");
+}
+
+bool AssetsWindow::IsTextureFile(const std::string& extension)
+{
+    std::string ext = extension;
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    return (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
+        ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr");
+}
+
+bool AssetsWindow::IsSceneFile(const std::string& extension)
+{
+    std::string ext = extension;
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    return (ext == ".ilscene");
 }

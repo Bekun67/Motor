@@ -14,6 +14,8 @@ enum class AssetType
     MESH,
     TEXTURE,
     SCENE,
+    MODEL_SOURCE,     
+    TEXTURE_SOURCE,   
     UNKNOWN
 };
 
@@ -21,7 +23,7 @@ struct AssetInfo
 {
     std::string name;
     std::string path;
-    std::string relativePath; // Relative to current folder
+    std::string relativePath;
     AssetType type;
     bool isDirectory;
     int referenceCount;
@@ -41,13 +43,8 @@ public:
 
     void Draw() override;
 
-    // Monitor assets folder every second
     void CheckForChanges();
-
-    // Import dropped file from external source
     bool ImportDroppedFile(const std::string& filePath);
-
-    // Get reference count for a resource
     int GetReferenceCount(const std::string& libraryPath);
 
 private:
@@ -65,34 +62,37 @@ private:
 
     void ScanFolderRecursive(const std::string& path, std::vector<std::string>& outFolders);
 
-    // Drag and drop
     void BeginDragDropSource(const AssetInfo& asset);
+    void HandleSceneFileDrop(const std::string& scenePath);
+    void HandleMeshFileDrop(const std::string& meshPath, float mouseX, float mouseY);
+    void HandleTextureFileDrop(const std::string& texturePath);
 
-    // Helpers
     AssetType GetAssetTypeFromExtension(const std::string& extension);
     ImVec4 GetAssetTypeColor(AssetType type);
     std::string FormatFileSize(uint64_t bytes);
     const char* GetAssetTypeIcon(AssetType type);
 
+    void HandleAssetDragToScene(const AssetInfo& asset);
+    void HandleAssetDoubleClick(const AssetInfo& asset);
+    bool IsModelFile(const std::string& extension);
+    bool IsTextureFile(const std::string& extension);
+    bool IsSceneFile(const std::string& extension);
+
 private:
-    std::string libraryRoot;
+    std::string assetsRoot;
     std::string currentPath;
     std::vector<AssetInfo> currentAssets;
-    std::vector<std::string> allFolders; // For folder tree
+    std::vector<std::string> allFolders;
 
-    // View settings
     bool gridView;
     float thumbnailSize;
     float padding;
 
-    // Monitoring
     float timeSinceLastCheck;
     float checkInterval;
     std::map<std::string, fs::file_time_type> fileTimestamps;
 
-    // Search
     char searchBuffer[256];
 
-    // Selection
     int selectedIndex;
 };
