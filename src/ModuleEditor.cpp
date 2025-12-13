@@ -43,6 +43,7 @@
 #include "ConfigurationWindow.h"
 #include "AboutWindow.h"
 #include "MenuBarWindow.h"
+#include "AssetsWindow.h" 
 
 ModuleEditor* g_Editor = nullptr;
 
@@ -127,6 +128,7 @@ bool ModuleEditor::Start()
     configurationWindow = std::make_unique<ConfigurationWindow>(this);
     aboutWindow = std::make_unique<AboutWindow>(this);
     menuBarWindow = std::make_unique<MenuBarWindow>(this);
+    assetsWindow = std::make_unique<AssetsWindow>(this);
 
     LOG("All editor windows created");
 
@@ -307,8 +309,11 @@ bool ModuleEditor::Update()
     if (showInspector)
         inspectorWindow->Draw();
 
-    if (showConsole)
+    // Toggle between console and assets
+    if (showConsole && !showAssets)
         consoleWindow->Draw();
+    else if (showAssets && !showConsole)
+        assetsWindow->Draw();
 
     if (showConfiguration)
         configurationWindow->Draw();

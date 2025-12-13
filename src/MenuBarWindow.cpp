@@ -137,7 +137,21 @@ void MenuBarWindow::DrawViewMenu()
 {
     if (ImGui::BeginMenu("View"))
     {
-        ImGui::MenuItem("Console", nullptr, &editor->showConsole);
+        // Toggle between console and assets
+        if (ImGui::MenuItem("Console", nullptr, editor->showConsole && !editor->showAssets))
+        {
+            editor->showConsole = true;
+            editor->showAssets = false;
+        }
+
+        if (ImGui::MenuItem("Assets", nullptr, editor->showAssets && !editor->showConsole))
+        {
+            editor->showAssets = true;
+            editor->showConsole = false;
+        }
+
+        ImGui::Separator();
+
         ImGui::MenuItem("Configuration", nullptr, &editor->showConfiguration);
         ImGui::MenuItem("Hierarchy", nullptr, &editor->showHierarchy);
         ImGui::MenuItem("Inspector", nullptr, &editor->showInspector);

@@ -60,7 +60,8 @@ file(GLOB EDITOR_FILES
     "src/ConsoleWindow.*"
     "src/ConfigurationWindow.*"
     "src/AboutWindow.*"
-    "src/MenuBarWindow.*")
+    "src/MenuBarWindow.*"
+    "src/AssetsWindow.*")
 
 add_executable(Motor
     ${CORE_FILES}
