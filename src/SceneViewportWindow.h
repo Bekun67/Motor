@@ -12,6 +12,7 @@ public:
 
 private:
     void DrawPlayControls();
+    void HandleDragDropArea();
 
     void HandleMeshDrop(const std::string& meshPath, float mouseX, float mouseY);
     void HandleTextureDrop(const std::string& texturePath);

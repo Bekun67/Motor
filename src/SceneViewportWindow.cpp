@@ -41,7 +41,14 @@ void SceneViewportWindow::Draw()
     std::string windowTitle = "Scene - " + editor->currentScenePath;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin(windowTitle.c_str(), nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+
+    // Add NoInputs flag to prevent window from capturing any input
+    ImGuiWindowFlags sceneFlags = ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoInputs;
+
+    ImGui::Begin(windowTitle.c_str(), nullptr, sceneFlags);
 
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     ImVec2 viewportPos = ImGui::GetCursorScreenPos();
@@ -49,39 +56,14 @@ void SceneViewportWindow::Draw()
     editor->sceneViewportPos = viewportPos;
     editor->sceneViewportSize = viewportSize;
 
-    ImGui::InvisibleButton("##SceneDropZone", viewportSize);
-
-    if (ImGui::BeginDragDropTarget())
-    {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MESH_FILE"))
-        {
-            const char* droppedPath = (const char*)payload->Data;
-            if (droppedPath)
-            {
-                ImVec2 mousePos = ImGui::GetMousePos();
-                float relativeMouseX = mousePos.x - viewportPos.x;
-                float relativeMouseY = mousePos.y - viewportPos.y;
-
-                HandleMeshDrop(std::string(droppedPath), relativeMouseX, relativeMouseY);
-            }
-        }
-
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE"))
-        {
-            const char* droppedPath = (const char*)payload->Data;
-            if (droppedPath)
-            {
-                HandleTextureDrop(std::string(droppedPath));
-            }
-        }
-
-        ImGui::EndDragDropTarget();
-    }
-
     ImGui::End();
     ImGui::PopStyleVar();
 
+    // Draw play controls in a separate window that CAN receive input
     DrawPlayControls();
+
+    // Handle drag and drop in a separate, invisible, input-enabled window
+    HandleDragDropArea();
 }
 
 void SceneViewportWindow::HandleMeshDrop(const std::string& meshPath, float mouseX, float mouseY)
@@ -236,11 +218,11 @@ void SceneViewportWindow::DrawPlayControls()
     bool isPaused = EditorPlaySystem::IsPaused();
     bool isStopped = EditorPlaySystem::IsStopped();
 
-    // Position, on top of the Scene window
+    // Position on top of the Scene window
     float controlsX = editor->sceneViewportPos.x;
-    float controlsY = editor->sceneViewportPos.y - 30.0f; 
+    float controlsY = editor->sceneViewportPos.y - 30.0f;
 
-    // buttons size
+    // Button size
     ImVec2 buttonSize(80, 28);
     float totalWidth = buttonSize.x * 3 + ImGui::GetStyle().ItemSpacing.x * 2;
 
@@ -250,14 +232,17 @@ void SceneViewportWindow::DrawPlayControls()
     ImGui::SetNextWindowSize(ImVec2(totalWidth + 20, buttonSize.y + 4));
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 2));
-    ImGui::Begin("##PlayControls", nullptr,
-        ImGuiWindowFlags_NoTitleBar |
+
+    // This window can receive input 
+    ImGuiWindowFlags playControlFlags = ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoFocusOnAppearing |
-        ImGuiWindowFlags_NoBackground);
+        ImGuiWindowFlags_NoBackground;
+
+    ImGui::Begin("##PlayControls", nullptr, playControlFlags);
 
     // PLAY button
     if (isPlaying && !isPaused)
@@ -326,5 +311,61 @@ void SceneViewportWindow::DrawPlayControls()
         ImGui::SetTooltip("Stop game and restore scene (F7)");
 
     ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+void SceneViewportWindow::HandleDragDropArea()
+{
+    // Create an invisible window over the scene viewport for drag & drop
+    ImGui::SetNextWindowPos(editor->sceneViewportPos);
+    ImGui::SetNextWindowSize(editor->sceneViewportSize);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+
+    ImGuiWindowFlags dropFlags = ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoFocusOnAppearing;
+
+    ImGui::Begin("##SceneDropArea", nullptr, dropFlags);
+
+    // Invisible button for drop target
+    ImGui::InvisibleButton("##dropzone", editor->sceneViewportSize);
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MESH_FILE"))
+        {
+            const char* droppedPath = (const char*)payload->Data;
+            if (droppedPath)
+            {
+                ImVec2 mousePos = ImGui::GetMousePos();
+                float relativeMouseX = mousePos.x - editor->sceneViewportPos.x;
+                float relativeMouseY = mousePos.y - editor->sceneViewportPos.y;
+
+                HandleMeshDrop(std::string(droppedPath), relativeMouseX, relativeMouseY);
+            }
+        }
+
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE"))
+        {
+            const char* droppedPath = (const char*)payload->Data;
+            if (droppedPath)
+            {
+                HandleTextureDrop(std::string(droppedPath));
+            }
+        }
+
+        ImGui::EndDragDropTarget();
+    }
+
+    ImGui::End();
+    ImGui::PopStyleColor();
     ImGui::PopStyleVar();
 }
