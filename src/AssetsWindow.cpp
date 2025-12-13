@@ -868,21 +868,22 @@ void AssetsWindow::BeginDragDropSource(const AssetInfo& asset)
     {
         const char* payloadType = "ASSET_FILE";
 
-        // Determine payload type based on asset type
         if (asset.type == AssetType::MESH || asset.type == AssetType::MODEL_SOURCE)
         {
             payloadType = "MESH_FILE";
+            ImGui::SetDragDropPayload(payloadType, asset.path.c_str(), asset.path.size() + 1);
         }
         else if (asset.type == AssetType::TEXTURE || asset.type == AssetType::TEXTURE_SOURCE)
         {
             payloadType = "TEXTURE_FILE";
+            ImGui::SetDragDropPayload(payloadType, asset.path.c_str(), asset.path.size() + 1);
         }
         else if (asset.type == AssetType::SCENE)
         {
             payloadType = "SCENE_FILE";
+            ImGui::SetDragDropPayload(payloadType, asset.path.c_str(), asset.path.size() + 1);
         }
 
-        ImGui::SetDragDropPayload(payloadType, asset.path.c_str(), asset.path.size() + 1);
         ImGui::Text("%s %s", GetAssetTypeIcon(asset.type), asset.name.c_str());
         ImGui::EndDragDropSource();
     }

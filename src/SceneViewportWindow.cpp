@@ -41,7 +41,7 @@ void SceneViewportWindow::Draw()
     std::string windowTitle = "Scene - " + editor->currentScenePath;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin(windowTitle.c_str(), nullptr, ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+    ImGui::Begin(windowTitle.c_str(), nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
 
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     ImVec2 viewportPos = ImGui::GetCursorScreenPos();
@@ -49,10 +49,185 @@ void SceneViewportWindow::Draw()
     editor->sceneViewportPos = viewportPos;
     editor->sceneViewportSize = viewportSize;
 
+    ImGui::InvisibleButton("##SceneDropZone", viewportSize);
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MESH_FILE"))
+        {
+            const char* droppedPath = (const char*)payload->Data;
+            if (droppedPath)
+            {
+                ImVec2 mousePos = ImGui::GetMousePos();
+                float relativeMouseX = mousePos.x - viewportPos.x;
+                float relativeMouseY = mousePos.y - viewportPos.y;
+
+                HandleMeshDrop(std::string(droppedPath), relativeMouseX, relativeMouseY);
+            }
+        }
+
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE"))
+        {
+            const char* droppedPath = (const char*)payload->Data;
+            if (droppedPath)
+            {
+                HandleTextureDrop(std::string(droppedPath));
+            }
+        }
+
+        ImGui::EndDragDropTarget();
+    }
+
     ImGui::End();
     ImGui::PopStyleVar();
 
     DrawPlayControls();
+}
+
+void SceneViewportWindow::HandleMeshDrop(const std::string& meshPath, float mouseX, float mouseY)
+{
+    LOG("Mesh dropped from Assets: " + meshPath);
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    Camera* camera = &opengl->camera;
+
+    if (!opengl || !camera) return;
+
+    int viewportWidth = (int)editor->sceneViewportSize.x;
+    int viewportHeight = (int)editor->sceneViewportSize.y;
+
+    float x = (2.0f * mouseX) / viewportWidth - 1.0f;
+    float y = 1.0f - (2.0f * mouseY) / viewportHeight;
+
+    glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
+    glm::vec4 rayEye = glm::inverse(camera->GetProjectionMatrix()) * rayClip;
+    rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
+    glm::vec3 rayWorld = glm::vec3(glm::inverse(camera->GetViewMatrix()) * rayEye);
+    rayWorld = glm::normalize(rayWorld);
+
+    glm::vec3 camPos = camera->GetPosition();
+    float t = -camPos.y / rayWorld.y;
+    glm::vec3 dropPosition = camPos + rayWorld * t;
+
+    size_t meshCountBefore = g_Meshes.size();
+    size_t instanceCountBefore = g_MeshInstances.size();
+
+    if (LoadFile(meshPath.c_str()))
+    {
+        LOG("Model loaded successfully from Assets");
+
+        size_t newMeshCount = g_Meshes.size() - meshCountBefore;
+        size_t newInstanceCount = g_MeshInstances.size() - instanceCountBefore;
+
+        glm::vec3 globalMin(FLT_MAX);
+        glm::vec3 globalMax(-FLT_MAX);
+
+        for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
+        {
+            const MeshWithTransform& inst = g_MeshInstances[i];
+            int meshIdx = inst.meshIndex;
+
+            if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size())
+            {
+                const MeshData& meshData = g_Meshes[meshIdx];
+
+                glm::vec4 worldMin = inst.transform * glm::vec4(meshData.aabbMin, 1.0f);
+                glm::vec4 worldMax = inst.transform * glm::vec4(meshData.aabbMax, 1.0f);
+
+                globalMin = glm::min(globalMin, glm::vec3(worldMin));
+                globalMin = glm::min(globalMin, glm::vec3(worldMax));
+                globalMax = glm::max(globalMax, glm::vec3(worldMin));
+                globalMax = glm::max(globalMax, glm::vec3(worldMax));
+            }
+        }
+
+        glm::vec3 modelCenter = (globalMin + globalMax) * 0.5f;
+        float modelSize = glm::length(globalMax - globalMin);
+
+        float targetSize = 2.0f;
+        float normalizeScale = (modelSize > 0.0001f) ? (targetSize / modelSize) : 1.0f;
+
+        LOG("Model size: " + std::to_string(modelSize) + ", Scale factor: " + std::to_string(normalizeScale));
+
+        GameObject* parentGO = new GameObject();
+        int parentIndex = editor->CountNames("Model_");
+        parentGO->name = "Model_" + std::to_string(parentIndex);
+        parentGO->meshPath = meshPath;
+
+        parentGO->transform->translation = aiVector3D(dropPosition.x, dropPosition.y, dropPosition.z);
+        parentGO->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+        parentGO->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
+
+        parentGO->mesh->meshIndex = -1;
+
+        opengl->gameObjects.push_back(parentGO);
+        LOG("Created parent GameObject: " + parentGO->name);
+
+        for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
+        {
+            const MeshWithTransform& inst = g_MeshInstances[i];
+            int meshIdx = inst.meshIndex;
+
+            if (meshIdx < 0 || meshIdx >= (int)g_Meshes.size())
+                continue;
+
+            GameObject* childGO = new GameObject(parentGO);
+            int childIndex = (int)(i - instanceCountBefore);
+            childGO->name = "Mesh_" + std::to_string(childIndex);
+            childGO->meshPath = meshPath;
+            childGO->meshIndexInFBX = childIndex;
+
+            glm::vec3 localPos, localScale;
+            glm::quat localRot;
+            DecomposeTransform(inst.transform, localPos, localRot, localScale);
+
+            localPos -= modelCenter;
+
+            childGO->transform->translation = aiVector3D(localPos.x, localPos.y, localPos.z);
+            childGO->transform->rotation = aiQuaternion(localRot.w, localRot.x, localRot.y, localRot.z);
+            childGO->transform->scaling = aiVector3D(localScale.x, localScale.y, localScale.z);
+
+            childGO->mesh->meshIndex = meshIdx;
+            editor->AssignCheckerboardTexture(childGO);
+
+            opengl->gameObjects.push_back(childGO);
+        }
+
+        LOG("Created model with " + std::to_string(newInstanceCount) + " parts");
+
+        editor->sceneModified = true;
+    }
+    else
+    {
+        LOG_ERROR("Failed to load model from: " + meshPath);
+    }
+}
+
+void SceneViewportWindow::HandleTextureDrop(const std::string& texturePath)
+{
+    LOG("Texture dropped from Assets: " + texturePath);
+
+    if (!editor->selectedGameObjects.empty())
+    {
+        GameObject* selectedGO = editor->selectedGameObjects[0];
+
+        if (selectedGO && selectedGO->texture)
+        {
+            if (selectedGO->texture->LoadTexture(texturePath))
+            {
+                LOG("Texture applied to: " + selectedGO->name);
+                editor->sceneModified = true;
+            }
+            else
+            {
+                LOG_ERROR("Failed to load texture: " + texturePath);
+            }
+        }
+    }
+    else
+    {
+        LOG_WARNING("No GameObject selected to apply texture");
+    }
 }
 
 void SceneViewportWindow::DrawPlayControls()
