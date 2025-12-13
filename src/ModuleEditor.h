@@ -169,6 +169,7 @@ public:
     ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE currentGizmoMode = ImGuizmo::WORLD;
     bool editing = false;
+    bool sceneEditing = false;
     bool updatedAngles = false;
 
     // Multi-selection gizmo tracking

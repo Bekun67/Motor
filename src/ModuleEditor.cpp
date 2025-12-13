@@ -145,6 +145,7 @@ bool ModuleEditor::PreUpdate()
 
 bool ModuleEditor::Update()
 {
+    //std::cout << editing << std::endl;
     static Uint64 lastTime = SDL_GetTicks();
     Uint64 currentTime = SDL_GetTicks();
     float deltaTime = (currentTime - lastTime) / 1000.0f;
@@ -455,14 +456,10 @@ void ModuleEditor::DrawGuizmo()
         else
         {
             // Save state when finishing manipulation
-            if (editing && wasManipulating)
+            if (wasManipulating && !ImGuizmo::IsUsing())
             {
                 EndTransformEdit(selected);
                 wasManipulating = false;
-            }
-
-            if (editing)
-            {
                 editing = false;
             }
         }
@@ -647,13 +644,12 @@ void ModuleEditor::DrawGuizmo()
         }
         else
         {
-            if (editing)
+            if (wasManipulating && !ImGuizmo::IsUsing())
             {
-                editing = false;
-
                 lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
                 lastMultiSelectionScale = glm::vec3(1, 1, 1);
                 wasManipulating = false;
+                editing = false;
             }
         }
     }

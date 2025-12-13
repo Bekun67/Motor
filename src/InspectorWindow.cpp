@@ -1,4 +1,4 @@
-#include "InspectorWindow.h"
+ï»¿#include "InspectorWindow.h"
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "Window.h"
@@ -86,7 +86,14 @@ void InspectorWindow::DrawSingleObjectInspector()
 
     ImGui::InputText("GameObject", nameBuffer, IM_ARRAYSIZE(nameBuffer));
 
-    if (ImGui::IsItemActive()) editor->editing = true;
+    if (ImGui::IsItemActive())
+    {
+        editor->editing = true;
+    }
+    else if (ImGui::IsItemDeactivated())
+    {
+        editor->editing = false;
+    }
 
     if (ImGui::IsItemDeactivatedAfterEdit()) {
         editor->editing = false;
@@ -130,6 +137,17 @@ void InspectorWindow::DrawSingleObjectInspector()
                 editor->sceneModified = true;
             }
 
+            if (ImGui::IsItemActive() && !ImGuizmo::IsUsing())
+            {
+                editor->editing = true;
+            }
+            else if (ImGui::IsItemDeactivated())
+            {
+                editor->editing = false;
+            }
+            
+            if (ImGui::IsItemDeactivatedAfterEdit()) editor->editing = false;
+
             float scale[3] = { transform->scaling.x, transform->scaling.y, transform->scaling.z };
             if (ImGui::DragFloat3("Scale", scale, 0.01f, 0.01f, 100.0f))
             {
@@ -139,7 +157,18 @@ void InspectorWindow::DrawSingleObjectInspector()
                 editor->sceneModified = true;
             }
 
-            //method to normalize angles (361º -> 1º)
+            if (ImGui::IsItemActive() && !ImGuizmo::IsUsing())
+            {
+                editor->editing = true;
+            }
+            else if (ImGui::IsItemDeactivated())
+            {
+                editor->editing = false;
+            }
+
+            if (ImGui::IsItemDeactivatedAfterEdit()) editor->editing = false;
+
+            //method to normalize angles (361Â° -> 1Â°)
             auto normalizeAngle = [](float angle) -> float
                 {
                     angle = fmod(angle, 360.0f);
@@ -200,6 +229,17 @@ void InspectorWindow::DrawSingleObjectInspector()
             //edit tab
             float angles[3] = { rotationEuler.x, rotationEuler.y, rotationEuler.z };
             ImGui::DragFloat3("Rotation", angles, 0.5f);
+
+            if (ImGui::IsItemActive() && !ImGuizmo::IsUsing())
+            {
+                editor->editing = true;
+            }
+            else if (ImGui::IsItemDeactivated())
+            {
+                editor->editing = false;
+            }
+
+            if (ImGui::IsItemDeactivatedAfterEdit()) editor->editing = false;
 
             //if the value was changed
             bool changed = false;
@@ -383,6 +423,16 @@ void InspectorWindow::DrawSingleObjectInspector()
         ImGui::Separator();
         ImGui::Text("Drag new texture in \ninspector tab or \n in object to change it!");
     }
+
+    if (editor->editing && ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemActive() && !ImGui::IsAnyItemHovered())
+    {
+        editor->editing = false;
+    }
+
+    if (editor->editing && ImGui::IsKeyPressed(ImGuiKey_Enter))
+    {
+        editor->editing = false;
+    }
 }
 
 void InspectorWindow::DrawMultiObjectInspector()
@@ -462,12 +512,51 @@ void InspectorWindow::DrawMultiObjectInspector()
                 }
             }
             editor->sceneModified = true;
+        }
+        if (ImGui::IsItemActive() && !ImGuizmo::IsUsing())
+        {
             editor->editing = true;
         }
-        if (ImGui::IsItemDeactivated())
+        else if (ImGui::IsItemDeactivated())
         {
             editor->editing = false;
         }
+
+        if (ImGui::IsItemDeactivatedAfterEdit()) editor->editing = false;
+
+        // scale
+        float scale[3] = { avgScale.x, avgScale.y, avgScale.z };
+        if (ImGui::DragFloat3("Scale", scale, 0.01f, 0.01f, 100.0f))
+        {
+            // Calculate scale factor
+            glm::vec3 scaleFactor(
+                scale[0] / avgScale.x,
+                scale[1] / avgScale.y,
+                scale[2] / avgScale.z
+            );
+
+            // Apply scale factor to all objects
+            for (GameObject* go : editor->selectedGameObjects)
+            {
+                if (go && go->transform)
+                {
+                    go->transform->scaling.x *= scaleFactor.x;
+                    go->transform->scaling.y *= scaleFactor.y;
+                    go->transform->scaling.z *= scaleFactor.z;
+                }
+            }
+            editor->sceneModified = true;
+        }
+        if (ImGui::IsItemActive() && !ImGuizmo::IsUsing())
+        {
+            editor->editing = true;
+        }
+        else if (ImGui::IsItemDeactivated())
+        {
+            editor->editing = false;
+        }
+
+        if (ImGui::IsItemDeactivatedAfterEdit()) editor->editing = false;
 
         // Rotation
         float rot[3] = { avgRotation.x, avgRotation.y, avgRotation.z };
@@ -502,41 +591,17 @@ void InspectorWindow::DrawMultiObjectInspector()
                 }
             }
             editor->sceneModified = true;
+        }
+        if (ImGui::IsItemActive() && !ImGuizmo::IsUsing())
+        {
             editor->editing = true;
         }
-        if (ImGui::IsItemDeactivated())
+        else if (ImGui::IsItemDeactivated())
         {
             editor->editing = false;
         }
 
-        // scale
-        float scale[3] = { avgScale.x, avgScale.y, avgScale.z };
-        if (ImGui::DragFloat3("Scale", scale, 0.01f, 0.01f, 100.0f))
-        {
-            // Calculate scale factor
-            glm::vec3 scaleFactor(
-                scale[0] / avgScale.x,
-                scale[1] / avgScale.y,
-                scale[2] / avgScale.z
-            );
-
-            // Apply scale factor to all objects
-            for (GameObject* go : editor->selectedGameObjects)
-            {
-                if (go && go->transform)
-                {
-                    go->transform->scaling.x *= scaleFactor.x;
-                    go->transform->scaling.y *= scaleFactor.y;
-                    go->transform->scaling.z *= scaleFactor.z;
-                }
-            }
-            editor->sceneModified = true;
-            editor->editing = true;
-        }
-        if (ImGui::IsItemDeactivated())
-        {
-            editor->editing = false;
-        }
+        if (ImGui::IsItemDeactivatedAfterEdit()) editor->editing = false;
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -588,4 +653,14 @@ void InspectorWindow::DrawMultiObjectInspector()
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
+
+    if (editor->editing && ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemActive() && !ImGui::IsAnyItemHovered())
+    {
+        editor->editing = false;
+    }
+
+    if (editor->editing && ImGui::IsKeyPressed(ImGuiKey_Enter))
+    {
+        editor->editing = false;
+    }
 }

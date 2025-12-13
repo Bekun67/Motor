@@ -440,6 +440,8 @@ void MenuBarWindow::DrawPopups()
 
     if (ImGui::BeginPopupModal("New Scene Confirmation", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     {
+        editor->editing = true;
+        editor->sceneEditing = true;
         if (editor->sceneModified && !editor->currentScenePath.empty())
         {
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Warning: Current scene has unsaved changes!");
@@ -460,6 +462,8 @@ void MenuBarWindow::DrawPopups()
             editor->sceneModified = false;
             LOG("New scene created");
 
+            editor->editing = false;
+            editor->sceneEditing = false;
             ImGui::CloseCurrentPopup();
         }
 
@@ -467,6 +471,8 @@ void MenuBarWindow::DrawPopups()
 
         if (ImGui::Button("Cancel", ImVec2(120, 0)))
         {
+            editor->editing = false;
+            editor->sceneEditing = false;
             LOG("New scene creation cancelled");
             ImGui::CloseCurrentPopup();
         }
@@ -487,6 +493,8 @@ void MenuBarWindow::DrawPopups()
         ImGui::InputText("##scenename", editor->saveSceneNameBuffer, IM_ARRAYSIZE(editor->saveSceneNameBuffer));
 
         ImGui::Separator();
+        editor->editing = true;
+        editor->sceneEditing = true;
 
         if (ImGui::Button("Save", ImVec2(120, 0)))
         {
@@ -497,6 +505,8 @@ void MenuBarWindow::DrawPopups()
                     sceneName +
                     FileSystemManager::GetSceneExtension();
                 editor->SaveScene(filepath);
+                editor->editing = false;
+                editor->sceneEditing = false;
                 ImGui::CloseCurrentPopup();
             }
             else
@@ -509,6 +519,8 @@ void MenuBarWindow::DrawPopups()
 
         if (ImGui::Button("Cancel", ImVec2(120, 0)))
         {
+            editor->editing = false;
+            editor->sceneEditing = false;
             ImGui::CloseCurrentPopup();
         }
 
@@ -524,6 +536,8 @@ void MenuBarWindow::DrawPopups()
 
     if (ImGui::BeginPopupModal("Load Scene", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     {
+        editor->editing = true;
+        editor->sceneEditing = true;
         ImGui::Text("Available scenes:");
         ImGui::Separator();
 
@@ -540,6 +554,8 @@ void MenuBarWindow::DrawPopups()
                     // Store the scene to load and show confirmatio
                     editor->pendingSceneToLoad = FileSystemManager::GetScenesDirectory() + sceneName;
                     editor->showLoadSceneConfirmation = true;
+                    editor->editing = false;
+                    editor->sceneEditing = false;
                     ImGui::CloseCurrentPopup();
                 }
             }
@@ -549,6 +565,8 @@ void MenuBarWindow::DrawPopups()
 
         if (ImGui::Button("Cancel", ImVec2(120, 0)))
         {
+            editor->editing = false;
+            editor->sceneEditing = false;
             ImGui::CloseCurrentPopup();
         }
 

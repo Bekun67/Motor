@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include "Quadtree.h"
+#include "ModuleEditor.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
@@ -93,4 +94,5 @@ private:
 	uint64_t lastTicks;
 
 	float scaleFactor = 1.0f;
+	ModuleEditor* editor;
 };

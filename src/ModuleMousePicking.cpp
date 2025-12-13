@@ -37,11 +37,10 @@ bool ModuleMousePicking::Update()
 
     if (!input || !opengl || !editor) return true;
 
+    if (editor->sceneEditing) return true;
+
     // Only process picking if left mouse button is clicked
     if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) != KEY_DOWN)
-        return true;
-
-    if (editor->editing)
         return true;
 
     // dont use mousepicking when using guizmo

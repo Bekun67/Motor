@@ -271,6 +271,7 @@ bool OpenGL::Start()
         return false;
     }
 
+    editor = Application::GetInstance().editor.get();
 
     // Start Imgui
     IMGUI_CHECKVERSION();
@@ -469,7 +470,7 @@ bool OpenGL::Update()
     lastTicks = currentTicks;
 
     // Use camera input handling
-    camera.HandleInput(deltaTime);
+    if (!editor->editing) camera.HandleInput(deltaTime);
 
     if (useQuadtree)
     {
