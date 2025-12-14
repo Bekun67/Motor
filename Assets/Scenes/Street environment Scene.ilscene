@@ -1,0 +1,1518 @@
+{
+    "GameObjects": [
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Street environment_V01",
+            "ParentUUID": "00000000",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "3af61683"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 34,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 0,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House1_0",
+            "ParentUUID": "88d12938",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building03_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -42.33647155761719,
+                "translation_y": 3.984741687774658,
+                "translation_z": -21.077465057373047
+            },
+            "UUID": "1893db1a"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 35,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 1,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House2_0",
+            "ParentUUID": "5da81443",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V02_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 17.800682067871094,
+                "translation_y": 3.3904342651367188,
+                "translation_z": -20.116641998291016
+            },
+            "UUID": "dcfc30e7"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 36,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 2,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House3_0",
+            "ParentUUID": "8104ea80",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building_016_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 16.08435821533203,
+                "translation_y": 3.4292397499084473,
+                "translation_z": -37.5566520690918
+            },
+            "UUID": "879c8e6d"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 37,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 3,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "Bathrooms_0",
+            "ParentUUID": "fb660716",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building_025_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 0.5,
+                "rotation_x": -0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 41.080322265625,
+                "translation_y": 2.746847629547119,
+                "translation_z": -18.334190368652344
+            },
+            "UUID": "d981d906"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 38,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 4,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "Street",
+            "ParentUUID": "3af61683",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": ""
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.5,
+                "rotation_x": 0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -0.20493042469024658,
+                "translation_y": 0.5526446104049683,
+                "translation_z": 0.018710970878601074
+            },
+            "UUID": "bdd5c05c"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 39,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 5,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "Floor",
+            "ParentUUID": "3af61683",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Assets\\Textures\\Ground.jpg"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 0.9966352581977844,
+                "scale_y": 0.9706164598464966,
+                "scale_z": 0.9966352581977844,
+                "translation_x": 0.07172393798828125,
+                "translation_y": 1.036509394645691,
+                "translation_z": -0.08939802646636963
+            },
+            "UUID": "643da795"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 40,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 6,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House4_0",
+            "ParentUUID": "2beeb337",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building 01_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 0.5,
+                "rotation_x": -0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 25.254337310791016,
+                "translation_y": 6.141931056976318,
+                "translation_z": 39.090354919433594
+            },
+            "UUID": "4a39876e"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 41,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 7,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House3_1",
+            "ParentUUID": "8104ea80",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building_016_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 30.208406448364258,
+                "translation_y": 3.4292397499084473,
+                "translation_z": -37.5566520690918
+            },
+            "UUID": "3f0050af"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 42,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 8,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House5_0",
+            "ParentUUID": "06147b47",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building 06_ c .iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 0.5,
+                "rotation_x": -0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -42.47884750366211,
+                "translation_y": 4.682472229003906,
+                "translation_z": -33.1245231628418
+            },
+            "UUID": "3aed5a8f"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 43,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 9,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House1_2",
+            "ParentUUID": "88d12938",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building03_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -3.0908619663705394e-08,
+                "rotation_x": 3.0908619663705394e-08,
+                "rotation_y": 0.7071067690849304,
+                "rotation_z": 0.7071067690849304,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -19.339380264282227,
+                "translation_y": 3.9838757514953613,
+                "translation_z": -26.647430419921875
+            },
+            "UUID": "c7c0d90e"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 44,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 10,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House4_1",
+            "ParentUUID": "2beeb337",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building 01_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -3.0908619663705394e-08,
+                "rotation_x": 3.0908619663705394e-08,
+                "rotation_y": 0.7071067690849304,
+                "rotation_z": 0.7071067690849304,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 34.370750427246094,
+                "translation_y": 6.141931533813477,
+                "translation_z": 41.90938186645508
+            },
+            "UUID": "29e43bf4"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 45,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 11,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House4_2",
+            "ParentUUID": "2beeb337",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building 01_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 0.5,
+                "rotation_x": -0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 44.360408782958984,
+                "translation_y": 6.141931056976318,
+                "translation_z": 39.090354919433594
+            },
+            "UUID": "7fb422b3"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 46,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 12,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House6_2",
+            "ParentUUID": "12695259",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building05 _c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.376787679419067e-07,
+                "rotation_x": -1.3767878215276141e-07,
+                "rotation_y": 0.7071067690849304,
+                "rotation_z": 0.7071067690849304,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -20.730998992919922,
+                "translation_y": 5.1729302406311035,
+                "translation_z": 32.26303482055664
+            },
+            "UUID": "75252100"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 47,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 13,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House3_2",
+            "ParentUUID": "8104ea80",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building_016_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 42.204505920410156,
+                "translation_y": 3.4292397499084473,
+                "translation_z": -37.5566520690918
+            },
+            "UUID": "a911c6d9"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 48,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 14,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "Bathrooms_1",
+            "ParentUUID": "fb660716",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building_025_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 3.0908619663705394e-08,
+                "rotation_x": -3.0908619663705394e-08,
+                "rotation_y": 0.7071067690849304,
+                "rotation_z": 0.7071067690849304,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -20.472444534301758,
+                "translation_y": 2.677654266357422,
+                "translation_z": -43.12419509887695
+            },
+            "UUID": "6157cccc"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 49,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 15,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House6_0",
+            "ParentUUID": "12695259",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building05 _c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 3.0908619663705394e-08,
+                "rotation_x": -3.0908619663705394e-08,
+                "rotation_y": 0.7071067690849304,
+                "rotation_z": 0.7071067690849304,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 36.39543914794922,
+                "translation_y": 5.172929763793945,
+                "translation_z": 16.38265037536621
+            },
+            "UUID": "b912d867"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 50,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 16,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House7_0",
+            "ParentUUID": "820bc842",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V01_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 13.488316535949707,
+                "translation_y": 5.960600852966309,
+                "translation_z": 33.691673278808594
+            },
+            "UUID": "9c7f0da6"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 51,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 17,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "Crossroad",
+            "ParentUUID": "3af61683",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "checkerboard"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -2.0760574340820313,
+                "translation_y": 0.5605494976043701,
+                "translation_z": -1.5902414321899414
+            },
+            "UUID": "4ef2dd51"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 52,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 18,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House7_1",
+            "ParentUUID": "820bc842",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V01_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.5,
+                "rotation_x": 0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -42.706912994384766,
+                "translation_y": 5.960601329803467,
+                "translation_z": 41.77219772338867
+            },
+            "UUID": "479edc36"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 53,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 19,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House7_5",
+            "ParentUUID": "820bc842",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V01_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.5,
+                "rotation_x": 0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -34.57915496826172,
+                "translation_y": 5.960601329803467,
+                "translation_z": 41.77219772338867
+            },
+            "UUID": "186ba9d2"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 54,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 20,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House1_1",
+            "ParentUUID": "88d12938",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building03_c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -30.338985443115234,
+                "translation_y": 3.984741687774658,
+                "translation_z": -21.077465057373047
+            },
+            "UUID": "c5f99029"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 55,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 21,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House5_2",
+            "ParentUUID": "06147b47",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building 06_ c .iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -36.65020751953125,
+                "translation_y": 4.682471752166748,
+                "translation_z": -42.72490692138672
+            },
+            "UUID": "67923375"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 56,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 22,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House6_1",
+            "ParentUUID": "12695259",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building05 _c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.4999999403953552,
+                "rotation_x": 0.4999999403953552,
+                "rotation_y": 0.5000000596046448,
+                "rotation_z": 0.5000000596046448,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 16.14961051940918,
+                "translation_y": 5.172929763793945,
+                "translation_z": 20.00045394897461
+            },
+            "UUID": "4f8e8d70"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 57,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 23,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House7_2",
+            "ParentUUID": "820bc842",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V01_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.7071067690849304,
+                "rotation_x": 0.7071067690849304,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 13.488316535949707,
+                "translation_y": 5.960601329803467,
+                "translation_z": 40.73915100097656
+            },
+            "UUID": "6667a5e6"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 58,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 24,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House5_1",
+            "ParentUUID": "06147b47",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building 06_ c .iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.5,
+                "rotation_x": 0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -30.824888229370117,
+                "translation_y": 4.682472229003906,
+                "translation_z": -33.40536117553711
+            },
+            "UUID": "712a527f"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 59,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 25,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House6_3",
+            "ParentUUID": "12695259",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building05 _c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.376787679419067e-07,
+                "rotation_x": -1.3767878215276141e-07,
+                "rotation_y": 0.7071067690849304,
+                "rotation_z": 0.7071067690849304,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -20.589027404785156,
+                "translation_y": 5.172929286956787,
+                "translation_z": 16.100242614746094
+            },
+            "UUID": "f94dcda4"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 60,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 26,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House6_4",
+            "ParentUUID": "12695259",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/building05 _c.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.4999999403953552,
+                "rotation_x": 0.4999999403953552,
+                "rotation_y": 0.5000000596046448,
+                "rotation_z": 0.5000000596046448,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -37.504798889160156,
+                "translation_y": 5.172929763793945,
+                "translation_z": 16.432029724121094
+            },
+            "UUID": "dcba9f63"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 61,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 27,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House7_3",
+            "ParentUUID": "820bc842",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V01_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.5,
+                "rotation_x": 0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -42.706912994384766,
+                "translation_y": 5.960600852966309,
+                "translation_z": 30.580522537231445
+            },
+            "UUID": "5fe03742"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 62,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 28,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House7_4",
+            "ParentUUID": "820bc842",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V01_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": -0.5,
+                "rotation_x": 0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": -34.57915496826172,
+                "translation_y": 5.960600852966309,
+                "translation_z": 30.580522537231445
+            },
+            "UUID": "687ea9ba"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": 63,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 29,
+            "MeshPath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\build\\Assets\\Models\\Street environment_V01.FBX",
+            "Name": "House2_1",
+            "ParentUUID": "5da81443",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": false,
+                "texturePath": "Library/Materials/Building_V02_C.iltex"
+            },
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 0.5,
+                "rotation_x": -0.5,
+                "rotation_y": 0.5,
+                "rotation_z": 0.5,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 30.795604705810547,
+                "translation_y": 3.3904342651367188,
+                "translation_z": -21.66920280456543
+            },
+            "UUID": "d72203f6"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Houses1",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "88d12938"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Houses2",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "5da81443"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Houses3",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "8104ea80"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Houses4",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "2beeb337"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Houses5",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "06147b47"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Houses6",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "12695259"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Houses7",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "820bc842"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": true,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "Bathrooms",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 69.60509490966797,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": 0.0,
+                "translation_z": 0.0
+            },
+            "UUID": "fb660716"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": false,
+            "Mesh": {
+                "meshIndex": 65,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 0,
+            "MeshPath": "Library/Meshes/Primitives/Plane_w5.00_d5.00_wseg10_dseg10.ilmesh",
+            "Name": "Grass_1",
+            "ParentUUID": "47b9bec3",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": true,
+                "texturePath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\Assets\\Textures\\Grass.png"
+            },
+            "Transform": {
+                "radius": 0.0326874665915966,
+                "rotation_w": 0.6087508201599121,
+                "rotation_x": 0.608698308467865,
+                "rotation_y": 0.3597918748855591,
+                "rotation_z": -0.3598036468029022,
+                "scale_x": 0.9999659061431885,
+                "scale_y": 0.9999582171440125,
+                "scale_z": 0.999958336353302,
+                "translation_x": 0.0,
+                "translation_y": 0.4811481237411499,
+                "translation_z": 0.0
+            },
+            "UUID": "0a455bb2"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": false,
+            "Mesh": {
+                "meshIndex": 66,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 0,
+            "MeshPath": "Library/Meshes/Primitives/Plane_w5.00_d5.00_wseg10_dseg10.ilmesh",
+            "Name": "Grass_2",
+            "ParentUUID": "47b9bec3",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": true,
+                "texturePath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\Assets\\Textures\\Grass.png"
+            },
+            "Transform": {
+                "radius": 0.0326874665915966,
+                "rotation_w": 0.42936962842941284,
+                "rotation_x": 0.4293209910392761,
+                "rotation_y": 0.5618427991867065,
+                "rotation_z": -0.5618343949317932,
+                "scale_x": 0.9999691247940063,
+                "scale_y": 0.9999610781669617,
+                "scale_z": 0.9999620318412781,
+                "translation_x": 0.12278968095779419,
+                "translation_y": 0.48108136653900146,
+                "translation_z": -0.07349950075149536
+            },
+            "UUID": "8bd2b042"
+        },
+        {
+            "Active": true,
+            "IsEmpty": true,
+            "IsStatic": false,
+            "Mesh": {
+                "meshIndex": -1,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": -1,
+            "MeshPath": "",
+            "Name": "GrassGroup",
+            "ParentUUID": "3af61683",
+            "Transform": {
+                "radius": 0.0326874665915966,
+                "rotation_w": 1.0,
+                "rotation_x": 0.0,
+                "rotation_y": 0.0,
+                "rotation_z": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "scale_z": 1.0,
+                "translation_x": 0.0,
+                "translation_y": -6.8873515129089355,
+                "translation_z": 0.0
+            },
+            "UUID": "47b9bec3"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": false,
+            "Mesh": {
+                "meshIndex": 67,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 0,
+            "MeshPath": "Library/Meshes/Primitives/Plane_w5.00_d5.00_wseg10_dseg10.ilmesh",
+            "Name": "Grass_4",
+            "ParentUUID": "47b9bec3",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": true,
+                "texturePath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\Assets\\Textures\\Grass.png"
+            },
+            "Transform": {
+                "radius": 0.0326874665915966,
+                "rotation_w": 0.6087508201599121,
+                "rotation_x": 0.608698308467865,
+                "rotation_y": 0.3597918748855591,
+                "rotation_z": -0.3598036468029022,
+                "scale_x": 0.9999659061431885,
+                "scale_y": 0.9999582171440125,
+                "scale_z": 0.999958336353302,
+                "translation_x": -10.458403587341309,
+                "translation_y": 0.4811481237411499,
+                "translation_z": 1.0
+            },
+            "UUID": "3a28b44d"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": false,
+            "Mesh": {
+                "meshIndex": 68,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 0,
+            "MeshPath": "Library/Meshes/Primitives/Plane_w5.00_d5.00_wseg10_dseg10.ilmesh",
+            "Name": "Grass_3",
+            "ParentUUID": "47b9bec3",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": true,
+                "texturePath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\Assets\\Textures\\Grass.png"
+            },
+            "Transform": {
+                "radius": 0.0326874665915966,
+                "rotation_w": 0.42936962842941284,
+                "rotation_x": 0.4293209910392761,
+                "rotation_y": 0.5618427991867065,
+                "rotation_z": -0.5618343949317932,
+                "scale_x": 0.9999691247940063,
+                "scale_y": 0.9999610781669617,
+                "scale_z": 0.9999620318412781,
+                "translation_x": -10.335614204406738,
+                "translation_y": 0.48108136653900146,
+                "translation_z": 0.9265004992485046
+            },
+            "UUID": "06fb6683"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": false,
+            "Mesh": {
+                "meshIndex": 69,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 0,
+            "MeshPath": "Library/Meshes/Primitives/Plane_w5.00_d5.00_wseg10_dseg10.ilmesh",
+            "Name": "Grass_5",
+            "ParentUUID": "47b9bec3",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": true,
+                "texturePath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\Assets\\Textures\\Grass.png"
+            },
+            "Transform": {
+                "radius": 0.0326874665915966,
+                "rotation_w": 0.42936962842941284,
+                "rotation_x": 0.4293209910392761,
+                "rotation_y": 0.5618427991867065,
+                "rotation_z": -0.5618343949317932,
+                "scale_x": 0.9999691247940063,
+                "scale_y": 0.9999610781669617,
+                "scale_z": 0.9999620318412781,
+                "translation_x": 11.107000350952148,
+                "translation_y": 0.48108136653900146,
+                "translation_z": 1.9265005588531494
+            },
+            "UUID": "56e6755e"
+        },
+        {
+            "Active": true,
+            "IsEmpty": false,
+            "IsStatic": false,
+            "Mesh": {
+                "meshIndex": 70,
+                "showAABB": false,
+                "showFaceNormals": false,
+                "showVertexNormals": false
+            },
+            "MeshIndexInFBX": 0,
+            "MeshPath": "Library/Meshes/Primitives/Plane_w5.00_d5.00_wseg10_dseg10.ilmesh",
+            "Name": "Grass_6",
+            "ParentUUID": "47b9bec3",
+            "Texture": {
+                "hasTexture": true,
+                "hasTransparency": true,
+                "texturePath": "C:\\Users\\mfoyo\\Documents\\GitHub\\Motor\\Assets\\Textures\\Grass.png"
+            },
+            "Transform": {
+                "radius": 0.0326874665915966,
+                "rotation_w": 0.6087508201599121,
+                "rotation_x": 0.608698308467865,
+                "rotation_y": 0.3597918748855591,
+                "rotation_z": -0.3598036468029022,
+                "scale_x": 0.9999659061431885,
+                "scale_y": 0.9999582171440125,
+                "scale_z": 0.999958336353302,
+                "translation_x": 10.984210968017578,
+                "translation_y": 0.4811481237411499,
+                "translation_z": 2.0
+            },
+            "UUID": "08ec0c52"
+        }
+    ]
+}
