@@ -44,24 +44,24 @@ struct EditorLayout
     // Scene
     float sceneXPercent = 0.15f;
     float sceneWidthPercent = 0.70f;
-    float sceneHeightPercent = 0.80f;
+    float sceneHeightPercent = 0.70f;  
 
     // Hierarchy
     float hierarchyXPercent = 0.0f;
     float hierarchyYPercent = 0.5f;
     float hierarchyWidthPercent = 0.15f;
-    float hierarchyHeightPercent = 0.8f;
+    float hierarchyHeightPercent = 0.70f; 
 
     // Inspector
     float inspectorXPercent = 0.85f;
     float inspectorWidthPercent = 0.15f;
     float inspectorHeightPercent = 1.0f;
 
-    // Console
-    float consoleYPercent = 0.80f;
-    float consoleXPercent = 0.f;
+    // Console/Assets (they share the same space)
+    float consoleYPercent = 0.70f;  
+    float consoleXPercent = 0.0f;
     float consoleWidthPercent = 0.85f;
-    float consoleHeightPercent = 0.20f;
+    float consoleHeightPercent = 0.30f;  
 
     // Margins
     float marginX = 5.0f;

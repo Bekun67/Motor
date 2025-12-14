@@ -402,7 +402,15 @@ void SceneViewportWindow::DrawPlayControls()
 
 void SceneViewportWindow::HandleDragDropArea()
 {
-    // Create an invisible window over the scene viewport for drag & drop
+    bool isDragging = ImGui::GetDragDropPayload() != nullptr;
+
+    if (!isDragging)
+    {
+        // No drag operation active, don't create the blocking window
+        return;
+    }
+
+    // There's an active drag, create the drop target window
     ImGui::SetNextWindowPos(editor->sceneViewportPos);
     ImGui::SetNextWindowSize(editor->sceneViewportSize);
 
@@ -417,11 +425,10 @@ void SceneViewportWindow::HandleDragDropArea()
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoFocusOnAppearing;
 
     ImGui::Begin("##SceneDropArea", nullptr, dropFlags);
 
-    // Invisible button for drop target
+    // Create invisible button to cover the viewport and accept drops
     ImGui::InvisibleButton("##dropzone", editor->sceneViewportSize);
 
     if (ImGui::BeginDragDropTarget())
