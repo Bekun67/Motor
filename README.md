@@ -174,7 +174,7 @@ The Octree works together with AABB culling to ensure that only visible objects 
 - **Copy:** Ctrl + C
 - **Paste:** Ctrl + V
 - **Duplicate:** Ctrl + D
-- **Delete:** Delete
+- **Delete:** Delete/Suprimir
 - **Exit:** Alt + F4
 
 ---
