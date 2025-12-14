@@ -152,7 +152,7 @@ bool Input::PreUpdate()
                 editor->sceneModified = true;
                 if (opengl->useQuadtree) {
                     if (opengl->EmptyQuadtree()) {
-                        LOG("Quadtree is now empty");
+                        LOG("Octree is now empty");
                     }
                     else {
                         opengl->RebuildQuadtree();

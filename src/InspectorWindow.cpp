@@ -304,7 +304,7 @@ void InspectorWindow::DrawSingleObjectInspector()
     {
         if (wasStatic != selectedGameObject->isStatic)
         {
-            //if we have changed static or dynamic we rebuild the quadtree
+            //if we have changed static or dynamic we rebuild the octree
             OpenGL* opengl = Application::GetInstance().opengl.get();
             if (opengl && opengl->useQuadtree)
             {
@@ -317,7 +317,7 @@ void InspectorWindow::DrawSingleObjectInspector()
 
     if (ImGui::IsItemHovered())
     {
-        ImGui::SetTooltip("Static objects won't move during gameplay and\nare stored in the Quadtree for faster queries");
+        ImGui::SetTooltip("Static objects won't move during gameplay and\nare stored in the Octree for faster queries");
     }
 
     // Mesh Component
@@ -726,7 +726,7 @@ void InspectorWindow::DrawMultiObjectInspector()
 
     if (ImGui::IsItemHovered())
     {
-        ImGui::SetTooltip("Static objects won't move during gameplay and\nare stored in the Quadtree for faster queries");
+        ImGui::SetTooltip("Static objects won't move during gameplay and\nare stored in the Octree for faster queries");
     }
 
     ImGui::Separator();
