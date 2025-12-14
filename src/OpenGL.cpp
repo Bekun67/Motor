@@ -615,7 +615,7 @@ bool OpenGL::Update()
     {
         if (frustum != nullptr)
         {
-            //quadtree returns candidates
+            //octree returns candidates
             std::vector<GameObject*> candidateObjects;
             quadtree.CollectIntersections(candidateObjects, *frustum);
 
@@ -664,7 +664,7 @@ bool OpenGL::Update()
     }
     else if (!staticObjects.empty())
     {
-        //if quadtree is not active we test frustum against all
+        //if octree is not active we test frustum against all
         if (frustum != nullptr)
         {
             for (GameObject* go : staticObjects)
@@ -1068,7 +1068,7 @@ bool OpenGL::Draw()
 
 bool OpenGL::EmptyQuadtree()
 {
-    //method to know if the quadtree is empty or not (if there are any static objects or not)
+    //method to know if the octree is empty or not (if there are any static objects or not)
     glm::vec3 sceneMin(FLT_MAX);
     glm::vec3 sceneMax(-FLT_MAX);
     int staticCount = 0;

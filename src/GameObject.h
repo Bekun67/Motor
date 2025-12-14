@@ -81,7 +81,7 @@ public:
 	bool m_MarkedForDeletion = false;
 	bool m_IsBeingDestroyed = false;
 	
-	//quadtree
+	//octree
 	bool isStatic = false;
 	bool needsQuadtreeUpdate = false;
 
