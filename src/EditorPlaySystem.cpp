@@ -152,6 +152,7 @@ bool EditorPlaySystem::SerializeSceneState(const std::vector<GameObject*>& gameO
                 goJson["MeshPath"] = go->meshPath;
                 goJson["IsEmpty"] = go->IsEmpty();
                 goJson["MeshIndexInFBX"] = go->meshIndexInFBX;
+                goJson["IsStatic"] = go->isStatic;
 
                 if (go->transform)
                 {
@@ -261,6 +262,9 @@ bool EditorPlaySystem::RestoreSceneState(std::vector<GameObject*>& gameObjects)
 
             if (goJson.contains("MeshIndexInFBX"))
                 go->meshIndexInFBX = goJson["MeshIndexInFBX"];
+
+            if (goJson.contains("IsStatic"))
+                go->isStatic = goJson["IsStatic"];
 
             if (goJson.contains("Transform") && go->transform)
             {

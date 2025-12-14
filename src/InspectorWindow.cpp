@@ -7,6 +7,7 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "EditorPlaySystem.h"
 #include "LoadFBX.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/quaternion.hpp>
@@ -128,18 +129,18 @@ void InspectorWindow::DrawSingleObjectInspector()
         ComponentTransform* transform = selectedGameObject->transform;
         if (transform)
         {
-            bool isStaticLocked = selectedGameObject->isStatic;
+            bool isPlayingAndStatic = EditorPlaySystem::IsPlaying() && selectedGameObject->isStatic;
 
-            if (isStaticLocked)
+            if (isPlayingAndStatic)
             {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.3f, 1.0f));
-                ImGui::Text("LOCKED - Static object cannot be edited");
+                ImGui::Text("LOCKED - Static object cannot be edited on runtime");
                 ImGui::PopStyleColor();
                 ImGui::Spacing();
             }
 
             // unable widgets if static
-            ImGui::BeginDisabled(isStaticLocked);
+            ImGui::BeginDisabled(isPlayingAndStatic);
 
             float pos[3] = { transform->translation.x, transform->translation.y, transform->translation.z };
             if (ImGui::DragFloat3("Position", pos, 0.1f))
@@ -158,7 +159,7 @@ void InspectorWindow::DrawSingleObjectInspector()
             {
                 editor->editing = false;
             }
-            
+
             if (ImGui::IsItemDeactivatedAfterEdit()) editor->editing = false;
 
             float scale[3] = { transform->scaling.x, transform->scaling.y, transform->scaling.z };
@@ -470,6 +471,28 @@ void InspectorWindow::DrawMultiObjectInspector()
             "Editing %d objects simultaneously", (int)editor->selectedGameObjects.size());
         ImGui::Spacing();
 
+        bool anyStatic = false;
+        for (GameObject* go : editor->selectedGameObjects)
+        {
+            if (go && go->isStatic)
+            {
+                anyStatic = true;
+                break;
+            }
+        }
+
+        bool isPlayingAndAnyStatic = EditorPlaySystem::IsPlaying() && anyStatic;
+
+        if (isPlayingAndAnyStatic)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.3f, 1.0f));
+            ImGui::Text("LOCKED - One of the selected objects is static");
+            ImGui::PopStyleColor();
+            ImGui::Spacing();
+        }
+
+        ImGui::BeginDisabled(isPlayingAndAnyStatic);
+
         // Calculate average values
         glm::vec3 avgPosition(0.0f);
         glm::vec3 avgScale(0.0f);
@@ -662,6 +685,111 @@ void InspectorWindow::DrawMultiObjectInspector()
             }
             editor->sceneModified = true;
             LOG("Reset scale for " + std::to_string(editor->selectedGameObjects.size()) + " objects");
+        }
+
+        ImGui::EndDisabled();
+    }
+
+    ImGui::Spacing();
+
+    //multi-object checkboxes
+    ImGui::Separator();
+    ImGui::Text("Space Partitioning:");
+
+    bool allStatic = true;
+    bool anyStatic = false;
+    for (GameObject* go : editor->selectedGameObjects)
+    {
+        if (go && go->isStatic) anyStatic = true;
+        if (go && !go->isStatic) allStatic = false;
+    }
+
+    bool staticCheckbox = allStatic;
+    if (ImGui::Checkbox("Static##Multi", &staticCheckbox))
+    {
+        for (GameObject* go : editor->selectedGameObjects)
+        {
+            if (go)
+            {
+                go->isStatic = staticCheckbox;
+            }
+        }
+
+        OpenGL* opengl = Application::GetInstance().opengl.get();
+        if (opengl && opengl->useQuadtree)
+        {
+            opengl->RebuildQuadtree();
+            LOG("Multiple objects marked as " + std::string(staticCheckbox ? "STATIC" : "DYNAMIC"));
+        }
+        editor->sceneModified = true;
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Static objects won't move during gameplay and\nare stored in the Quadtree for faster queries");
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Normals Visualization:");
+
+    bool allShowVertexNormals = true;
+    bool allShowFaceNormals = true;
+    for (GameObject* go : editor->selectedGameObjects)
+    {
+        if (go && go->mesh)
+        {
+            if (!go->mesh->showVertexNormals) allShowVertexNormals = false;
+            if (!go->mesh->showFaceNormals) allShowFaceNormals = false;
+        }
+    }
+
+    bool vertexNormalsCheckbox = allShowVertexNormals;
+    if (ImGui::Checkbox("Show Vertex Normals##Multi", &vertexNormalsCheckbox))
+    {
+        for (GameObject* go : editor->selectedGameObjects)
+        {
+            if (go && go->mesh)
+            {
+                go->mesh->showVertexNormals = vertexNormalsCheckbox;
+            }
+        }
+    }
+
+    bool faceNormalsCheckbox = allShowFaceNormals;
+    if (ImGui::Checkbox("Show Face Normals##Multi", &faceNormalsCheckbox))
+    {
+        for (GameObject* go : editor->selectedGameObjects)
+        {
+            if (go && go->mesh)
+            {
+                go->mesh->showFaceNormals = faceNormalsCheckbox;
+            }
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Bounding Box Visualization:");
+
+    bool allShowAABB = true;
+    for (GameObject* go : editor->selectedGameObjects)
+    {
+        if (go && go->mesh)
+        {
+            if (!go->mesh->showAABB) allShowAABB = false;
+        }
+    }
+
+    bool aabbCheckbox = allShowAABB;
+    if (ImGui::Checkbox("Show AABB##Multi", &aabbCheckbox))
+    {
+        for (GameObject* go : editor->selectedGameObjects)
+        {
+            if (go && go->mesh)
+            {
+                go->mesh->showAABB = aabbCheckbox;
+                if (aabbCheckbox) LOG("Enabled AABB visualization for " + go->name);
+                else LOG("Disabled AABB visualization for " + go->name);
+            }
         }
     }
 
