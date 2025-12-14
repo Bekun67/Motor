@@ -310,9 +310,12 @@ bool OpenGL::Start()
         "uniform sampler2D uTexture;\n"
         "void main() {\n"
         "    vec3 n = normalize(fragNormal);\n"
-        "    float lambert = max(dot(n, normalize(vec3(0.3, 0.7, 0.5))), 0.0);\n"
+        "    vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));\n"
+        "    float diffuse = max(dot(n, lightDir), 0.0);\n"
+        "    float ambient = 0.3;\n"
+        "    float lighting = ambient + diffuse * 0.7;\n"
         "    vec4 texColor = texture(uTexture, fragUV);\n"
-        "    FragColor = vec4(texColor.rgb * lambert, texColor.a);\n"
+        "    FragColor = vec4(texColor.rgb * lighting, texColor.a);\n"
         "}\n";
 
     GLuint vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -343,7 +346,7 @@ bool OpenGL::Start()
     lastTicks = SDL_GetTicks();
 
     camera.Start();
-    CreateGrid(50);
+    CreateGrid(gridSize);
 
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
