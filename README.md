@@ -124,7 +124,6 @@ This enables **frustum culling**, preventing objects outside the camera view fro
 
 ### 🌳 Octree (Spatial Partitioning)
 The **Octree** is a spatial data structure used to optimize scene performance.
-It speeds up mouse picking (in microseconds), wich can be seen in the extra logs.
 
 **How it works:**
 - Divides the 3D space into **eight recursive regions**
@@ -135,10 +134,19 @@ It speeds up mouse picking (in microseconds), wich can be seen in the extra logs
 - Improves frustum culling efficiency
 - Reduces per-frame processing
 - Enhances performance in complex scenes
+- It speeds up mouse picking (in microseconds), wich can be seen in the extra logs.
 
 The Octree works together with AABB culling to ensure that only visible objects are rendered.
 
 ![Octree Diagram](images/octree.png)
+
+Mouse Picking before Octree:  
+
+![Before Octree](images/antes.png)
+
+Mouse Picking after Octree:
+
+![After Octree](images/despues.png)
 
 ---
 
