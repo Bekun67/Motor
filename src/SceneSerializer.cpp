@@ -103,7 +103,7 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 	// Reconstruct hierarchy
 	ReconstructHierarchy(gameObjects);
 
-	//rebuild quadtree
+	//rebuild Octree
 	OpenGL* opengl = Application::GetInstance().opengl.get();
 	if (opengl && opengl->useQuadtree)
 	{

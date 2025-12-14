@@ -8,7 +8,8 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "imgui_impl_sdl3.h"
-#include <imgui.h>     
+#include <imgui.h>
+#include <imgui_internal.h>
 #include <ImGuizmo.h>  
 #include <functional>
 #include <filesystem>
@@ -427,6 +428,8 @@ void SceneViewportWindow::DrawPlayControls()
 
     ImGui::End();
     ImGui::PopStyleVar();
+
+    ImGui::BringWindowToDisplayFront(ImGui::FindWindowByName("##PlayControls"));
 }
 
 void SceneViewportWindow::HandleDragDropArea()
@@ -480,7 +483,7 @@ void SceneViewportWindow::HandleDragDropArea()
             const char* droppedPath = (const char*)payload->Data;
             if (droppedPath)
             {
-                HandleTextureDrop(std::string(droppedPath)); // Ya no necesitas pasar coordenadas
+                HandleTextureDrop(std::string(droppedPath));
             }
         }
 
