@@ -275,26 +275,55 @@ void SceneViewportWindow::HandleTextureDrop(const std::string& texturePath)
 {
     LOG("Texture dropped from Assets: " + texturePath);
 
-    if (!editor->selectedGameObjects.empty())
-    {
-        GameObject* selectedGO = editor->selectedGameObjects[0];
+    ImVec2 mousePos = ImGui::GetMousePos();
+    float relativeMouseX = mousePos.x - editor->sceneViewportPos.x;
+    float relativeMouseY = mousePos.y - editor->sceneViewportPos.y;
 
-        if (selectedGO && selectedGO->texture)
+    ModuleMousePicking* mousePicking = Application::GetInstance().mousePicking.get();
+    Camera* camera = &Application::GetInstance().opengl->camera;
+
+    int viewportWidth = (int)editor->sceneViewportSize.x;
+    int viewportHeight = (int)editor->sceneViewportSize.y;
+
+    Ray ray = mousePicking->CreateRayFromMouse(
+        relativeMouseX,
+        relativeMouseY,
+        camera,
+        viewportWidth,
+        viewportHeight
+    );
+
+    OpenGL* opengl = Application::GetInstance().opengl.get();
+    RaycastHit hit = mousePicking->CastRay(ray, opengl->gameObjects);
+
+    GameObject* targetObject = nullptr;
+
+    if (hit.hit && hit.gameObject)
+    {
+        targetObject = hit.gameObject;
+        LOG("Texture dropped on: " + targetObject->name);
+    }
+    else if (!editor->selectedGameObjects.empty())
+    {
+        targetObject = editor->selectedGameObjects[0];
+        LOG("No object detected, using selected: " + targetObject->name);
+    }
+
+    if (targetObject && targetObject->texture)
+    {
+        if (targetObject->texture->LoadTexture(texturePath))
         {
-            if (selectedGO->texture->LoadTexture(texturePath))
-            {
-                LOG("Texture applied to: " + selectedGO->name);
-                editor->sceneModified = true;
-            }
-            else
-            {
-                LOG_ERROR("Failed to load texture: " + texturePath);
-            }
+            LOG("Texture applied to: " + targetObject->name);
+            editor->sceneModified = true;
+        }
+        else
+        {
+            LOG_ERROR("Failed to load texture: " + texturePath);
         }
     }
     else
     {
-        LOG_WARNING("No GameObject selected to apply texture");
+        LOG_WARNING("No valid GameObject to apply texture");
     }
 }
 
@@ -444,7 +473,7 @@ void SceneViewportWindow::HandleDragDropArea()
             const char* droppedPath = (const char*)payload->Data;
             if (droppedPath)
             {
-                HandleTextureDrop(std::string(droppedPath));
+                HandleTextureDrop(std::string(droppedPath)); // Ya no necesitas pasar coordenadas
             }
         }
 
