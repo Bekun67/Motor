@@ -20,6 +20,9 @@ private:
 	static GameObject* DeserializeGameObject(const json& j, bool& success);
 	static void ReconstructHierarchy(std::vector<GameObject*>& gameObjects);
 
+	static json SerializeGameObjectRecursive(const GameObject* go);
+	static GameObject* DeserializeGameObjectRecursive(const json& j, bool& success, std::vector<GameObject*>& allGameObjects);
+
 	// Resource management during serialization
 	static bool EnsureResourcesExist(const GameObject* go);
 };

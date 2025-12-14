@@ -22,15 +22,14 @@ bool SceneSerializer::SaveScene(const std::string& filepath, const std::vector<G
 
 	for (const GameObject* go : gameObjects)
 	{
-		if (go != nullptr)
+		if (go != nullptr && go->parent == nullptr)
 		{
-			// Ensure resources exist before saving
 			if (!EnsureResourcesExist(go))
 			{
 				LOG_WARNING("Some resources for GameObject '" + go->name + "' could not be saved");
 			}
 
-			sceneJson["GameObjects"].push_back(SerializeGameObject(go));
+			sceneJson["GameObjects"].push_back(SerializeGameObjectRecursive(go));
 		}
 	}
 
@@ -41,7 +40,7 @@ bool SceneSerializer::SaveScene(const std::string& filepath, const std::vector<G
 		return false;
 	}
 
-	file << sceneJson.dump(4); // Pretty print with 4 spaces
+	file << sceneJson.dump(4);
 	file.close();
 
 	LOG("Scene saved successfully to: " + filepath);
@@ -84,7 +83,7 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 		for (const auto& goJson : sceneJson["GameObjects"])
 		{
 			bool success = false;
-			GameObject* go = DeserializeGameObject(goJson, success);
+			GameObject* go = DeserializeGameObjectRecursive(goJson, success, gameObjects);
 
 			if (go != nullptr && success)
 			{
@@ -100,14 +99,13 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 		}
 	}
 
-	// Reconstruct hierarchy
-	ReconstructHierarchy(gameObjects);
-
 	//rebuild Octree
 	OpenGL* opengl = Application::GetInstance().opengl.get();
 	if (opengl && opengl->useQuadtree)
 	{
 		opengl->RebuildQuadtree();
+		opengl->showQuadtree = false;
+		opengl->useQuadtree = false;
 		LOG("Octree rebuilt after loading scene");
 	}
 
@@ -116,12 +114,34 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 	return true;
 }
 
+json SceneSerializer::SerializeGameObjectRecursive(const GameObject* go)
+{
+	json j = SerializeGameObject(go);
+
+	if (!go->children.empty())
+	{
+		j["Children"] = json::array();
+		for (const GameObject* child : go->children)
+		{
+			if (child != nullptr)
+			{
+				if (!EnsureResourcesExist(child))
+				{
+					LOG_WARNING("Some resources for GameObject '" + child->name + "' could not be saved");
+				}
+				j["Children"].push_back(SerializeGameObjectRecursive(child));
+			}
+		}
+	}
+
+	return j;
+}
+
 json SceneSerializer::SerializeGameObject(const GameObject* go)
 {
 	json j;
 
 	j["UUID"] = go->GetUUID().ToString();
-	j["ParentUUID"] = go->GetParentUUID().ToString();
 	j["Name"] = go->name;
 	j["Active"] = go->active;
 	j["IsStatic"] = go->isStatic;
@@ -196,6 +216,35 @@ json SceneSerializer::SerializeGameObject(const GameObject* go)
 	return j;
 }
 
+GameObject* SceneSerializer::DeserializeGameObjectRecursive(const json& j, bool& success, std::vector<GameObject*>& allGameObjects)
+{
+	GameObject* go = DeserializeGameObject(j, success);
+
+	if (go == nullptr || !success)
+		return go;
+
+	if (j.contains("Children") && j["Children"].is_array())
+	{
+		for (const auto& childJson : j["Children"])
+		{
+			bool childSuccess = false;
+			GameObject* child = DeserializeGameObjectRecursive(childJson, childSuccess, allGameObjects);
+
+			if (child != nullptr && childSuccess)
+			{
+				child->SetParent(go);
+				allGameObjects.push_back(child);
+			}
+			else if (child != nullptr)
+			{
+				delete child;
+			}
+		}
+	}
+
+	return go;
+}
+
 GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 {
 	success = false;
@@ -206,12 +255,6 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 	{
 		std::string uuidStr = j["UUID"];
 		go->SetUUID(EngineUUID::FromString(uuidStr));
-	}
-
-	if (j.contains("ParentUUID"))
-	{
-		std::string parentUuidStr = j["ParentUUID"];
-		go->SetParentUUID(EngineUUID::FromString(parentUuidStr));
 	}
 
 	if (j.contains("Name"))
@@ -354,32 +397,6 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 
 	success = true;
 	return go;
-}
-
-void SceneSerializer::ReconstructHierarchy(std::vector<GameObject*>& gameObjects)
-{
-	// Create a map of UUID to GameObject for quick lookup
-	std::map<uint32_t, GameObject*> uuidMap;
-	for (GameObject* go : gameObjects)
-	{
-		uuidMap[(uint32_t)go->GetUUID()] = go;
-	}
-
-	// Reconstruct parent-child relationships
-	for (GameObject* go : gameObjects)
-	{
-		uint32_t parentUUID = (uint32_t)go->GetParentUUID();
-		if (parentUUID != 0 && uuidMap.count(parentUUID))
-		{
-			GameObject* parentGo = uuidMap[parentUUID];
-			go->parent = parentGo;
-			parentGo->children.push_back(go);
-		}
-		else
-		{
-			go->parent = nullptr;
-		}
-	}
 }
 
 bool SceneSerializer::EnsureResourcesExist(const GameObject* go)
