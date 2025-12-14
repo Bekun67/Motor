@@ -460,6 +460,10 @@ bool OpenGL::Start()
     selectionTextureWidth = windowWidth;
     selectionTextureHeight = windowHeight;
 
+	ModuleEditor* editor = Application::GetInstance().editor.get();
+
+	editor->LoadScene("Assets/Scenes/Street environment Scene.ilscene");
+
     std::cout << "OpenGL initialized successfully" << std::endl;
     return true;
 }
