@@ -161,10 +161,21 @@ The Octree works together with AABB culling to ensure that only visible objects 
 
 ### ⌨️ Shortcuts
 - **F1:** Previous object  
-- **F2:** Next object  
+- **F2:** Next object
+- **F3:** Deselect object  
 - **F5:** Play  
 - **F6:** Pause  
-- **F7:** Stop  
+- **F7:** Stop
+- **Save scene:** Ctrl + S
+- **Save scene as...:** Ctrl + Shift + S
+- **Import model:** Ctrl + I
+- **Undo:** Ctrl + Z
+- **Redo:** Ctrl + Y
+- **Copy:** Ctrl + C
+- **Paste:** Ctrl + V
+- **Duplicate:** Ctrl + D
+- **Delete:** Delete
+- **Exit:** Alt + F4
 
 ---
 
