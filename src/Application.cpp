@@ -1,5 +1,6 @@
 #include "Application.h"
-#include "LoadFBX.h"
+#include "Time.h" 
+#include "EditorPlaySystem.h"
 #include <iostream>
 
 Application* app = nullptr;
@@ -8,6 +9,11 @@ Application::Application() : isRunning(true)
 {
     app = this;
     std::cout << "Application Constructor" << std::endl;
+
+    // Initialize Time and EditorPlaySystem
+    Time::Init();
+    EditorPlaySystem::Init();
+
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
     opengl = std::make_shared<OpenGL>();
@@ -61,6 +67,9 @@ bool Application::Update()
 {
     bool ret = true;
 
+    // Update Time system
+    Time::Update();
+
     if (input->GetWindowEvent(WE_QUIT) == true)
         ret = false;
 
@@ -78,7 +87,7 @@ bool Application::Update()
 
 bool Application::PreUpdate()
 {
-    //Iterates the module list and calls PreUpdate on each module
+    // Iterates the module list and calls PreUpdate on each module
     bool result = true;
     for (const auto& module : moduleList) {
         result = module.get()->PreUpdate();
@@ -93,7 +102,7 @@ bool Application::PreUpdate()
 // Call modules on each loop iteration
 bool Application::DoUpdate()
 {
-    //Iterates the module list and calls Update on each module
+    // Iterates the module list and calls Update on each module
     bool result = true;
     for (const auto& module : moduleList) {
         result = module.get()->Update();
@@ -108,7 +117,7 @@ bool Application::DoUpdate()
 // Call modules on each loop iteration
 bool Application::PostUpdate()
 {
-    //Iterates the module list and calls Update on each module
+    // Iterates the module list and calls PostUpdate on each module
     bool result = true;
     for (const auto& module : moduleList) {
         result = module.get()->PostUpdate();
@@ -131,6 +140,9 @@ bool Application::CleanUp()
             break;
         }
     }
+
+    // Shutdown EditorPlaySystem
+    EditorPlaySystem::Shutdown();
 
     return result;
 }

@@ -1,11 +1,14 @@
 #include "GameObject.h"
 #include "Component.h"
+#include "OpenGL.h"
+#include "Application.h"
 #include <algorithm>
+#include "Time.h"
 
 GameObject::GameObject()
 {
-	m_UUID = UUID();
-	m_ParentUUID = UUID(0);
+	m_UUID = EngineUUID();
+	m_ParentUUID = EngineUUID(0);
 	name = "gameObject";
 	parent = nullptr;
 
@@ -17,7 +20,7 @@ GameObject::GameObject()
 
 GameObject::GameObject(GameObject* parent)
 {
-	m_UUID = UUID();
+	m_UUID = EngineUUID();
 	name = "gameObject";
 	this->parent = parent;
 
@@ -26,7 +29,7 @@ GameObject::GameObject(GameObject* parent)
 		parent->children.push_back(this);
 	}
 	else {
-		m_ParentUUID = UUID(0);
+		m_ParentUUID = EngineUUID(0);
 	}
 
 	transform = new ComponentTransform(this);
@@ -40,6 +43,15 @@ GameObject::~GameObject()
 	// Prevent multiple deletes
 	if (m_IsBeingDestroyed)
 		return;
+
+	if (isStatic)
+	{
+		OpenGL* opengl = Application::GetInstance().opengl.get();
+		if (opengl && opengl->useQuadtree)
+		{
+			opengl->quadtree.Remove(this);
+		}
+	}
 
 	m_IsBeingDestroyed = true;
 
@@ -188,7 +200,7 @@ void GameObject::SetParent(GameObject* newParent)
 	}
 	else
 	{
-		m_ParentUUID = UUID(0);
+		m_ParentUUID = EngineUUID(0);
 	}
 }
 

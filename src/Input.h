@@ -26,6 +26,7 @@ enum KeyState
 
 class GameObject;
 
+class EditorPlaySystem;
 class Input : public Module
 {
 public:
@@ -64,9 +65,9 @@ public:
 	int GetMouseWheelX() const { return mouseWheelX; }
 	int GetMouseWheelY() const { return mouseWheelY; }
 
-private:
 	std::string GetTexturePathFromFBX(const char* fbxPath, int meshIndex);
 
+private:
 	bool windowEvents[WE_COUNT];
 	KeyState* keyboard;
 	KeyState mouseButtons[NUM_MOUSE_BUTTONS];

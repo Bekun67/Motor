@@ -18,7 +18,9 @@ file(GLOB CORE_FILES
     "src/Application.*" 
     "src/Main.*"
     "src/Structures.*"
-    "src/Window.*")
+    "src/Window.*"
+    "src/Time.*"
+    "src/EditorPlaySystem.*")
 
 file(GLOB COMPONENT_FILES 
     "src/Component*.*")
@@ -49,6 +51,18 @@ file(GLOB SERIALIZATION_FILES
     "src/UUID.*"
     "src/ResourceManager.*")
 
+file(GLOB EDITOR_FILES
+    "src/EditorWindow.*"
+    "src/EditorCommand.*"
+    "src/SceneViewportWindow.*"
+    "src/HierarchyWindow.*"
+    "src/InspectorWindow.*"
+    "src/ConsoleWindow.*"
+    "src/ConfigurationWindow.*"
+    "src/AboutWindow.*"
+    "src/MenuBarWindow.*"
+    "src/AssetsWindow.*")
+
 add_executable(Motor
     ${CORE_FILES}
     ${COMPONENT_FILES}
@@ -57,6 +71,7 @@ add_executable(Motor
     ${IO_FILES}
     ${IMPORTER_FILES}
     ${SERIALIZATION_FILES}
+    ${EDITOR_FILES}
 )
 
 source_group("Core" FILES ${CORE_FILES})
@@ -66,6 +81,7 @@ source_group("Graphics" FILES ${GRAPHICS_FILES})
 source_group("IO" FILES ${IO_FILES})
 source_group("Importers" FILES ${IMPORTER_FILES})
 source_group("Serialization" FILES ${SERIALIZATION_FILES})
+source_group("Editor" FILES ${EDITOR_FILES})
 
 target_link_libraries(Motor PRIVATE SDL3::SDL3)
 target_link_libraries(Motor PRIVATE glad::glad)

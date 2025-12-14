@@ -1,9 +1,9 @@
 #pragma once
-
 #include "Component.h"
 #include <assimp/scene.h>
 #include <glm/glm.hpp>
-
+#include "LoadFBX.h"
+#include <glm/gtc/quaternion.hpp>
 
 class ComponentTransform : public Component
 {

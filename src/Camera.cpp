@@ -167,17 +167,54 @@ void Camera::HandleInput(float deltaTime)
             OpenGL* opengl = Application::GetInstance().opengl.get();
             if (opengl->selectedGameObject == nullptr) return;
 
-            float radius = glm::length(glm::vec3(
-                opengl->selectedGameObject->transform->scaling.x,
-                opengl->selectedGameObject->transform->scaling.y,
-                opengl->selectedGameObject->transform->scaling.z
-            )) * opengl->selectedGameObject->transform->radius;
+            GameObject* selected = opengl->selectedGameObject;
+            glm::vec3 targetPos(
+                selected->transform->translation.x,
+                selected->transform->translation.y,
+                selected->transform->translation.z
+            );
 
-            //we pass to the "FrameSelected" method the selectedGameObject's translation position and its radius
-            FrameSelected(glm::vec3(opengl->selectedGameObject->transform->translation.x,
-                opengl->selectedGameObject->transform->translation.y,
-                opengl->selectedGameObject->transform->translation.z),
-                radius);
+            float radius;
+
+            //check if empty object (no mesh)
+            if (selected->mesh->meshIndex < 0)
+            {
+                //fixed distance
+                radius = 2.0f;
+            }
+            else
+            {
+                //calculate radius with aabb
+                int meshIdx = selected->mesh->meshIndex;
+                if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size())
+                {
+                    const MeshData& meshData = g_Meshes[meshIdx];
+
+                    glm::vec3 aabbMin = meshData.aabbMin;
+                    glm::vec3 aabbMax = meshData.aabbMax;
+
+                    glm::vec3 scale(
+                        selected->transform->scaling.x,
+                        selected->transform->scaling.y,
+                        selected->transform->scaling.z
+                    );
+
+                    aabbMin *= scale;
+                    aabbMax *= scale;
+
+                    glm::vec3 size = aabbMax - aabbMin;
+                    radius = glm::length(size) * 0.5f;
+
+                    //minimum radius
+                    radius = std::max(radius, 0.5f);
+                }
+                else
+                {
+                    radius = 2.0f;
+                }
+            }
+
+            FrameSelected(targetPos, radius);
         }
     }
     //update editor camera
@@ -260,7 +297,7 @@ void Camera::FrameSelected(const glm::vec3& target, float distance)
     float fovRadians = glm::radians(fov);
     float distanceFromRadius = distance / tan(fovRadians * 0.5f);
 
-    distanceToFocus = distanceFromRadius * 1.5f;
+    distanceToFocus = distanceFromRadius * 1.2f;
 
     distanceToFocus = glm::clamp(distanceToFocus, minZoomDistance, maxZoomDistance);
 

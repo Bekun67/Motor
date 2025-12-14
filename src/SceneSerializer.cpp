@@ -108,7 +108,7 @@ bool SceneSerializer::LoadScene(const std::string& filepath, std::vector<GameObj
 	if (opengl && opengl->useQuadtree)
 	{
 		opengl->RebuildQuadtree();
-		LOG("Quadtree rebuilt after loading scene");
+		LOG("Octree rebuilt after loading scene");
 	}
 
 	LOG("Scene loaded successfully from: " + filepath);
@@ -205,13 +205,13 @@ GameObject* SceneSerializer::DeserializeGameObject(const json& j, bool& success)
 	if (j.contains("UUID"))
 	{
 		std::string uuidStr = j["UUID"];
-		go->SetUUID(UUID::FromString(uuidStr));
+		go->SetUUID(EngineUUID::FromString(uuidStr));
 	}
 
 	if (j.contains("ParentUUID"))
 	{
 		std::string parentUuidStr = j["ParentUUID"];
-		go->SetParentUUID(UUID::FromString(parentUuidStr));
+		go->SetParentUUID(EngineUUID::FromString(parentUuidStr));
 	}
 
 	if (j.contains("Name"))

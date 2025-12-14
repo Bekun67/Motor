@@ -1,13 +1,24 @@
 #pragma once
 #include "Module.h"
-#include <vector>
+#include "imgui.h"
+#include "imguizmo.h"
+#include "EditorCommand.h"
 #include <string>
 #include <deque>
-#include <imgui.h>
-#include <ImGuizmo.h>
-#include "PrimitiveGenerator.h"
+#include <vector>
+#include <memory>
 #include <glm/gtc/quaternion.hpp>
+#include <map>
 
+// Forward declarations
+class EditorWindow;
+class SceneViewportWindow;
+class HierarchyWindow;
+class InspectorWindow;
+class ConsoleWindow;
+class ConfigurationWindow;
+class AboutWindow;
+class MenuBarWindow;
 class GameObject;
 
 enum class LogType
@@ -25,6 +36,42 @@ struct LogEntry
     LogEntry(const std::string& msg, LogType t) : message(msg), type(t) {}
 };
 
+struct EditorLayout
+{
+    // Menu Bar
+    float menuBarHeight = 25.0f;
+
+    // Scene
+    float sceneXPercent = 0.15f;
+    float sceneWidthPercent = 0.70f;
+    float sceneHeightPercent = 0.70f;  
+
+    // Hierarchy
+    float hierarchyXPercent = 0.0f;
+    float hierarchyYPercent = 0.5f;
+    float hierarchyWidthPercent = 0.15f;
+    float hierarchyHeightPercent = 0.70f; 
+
+    // Inspector
+    float inspectorXPercent = 0.85f;
+    float inspectorWidthPercent = 0.15f;
+    float inspectorHeightPercent = 1.0f;
+
+    // Console/Assets (they share the same space)
+    float consoleYPercent = 0.70f;  
+    float consoleXPercent = 0.0f;
+    float consoleWidthPercent = 0.85f;
+    float consoleHeightPercent = 0.30f;  
+
+    // Margins
+    float marginX = 5.0f;
+    float marginY = 5.0f;
+};
+
+void LOG(const std::string& message);
+void LOG_WARNING(const std::string& message);
+void LOG_ERROR(const std::string& message);
+
 class ModuleEditor : public Module
 {
 public:
@@ -37,165 +84,174 @@ public:
     bool PostUpdate() override;
     bool CleanUp() override;
 
-    // Log system
-    void AddLog(const std::string& message, LogType type = LogType::INFO);
+    void AddLog(const std::string& message, LogType type);
     void ClearLog();
 
-    // Scene Serialization
+    void UpdateLayout(int windowWidth, int windowHeight);
+    void ResetLayout();
+
+    static void SetupImGuiStyle();
+
+    void AssignCheckerboardTexture(GameObject* go);
+    int CountNames(std::string prefix);
+
+    // Selection management
+    bool IsSelected(GameObject* go) const;
+    void SelectGameObject(GameObject* go, bool includeDescendants);
+    void DeselectAll();
+    glm::vec3 GetSelectionCenter() const;
+
+    // Deletion management
+    void MarkForDeletion(GameObject* go);
+    void ProcessDeletions();
+
+    // Scene management
+    void RefreshScenesList();
     void SaveSceneDialog();
     void LoadSceneDialog();
     bool SaveScene(const std::string& filepath);
     bool LoadScene(const std::string& filepath);
+    void ClearCurrentScene();
 
-    static void SetupImGuiStyle();
-
-    // Layout management
-    void UpdateLayout(int windowWidth, int windowHeight);
-    void ResetLayout();
-
-    void MarkForDeletion(GameObject* go);
-    void ProcessDeletions();
-
-    // ImGuizmo
     void DrawGuizmo();
-    ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
-    ImGuizmo::MODE currentGizmoMode = ImGuizmo::WORLD;
 
-    // Window visibility toggles
-    bool showConsole = true;
+public:
+    // Windows
+    std::unique_ptr<SceneViewportWindow> sceneViewportWindow;
+    std::unique_ptr<HierarchyWindow> hierarchyWindow;
+    std::unique_ptr<InspectorWindow> inspectorWindow;
+    std::unique_ptr<ConsoleWindow> consoleWindow;
+    std::unique_ptr<ConfigurationWindow> configurationWindow;
+    std::unique_ptr<AboutWindow> aboutWindow;
+    std::unique_ptr<MenuBarWindow> menuBarWindow;
+	std::unique_ptr<EditorWindow> assetsWindow;
+
+    // Window visibility flags
+    bool showConsole = false;
     bool showConfiguration = false;
     bool showHierarchy = true;
     bool showInspector = true;
     bool showAbout = false;
+	bool showAssets = true;
 
-    bool editing = false;
-    bool updatedAngles = false;
+    // Layout
+    EditorLayout layout;
+    bool firstTimeSetup = true;
+    bool useAdaptiveLayout = false;
+    int lastWindowWidth = 0;
+    int lastWindowHeight = 0;
 
+    // Scene viewport
     ImVec2 sceneViewportPos;
     ImVec2 sceneViewportSize;
 
-    // Selected GameObjects 
-    std::vector<GameObject*> selectedGameObjects;
-
-    // Helper para verificar si un objeto está seleccionado
-    bool IsSelected(GameObject* go) const;
-
-    // Métodos para manejo de selección
-    void SelectGameObject(GameObject* go, bool includeDescendants = true);
-    void DeselectAll();
-    glm::vec3 GetSelectionCenter() const;
-    int CountNames(std::string prefix);
-
-    bool isMouseOverTextureDropZone = false;
+    // Texture drop area
     ImVec2 textureDropPos;
     ImVec2 textureDropSize;
-
-    bool showAllAABBs = false;
-    bool showAllVertexNormals = false;
-    bool showAllFaceNormals = false;
-
-    // Scene management
-    std::string currentScenePath = "";
-    bool sceneModified = false;
-
-private:
-    void DrawMenuBar();
-    void DrawConsole();
-    void DrawConfiguration();
-    void DrawHierarchy();
-    void DrawInspector();
-    void DrawAbout();
-    void AssignCheckerboardTexture(GameObject* go);
-    void DrawSceneViewport();
-    void ClearCurrentScene();
-
-    std::vector<GameObject*> m_ObjectsToDelete;
 
     // Console
     std::deque<LogEntry> logs;
     const size_t maxLogs = 1000;
     bool autoScroll = true;
 
-    // Configuration - FPS tracking
+    // FPS
     std::vector<float> fpsHistory;
     const size_t maxFPSHistory = 100;
     float lastFrameTime = 0.0f;
 
-    // About window info
-    const char* motorName = "Ilium Engine";
-    const char* version = "v0.5.0";
-    const char* team = "Team Hutao";
-    const char* repoURL = "https://github.com/Bekun67/Motor";
+    // Configuration window flags
+    bool showAllVertexNormals = false;
+    bool showAllFaceNormals = false;
+    bool showAllAABBs = false;
 
-    bool firstTimeSetup = true;
-    bool useAdaptiveLayout = true;
+    // Selection
+    std::vector<GameObject*> selectedGameObjects;
 
-    // Layout percentages (relative to window size)
-    struct LayoutConfig
-    {
-        // Menu Bar
-        float menuBarHeight = 25.0f;
+    // Gizmo
+    ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE currentGizmoMode = ImGuizmo::WORLD;
+    bool editing = false;
+    bool sceneEditing = false;
+    bool updatedAngles = false;
 
-        // Scene
-        float sceneXPercent = 0.15f;
-        float sceneWidthPercent = 0.70f;
-        float sceneHeightPercent = 0.80f;
-
-        // Hierarchy
-        float hierarchyXPercent = 0.0f;
-        float hierarchyYPercent = 0.5f;
-        float hierarchyWidthPercent = 0.15f;
-        float hierarchyHeightPercent = 0.8f;
-
-        // Inspector
-        float inspectorXPercent = 0.85f;
-        float inspectorWidthPercent = 0.15f;
-        float inspectorHeightPercent = 1.0f;
-
-        // Console
-        float consoleYPercent = 0.80f;
-        float consoleXPercent = 0.f;
-        float consoleWidthPercent = 0.85f;
-        float consoleHeightPercent = 0.20f;
-
-        // Margins
-        float marginX = 5.0f;
-        float marginY = 5.0f;
-    };
-
-    LayoutConfig layout;
-    int lastWindowWidth = 0;
-    int lastWindowHeight = 0;
-
-    // Save/Load dialog state
-    char saveSceneNameBuffer[256] = "NewScene";
-    bool showSaveDialog = false;
-    bool showLoadDialog = false;
-    std::vector<std::string> availableScenes;
-    void RefreshScenesList();
-
-    // Hierarchy drag & drop
-    GameObject* draggedGameObject = nullptr;
-    bool isDragging = false;
-
-    // Helper functions for hierarchy
-    void DrawGameObjectNode(GameObject* go);
-    void HandleHierarchyDragDrop(GameObject* go);
-
-    // Confirmation dialogs
-    bool showNewSceneConfirmation = false;
-    bool showLoadSceneConfirmation = false;
-    std::string pendingSceneToLoad = "";
-
-    // Multi-selection Gizmo tracking
+    // Multi-selection gizmo tracking
+    bool wasManipulating = false;
     glm::quat lastMultiSelectionRotation = glm::quat(1, 0, 0, 0);
     glm::vec3 lastMultiSelectionScale = glm::vec3(1, 1, 1);
     glm::vec3 initialMultiSelectionScale = glm::vec3(1, 1, 1);
-    bool wasManipulating = false;
+
+    // Scene management
+    std::string currentScenePath = "";
+    bool sceneModified = false;
+    std::vector<std::string> availableScenes;
+
+    // Scene dialogs
+    bool showNewSceneConfirmation = false;
+    bool showSaveDialog = false;
+    bool showLoadDialog = false;
+    bool showLoadSceneConfirmation = false;
+    std::string pendingSceneToLoad = "";
+    char saveSceneNameBuffer[128] = "";
+
+    // About info
+    const char* motorName = "Ilium Engine";
+    const char* version = "v0.9";
+    const char* team = "Team Hutao";
+    const char* repoURL = "https://github.com/Bekun67/Motor";
+
+    // Command history for undo/redo
+    CommandHistory commandHistory;
+
+    // Capture transform state before manipulation
+    void BeginTransformEdit(GameObject* go);
+    void EndTransformEdit(GameObject* go);
+
+    // File dialogs using native system
+    std::string OpenFileDialog(const char* filter);
+    std::string SaveFileDialog(const char* filter);
+
+    // Copy/Paste/Duplicate
+    void CopySelectedObjects();
+    void PasteObjects();
+    void DuplicateSelectedObjects();
+    bool HasCopiedObjects() const { return !m_CopiedObjects.empty(); }
+
+private:
+    std::vector<GameObject*> m_ObjectsToDelete;
+
+    // Store transform state for undo/redo
+    struct TransformState
+    {
+        glm::vec3 position;
+        glm::quat rotation;
+        glm::vec3 scale;
+    };
+    std::map<GameObject*, TransformState> m_TransformStates;
+
+    // Clipboard for copy/paste
+    struct CopiedObjectData
+    {
+        std::string name;
+        std::string meshPath;
+        int meshIndexInFBX;
+        glm::vec3 position;
+        glm::quat rotation;
+        glm::vec3 scale;
+        std::string texturePath;
+        GameObject* originalParent;
+    };
+    std::vector<CopiedObjectData> m_CopiedObjects;
+
+    // Multi-object transform tracking
+    struct MultiTransformState
+    {
+        std::vector<GameObject*> objects;
+        std::vector<glm::vec3> positions;
+        std::vector<glm::quat> rotations;
+        std::vector<glm::vec3> scales;
+    };
+    MultiTransformState m_MultiTransformState;
+    bool m_TrackingMultiTransform = false;
 };
 
-// Global logging functions
 extern ModuleEditor* g_Editor;
-void LOG(const std::string& message);
-void LOG_WARNING(const std::string& message);
-void LOG_ERROR(const std::string& message);

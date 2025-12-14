@@ -39,6 +39,8 @@ public:
     // Get mesh index by FBX path and mesh index
     static int GetMeshIndexByPath(const std::string& fbxPath, int meshIndexInFBX);
 
+    static bool ExportMeshFromEngine(int engineMeshIndex, const std::string& outputPath);
+
 private:
     static std::map<std::string, MeshResource> s_MeshCache;
 };

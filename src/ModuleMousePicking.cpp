@@ -37,11 +37,10 @@ bool ModuleMousePicking::Update()
 
     if (!input || !opengl || !editor) return true;
 
+    if (editor->sceneEditing) return true;
+
     // Only process picking if left mouse button is clicked
     if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) != KEY_DOWN)
-        return true;
-
-    if (editor->editing)
         return true;
 
     // dont use mousepicking when using guizmo
@@ -194,7 +193,19 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
     auto endQuadtreeTime = std::chrono::high_resolution_clock::now();
     auto quadtreeDuration = std::chrono::duration_cast<std::chrono::microseconds>(endQuadtreeTime - startQuadtreeTime);
 
-    std::vector<std::pair<GameObject*, float>> aabbHits;
+    // save objects AABB for test
+    struct AABBHitInfo
+    {
+        GameObject* object;
+        float distance;
+
+        bool operator<(const AABBHitInfo& other) const
+        {
+            return distance < other.distance;
+        }
+    };
+
+    std::vector<AABBHitInfo> aabbHits;
 
     for (GameObject* go : candidateObjects)
     {
@@ -255,10 +266,17 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
 
         AABB worldAABB(worldMin, worldMax);
 
-        float distance;
-        if (RayIntersectsAABB(ray, worldAABB, distance))
+        float tMin, tMax;
+        if (RayIntersectsAABB(ray, worldAABB, tMin, tMax))
         {
-            aabbHits.push_back({ go, distance });
+            // Use tMin as distance
+            float distance = (tMin > 0.0f) ? tMin : tMax;
+
+            AABBHitInfo hitInfo;
+            hitInfo.object = go;
+            hitInfo.distance = distance;
+
+            aabbHits.push_back(hitInfo);
         }
     }
 
@@ -266,15 +284,16 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
     auto aabbDuration = std::chrono::duration_cast<std::chrono::microseconds>(endAABBTime - endQuadtreeTime);
 
     // Sort by distance (closest first)
-    std::sort(aabbHits.begin(), aabbHits.end(),
-        [](const auto& a, const auto& b) { return a.second < b.second; });
+    std::sort(aabbHits.begin(), aabbHits.end());
 
     int trianglesTestCount = 0;
     bool objFound = false;
 
     // Test triangles only for objects that passed AABB test
-    for (const auto& [go, aabbDistance] : aabbHits)
+    for (const auto& hitInfo : aabbHits)
     {
+        GameObject* go = hitInfo.object;
+
         std::vector<Triangle> triangles = GetMeshTriangles(go);
 
         for (const Triangle& triangle : triangles)
@@ -285,6 +304,7 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
 
             if (RayIntersectsTriangle(ray, triangle, distance, hitPoint))
             {
+                // Only update if distance is smaller tha lastone
                 if (distance < closestHit.distance)
                 {
                     closestHit.hit = true;
@@ -295,11 +315,25 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
             }
         }
 
-        // If we find a hit, we can stop 
-        if (closestHit.hit) 
+        // Stop at first hit
+        if (closestHit.hit)
         {
             objFound = true;
-            break;
+
+            // Verify if next object is further than the first hit
+            size_t currentIndex = &hitInfo - &aabbHits[0];
+            if (currentIndex + 1 < aabbHits.size())
+            {
+                if (aabbHits[currentIndex + 1].distance > closestHit.distance)
+                {
+                    break;
+                }
+            }
+            else
+            {
+                // if last object, stop
+                break;
+            }
         }
     }
     auto endTriangleTime = std::chrono::high_resolution_clock::now();
@@ -308,7 +342,7 @@ RaycastHit ModuleMousePicking::CastRay(const Ray& ray, const std::vector<GameObj
 
     if (objFound) 
     {
-        //us are μs so microseconds, our log system doenst recognize "μ" sadly
+        // us for microseconds
         if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: Quadtree query: " + std::to_string(quadtreeDuration.count()) + " us");
         if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: AABB tests: " + std::to_string(aabbDuration.count()) + " us (" + std::to_string(candidateObjects.size()) + " objects)");
         if (opengl->extraQuadtreeInfo) LOG("Extra Quadtree LOGs: Triangle tests: " + std::to_string(triangleDuration.count()) + " us (" + std::to_string(trianglesTestCount) + " triangles)");
@@ -404,9 +438,8 @@ std::vector<Triangle> ModuleMousePicking::GetMeshTriangles(GameObject* gameObjec
     return triangles;
 }
 
-bool ModuleMousePicking::RayIntersectsAABB(const Ray& ray, const AABB& aabb, float& distance)
+bool ModuleMousePicking::RayIntersectsAABB(const Ray& ray, const AABB& aabb, float& tMin, float& tMax)
 {
-    float tMin, tMax;
     return aabb.IntersectRay(ray, tMin, tMax);
 }
 

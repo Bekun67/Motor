@@ -1,4 +1,4 @@
-#include "ResourceManager.h"
+﻿#include "ResourceManager.h"
 #include "MeshImporter.h"
 #include "TextureImporter.h"
 #include "FileSystemManager.h"
@@ -13,6 +13,7 @@
 namespace fs = std::filesystem;
 
 std::map<std::string, MeshResource> ResourceManager::s_MeshCache;
+
 
 bool ResourceManager::EnsureMeshExists(const std::string& fbxPath, int meshIndexInFBX, int& outEngineIndex)
 {
@@ -43,9 +44,33 @@ bool ResourceManager::EnsureMeshExists(const std::string& fbxPath, int meshIndex
     std::string customMeshPath = MeshImporter::GetCustomMeshPath(fbxPath, meshIndexInFBX);
 
     // Check if custom mesh already exists
+    if (s_MeshCache.count(customMeshPath) > 0)
+    {
+        int cachedIndex = s_MeshCache[customMeshPath].meshIndexInEngine;
+        if (cachedIndex >= 0 && cachedIndex < (int)g_Meshes.size())
+        {
+            LOG("Mesh already in engine at index: " + std::to_string(cachedIndex));
+
+            // ✅ NUEVO: Exportar el mesh desde g_Meshes (con modificaciones) al archivo .ilmesh
+            if (!FileSystemManager::FileExists(customMeshPath))
+            {
+                LOG("Exporting modified mesh from engine to: " + customMeshPath);
+                if (!ExportMeshFromEngine(cachedIndex, customMeshPath))
+                {
+                    LOG_ERROR("Failed to export mesh from engine");
+                    return false;
+                }
+            }
+
+            outEngineIndex = cachedIndex;
+            return true;
+        }
+    }
+
+    // Check if custom mesh file already exists
     if (FileSystemManager::FileExists(customMeshPath))
     {
-        // Load it to engine and get index
+        // Load newly created custom mesh
         outEngineIndex = LoadMeshToEngine(customMeshPath);
         if (outEngineIndex >= 0)
         {
@@ -88,7 +113,6 @@ bool ResourceManager::EnsureMeshExists(const std::string& fbxPath, int meshIndex
         }
     }
 
-    // Load newly created custom mesh
     outEngineIndex = LoadMeshToEngine(customMeshPath);
     if (outEngineIndex >= 0)
     {
@@ -98,6 +122,58 @@ bool ResourceManager::EnsureMeshExists(const std::string& fbxPath, int meshIndex
 
     LOG_ERROR("Failed to load mesh after import: " + customMeshPath);
     return false;
+}
+
+bool ResourceManager::ExportMeshFromEngine(int engineMeshIndex, const std::string& outputPath)
+{
+    if (engineMeshIndex < 0 || engineMeshIndex >= (int)g_Meshes.size())
+    {
+        LOG_ERROR("Invalid mesh index for export: " + std::to_string(engineMeshIndex));
+        return false;
+    }
+
+    const MeshData& meshData = g_Meshes[engineMeshIndex];
+
+    glBindBuffer(GL_ARRAY_BUFFER, meshData.VBO);
+    GLint vboSize;
+    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vboSize);
+
+    std::vector<float> vertices(vboSize / sizeof(float));
+    glGetBufferSubData(GL_ARRAY_BUFFER, 0, vboSize, vertices.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshData.EBO);
+    GLint eboSize;
+    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &eboSize);
+
+    std::vector<unsigned int> indices(eboSize / sizeof(unsigned int));
+    glGetBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, eboSize, indices.data());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    CustomMesh customMesh;
+    customMesh.vertices = vertices;
+    customMesh.indices = indices;
+    customMesh.numIndices = meshData.numIndices;
+
+    customMesh.aabbMinX = meshData.aabbMin.x;
+    customMesh.aabbMinY = meshData.aabbMin.y;
+    customMesh.aabbMinZ = meshData.aabbMin.z;
+    customMesh.aabbMaxX = meshData.aabbMax.x;
+    customMesh.aabbMaxY = meshData.aabbMax.y;
+    customMesh.aabbMaxZ = meshData.aabbMax.z;
+
+    customMesh.centerX = meshData.center.x;
+    customMesh.centerY = meshData.center.y;
+    customMesh.centerZ = meshData.center.z;
+
+    if (!MeshImporter::SaveMesh(customMesh, outputPath))
+    {
+        LOG_ERROR("Failed to save exported mesh to: " + outputPath);
+        return false;
+    }
+
+    LOG("Successfully exported mesh to: " + outputPath);
+    return true;
 }
 
 bool ResourceManager::EnsureTextureExists(const std::string& texturePath)
@@ -245,27 +321,45 @@ std::string ResourceManager::FindTextureInAssets(const std::string& textureName)
 
 bool ResourceManager::ImportAndSaveMesh(const std::string& fbxPath, int meshIndex)
 {
-    LOG("Importing mesh from FBX: " + fbxPath + " (index: " + std::to_string(meshIndex) + ")");
+    static std::map<std::string, bool> s_ImportedFBXs;
 
-    // Import all meshes from FBX
-    std::vector<CustomMesh> meshes = MeshImporter::ImportFBX(fbxPath);
-
-    if (meshes.empty() || meshIndex >= (int)meshes.size())
+    if (s_ImportedFBXs.count(fbxPath) == 0)
     {
-        LOG_ERROR("Mesh index out of range or no meshes found in FBX");
-        return false;
+        LOG("Importing ALL meshes from FBX: " + fbxPath);
+
+        std::vector<CustomMesh> meshes = MeshImporter::ImportFBX(fbxPath);
+
+        if (meshes.empty())
+        {
+            LOG_ERROR("No meshes found in FBX");
+            return false;
+        }
+
+        for (size_t i = 0; i < meshes.size(); ++i)
+        {
+            std::string customMeshPath = MeshImporter::GetCustomMeshPath(fbxPath, i);
+
+            if (!MeshImporter::SaveMesh(meshes[i], customMeshPath))
+            {
+                LOG_ERROR("Failed to save mesh " + std::to_string(i) + " to: " + customMeshPath);
+                return false;
+            }
+        }
+
+        s_ImportedFBXs[fbxPath] = true;
+
+        LOG("Successfully imported and saved " + std::to_string(meshes.size()) + " meshes from: " + fbxPath);
+    }
+    else
+    {
+        std::string customMeshPath = MeshImporter::GetCustomMeshPath(fbxPath, meshIndex);
+        if (!FileSystemManager::FileExists(customMeshPath))
+        {
+            LOG_ERROR("Mesh file doesn't exist after import: " + customMeshPath);
+            return false;
+        }
     }
 
-    // Save the specific mesh
-    std::string customMeshPath = MeshImporter::GetCustomMeshPath(fbxPath, meshIndex);
-
-    if (!MeshImporter::SaveMesh(meshes[meshIndex], customMeshPath))
-    {
-        LOG_ERROR("Failed to save mesh to: " + customMeshPath);
-        return false;
-    }
-
-    LOG("Mesh saved successfully to: " + customMeshPath);
     return true;
 }
 
@@ -295,6 +389,16 @@ bool ResourceManager::ImportAndSaveTexture(const std::string& texturePath)
 
 int ResourceManager::LoadMeshToEngine(const std::string& customMeshPath)
 {
+    if (s_MeshCache.count(customMeshPath) > 0)
+    {
+        int cachedIndex = s_MeshCache[customMeshPath].meshIndexInEngine;
+        if (cachedIndex >= 0 && cachedIndex < (int)g_Meshes.size())
+        {
+            LOG("Mesh already loaded at index: " + std::to_string(cachedIndex));
+            return cachedIndex;
+        }
+    }
+
     CustomMesh mesh;
     if (!MeshImporter::LoadMesh(mesh, customMeshPath))
     {
@@ -302,11 +406,13 @@ int ResourceManager::LoadMeshToEngine(const std::string& customMeshPath)
         return -1;
     }
 
-    // Create MeshData and upload to GPU
     MeshData md;
 
     md.aabbMin = glm::vec3(mesh.aabbMinX, mesh.aabbMinY, mesh.aabbMinZ);
     md.aabbMax = glm::vec3(mesh.aabbMaxX, mesh.aabbMaxY, mesh.aabbMaxZ);
+
+    //center
+    md.center = glm::vec3(mesh.centerX, mesh.centerY, mesh.centerZ);
 
     // Create VAO and VBO
     glGenVertexArrays(1, &md.VAO);
@@ -346,6 +452,11 @@ int ResourceManager::LoadMeshToEngine(const std::string& customMeshPath)
     // Add to global mesh list
     int meshIndex = (int)g_Meshes.size();
     g_Meshes.push_back(md);
+
+    MeshResource resource;
+    resource.meshIndexInEngine = meshIndex;
+    resource.customPath = customMeshPath;
+    s_MeshCache[customMeshPath] = resource;
 
     LOG("Mesh loaded to engine at index: " + std::to_string(meshIndex));
     return meshIndex;
