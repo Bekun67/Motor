@@ -32,8 +32,8 @@ If any texture is missing or cannot be found, the engine will apply a **checkerb
 
 ## ✨ Features
 
-### 🧭 Gizmo
-Transform objects directly in the scene using an intuitive **gizmo** that appears when an object is selected.
+### 🧭 Guizmo
+Transform objects directly in the scene using an intuitive **guizmo** that appears when an object is selected.
 
 ---
 
