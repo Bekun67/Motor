@@ -434,10 +434,6 @@ void InspectorWindow::DrawSingleObjectInspector()
             LOG("Applied checkerboard texture to " + selectedGameObject->name);
             selectedGameObject->texture->texturePath = "";
         }
-
-        //Drag and Drop Area for textures (also aviable directly to object)
-        ImGui::Separator();
-        ImGui::Text("Drag new texture in \ninspector tab or \n in object to change it!");
     }
 
     if (editor->editing && ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemActive() && !ImGui::IsAnyItemHovered())

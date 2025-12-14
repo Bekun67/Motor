@@ -557,10 +557,6 @@ bool Input::PreUpdate()
                             }
                         }
 
-                        float modelSize = glm::length(globalMax - globalMin);
-                        float targetSize = 2.0f;
-                        float normalizeScale = (modelSize > 0.0001f) ? (targetSize / modelSize) : 1.0f;
-
                         // Calculate global minimum Y from ALL geometry
                         float globalMinY = FLT_MAX;
 
@@ -642,9 +638,9 @@ bool Input::PreUpdate()
                             glm::vec3 meshWorldCenter = glm::vec3(meshWorldCenter4);
 
                             glm::vec3 finalPos;
-                            finalPos.x = dropPosition.x + (meshWorldCenter.x - g_ModelCenter.x) * normalizeScale;
-                            finalPos.z = dropPosition.z + (meshWorldCenter.z - g_ModelCenter.z) * normalizeScale;
-                            finalPos.y = (meshWorldCenter.y - globalMinY) * normalizeScale;
+                            finalPos.x = dropPosition.x + (meshWorldCenter.x - g_ModelCenter.x);
+                            finalPos.z = dropPosition.z + (meshWorldCenter.z - g_ModelCenter.z);
+                            finalPos.y = meshWorldCenter.y - globalMinY;
 
                             // Set translation to match obtained coordinates
                             go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);
@@ -659,9 +655,9 @@ bool Input::PreUpdate()
 
                             // Set scale to match obtained normalized scale
                             go->transform->scaling = aiVector3D(
-                                instanceScale.x * normalizeScale,
-                                instanceScale.y * normalizeScale,
-                                instanceScale.z * normalizeScale
+                                instanceScale.x,
+                                instanceScale.y,
+                                instanceScale.z
                             );
 
                             // Try to load texture
