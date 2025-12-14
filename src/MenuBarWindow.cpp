@@ -150,6 +150,11 @@ void MenuBarWindow::DrawFileMenu()
                     const aiScene* countScene = counter.ReadFile(filepath.c_str(), aiProcess_Triangulate);
                     int numMeshesInFBX = countScene ? countScene->mNumMeshes : 1;
 
+                    std::vector<GameObject*> createdObjects;
+
+                    ModuleEditor* me = Application::GetInstance().editor.get();
+                    int baseIndex = me->CountNames("ImportedMesh_");
+
                     // Create GameObjects
                     for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                     {
@@ -191,8 +196,7 @@ void MenuBarWindow::DrawFileMenu()
 
                         // Create GameObject
                         GameObject* go = new GameObject();
-                        int index = editor->CountNames("ImportedMesh_");
-                        go->name = "ImportedMesh_" + std::to_string(index);
+                        go->name = "ImportedMesh_" + std::to_string(baseIndex + (i - instanceCountBefore));
                         go->meshPath = filepath;
                         go->meshIndexInFBX = (i - instanceCountBefore) % numMeshesInFBX;
                         go->mesh->meshIndex = meshIdx;
@@ -228,12 +232,40 @@ void MenuBarWindow::DrawFileMenu()
                         // Load texture or use checkerboard
                         editor->AssignCheckerboardTexture(go);
 
-                        opengl->gameObjects.push_back(go);
-                        LOG("Created GameObject: " + go->name);
+                        createdObjects.push_back(go);
+                    }
+
+                    if (!createdObjects.empty())
+                    {
+                        GameObject* parentEmpty = new GameObject();
+                        std::string fileName = std::filesystem::path(filepath).stem().string();
+                        int parentIndex = editor->CountNames(fileName + "_");
+                        parentEmpty->name = fileName + "_" + std::to_string(parentIndex);
+                        parentEmpty->meshPath = "";
+                        parentEmpty->meshIndexInFBX = -1;
+                        parentEmpty->mesh->meshIndex = -1;
+
+                        parentEmpty->transform->translation = aiVector3D(0.0f, 0.0f, 0.0f);
+                        parentEmpty->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                        parentEmpty->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                        opengl->gameObjects.push_back(parentEmpty);
+
+                        for (GameObject* child : createdObjects)
+                        {
+                            child->parent = parentEmpty;
+                            parentEmpty->children.push_back(child);
+                            opengl->gameObjects.push_back(child);
+                        }
+
+                        //logs
+                        LOG("=== FBX Import (Menu) ===");
+                        LOG("File: " + fileName);
+                        LOG("Created parent: " + parentEmpty->name + " at position (0.0, 0.0, 0.0)");
+                        LOG("Total meshes imported: " + std::to_string(createdObjects.size()));
                     }
 
                     editor->sceneModified = true;
-                    LOG("Imported " + std::to_string(g_MeshInstances.size() - instanceCountBefore) + " meshes from: " + filepath);
                 }
                 else
                 {

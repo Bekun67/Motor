@@ -3,6 +3,16 @@
 #include "Application.h"
 #include "Window.h"
 #include "EditorPlaySystem.h"
+#include "Input.h"
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include "imgui_impl_sdl3.h"
+#include <imgui.h>     
+#include <ImGuizmo.h>  
+#include <functional>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 SceneViewportWindow::SceneViewportWindow(ModuleEditor* editor)
     : EditorWindow(editor, "Scene")
@@ -91,6 +101,8 @@ void SceneViewportWindow::HandleMeshDrop(const std::string& meshPath, float mous
     float t = -camPos.y / rayWorld.y;
     glm::vec3 dropPosition = camPos + rayWorld * t;
 
+    float normalizeScale = 1.0f;
+
     size_t meshCountBefore = g_Meshes.size();
     size_t instanceCountBefore = g_MeshInstances.size();
 
@@ -98,84 +110,158 @@ void SceneViewportWindow::HandleMeshDrop(const std::string& meshPath, float mous
     {
         LOG("Model loaded successfully from Assets");
 
-        size_t newMeshCount = g_Meshes.size() - meshCountBefore;
-        size_t newInstanceCount = g_MeshInstances.size() - instanceCountBefore;
-
-        glm::vec3 globalMin(FLT_MAX);
-        glm::vec3 globalMax(-FLT_MAX);
+        //calculate global minimum Y from ALL geometry
+        float globalMinY = FLT_MAX;
 
         for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
         {
             const MeshWithTransform& inst = g_MeshInstances[i];
             int meshIdx = inst.meshIndex;
 
-            if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size())
-            {
+            if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size()) {
                 const MeshData& meshData = g_Meshes[meshIdx];
 
                 glm::vec4 worldMin = inst.transform * glm::vec4(meshData.aabbMin, 1.0f);
-                glm::vec4 worldMax = inst.transform * glm::vec4(meshData.aabbMax, 1.0f);
-
-                globalMin = glm::min(globalMin, glm::vec3(worldMin));
-                globalMin = glm::min(globalMin, glm::vec3(worldMax));
-                globalMax = glm::max(globalMax, glm::vec3(worldMin));
-                globalMax = glm::max(globalMax, glm::vec3(worldMax));
+                globalMinY = std::min(globalMinY, worldMin.y);
             }
         }
 
-        glm::vec3 modelCenter = (globalMin + globalMax) * 0.5f;
-        float modelSize = glm::length(globalMax - globalMin);
+        //count unique meshes
+        Assimp::Importer counter;
+        const aiScene* countScene = counter.ReadFile(meshPath.c_str(), aiProcess_Triangulate);
+        int numMeshesInFBX = countScene ? countScene->mNumMeshes : 2;
 
-        float targetSize = 2.0f;
-        float normalizeScale = (modelSize > 0.0001f) ? (targetSize / modelSize) : 1.0f;
-
-        LOG("Model size: " + std::to_string(modelSize) + ", Scale factor: " + std::to_string(normalizeScale));
-
-        GameObject* parentGO = new GameObject();
-        int parentIndex = editor->CountNames("Model_");
-        parentGO->name = "Model_" + std::to_string(parentIndex);
-        parentGO->meshPath = meshPath;
-
-        parentGO->transform->translation = aiVector3D(dropPosition.x, dropPosition.y, dropPosition.z);
-        parentGO->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
-        parentGO->transform->scaling = aiVector3D(normalizeScale, normalizeScale, normalizeScale);
-
-        parentGO->mesh->meshIndex = -1;
-
-        opengl->gameObjects.push_back(parentGO);
-        LOG("Created parent GameObject: " + parentGO->name);
+        //game object for each model
+        std::vector<GameObject*> createdObjects;
 
         for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
         {
+            //create gameobject with mesh
             const MeshWithTransform& inst = g_MeshInstances[i];
             int meshIdx = inst.meshIndex;
 
-            if (meshIdx < 0 || meshIdx >= (int)g_Meshes.size())
+            if (meshIdx < 0 || meshIdx >= (int)g_Meshes.size()) {
                 continue;
+            }
 
-            GameObject* childGO = new GameObject(parentGO);
-            int childIndex = (int)(i - instanceCountBefore);
-            childGO->name = "Mesh_" + std::to_string(childIndex);
-            childGO->meshPath = meshPath;
-            childGO->meshIndexInFBX = childIndex;
+            MeshData& meshData = g_Meshes[meshIdx];
 
-            glm::vec3 localPos, localScale;
-            glm::quat localRot;
-            DecomposeTransform(inst.transform, localPos, localRot, localScale);
+            glm::vec3 meshLocalCenter = (meshData.aabbMin + meshData.aabbMax) * 0.5f;
 
-            localPos -= modelCenter;
+            glBindBuffer(GL_ARRAY_BUFFER, meshData.VBO);
+            GLint bufferSize;
+            glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
 
-            childGO->transform->translation = aiVector3D(localPos.x, localPos.y, localPos.z);
-            childGO->transform->rotation = aiQuaternion(localRot.w, localRot.x, localRot.y, localRot.z);
-            childGO->transform->scaling = aiVector3D(localScale.x, localScale.y, localScale.z);
+            int vertexSize = 8; // 3 pos + 3 normal + 2 uv
+            int numVertices = bufferSize / (vertexSize * sizeof(float));
 
-            childGO->mesh->meshIndex = meshIdx;
-            editor->AssignCheckerboardTexture(childGO);
+            std::vector<float> vertexData(bufferSize / sizeof(float));
+            glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
 
-            opengl->gameObjects.push_back(childGO);
+            for (int v = 0; v < numVertices; ++v) {
+                int offset = v * vertexSize;
+                vertexData[offset + 0] -= meshLocalCenter.x;
+                vertexData[offset + 1] -= meshLocalCenter.y;
+                vertexData[offset + 2] -= meshLocalCenter.z;
+            }
+
+            glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertexData.data());
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+            meshData.aabbMin -= meshLocalCenter;
+            meshData.aabbMax -= meshLocalCenter;
+            meshData.center = glm::vec3(0, 0, 0);
+
+            //create game object
+            GameObject* go = new GameObject();
+            int index = editor->CountNames("DroppedMesh_");
+            go->name = "DroppedMesh_" + std::to_string(index);
+            go->meshPath = meshPath;
+
+            go->meshIndexInFBX = (i - instanceCountBefore) % numMeshesInFBX;
+
+            go->mesh->meshIndex = meshIdx;
+
+            glm::vec3 instancePosition, instanceScale;
+            glm::quat instanceRotation;
+            DecomposeTransform(inst.transform, instancePosition, instanceRotation, instanceScale);
+
+            glm::vec4 meshWorldCenter4 = inst.transform * glm::vec4(meshLocalCenter, 1.0f);
+            glm::vec3 meshWorldCenter = glm::vec3(meshWorldCenter4);
+
+            glm::vec3 finalPos;
+            finalPos.x = dropPosition.x + (meshWorldCenter.x - g_ModelCenter.x) * normalizeScale;
+            finalPos.z = dropPosition.z + (meshWorldCenter.z - g_ModelCenter.z) * normalizeScale;
+            finalPos.y = (meshWorldCenter.y - globalMinY) * normalizeScale;
+
+            //change the translation to match the obtained coordinates
+            go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);
+
+            //change the rotation to match the obtained rotation
+            go->transform->rotation = aiQuaternion(
+                instanceRotation.w,
+                instanceRotation.x,
+                instanceRotation.y,
+                instanceRotation.z
+            );
+
+            //change the scale to match the obtained normalized scale
+            go->transform->scaling = aiVector3D(
+                instanceScale.x * normalizeScale,
+                instanceScale.y * normalizeScale,
+                instanceScale.z * normalizeScale
+            );
+
+            editor->AssignCheckerboardTexture(go);
+
+            opengl->gameObjects.push_back(go);
+            createdObjects.push_back(go);
         }
 
-        LOG("Created model with " + std::to_string(newInstanceCount) + " parts");
+        if (!createdObjects.empty())
+        {
+            glm::vec3 groupCenter(0.0f);
+            for (GameObject* obj : createdObjects)
+            {
+                groupCenter.x += obj->transform->translation.x;
+                groupCenter.y += obj->transform->translation.y;
+                groupCenter.z += obj->transform->translation.z;
+            }
+            groupCenter /= (float)createdObjects.size();
+
+            GameObject* parentEmpty = new GameObject();
+            std::string fileName = std::filesystem::path(meshPath).stem().string();
+            int parentIndex = editor->CountNames(fileName + "_");
+            parentEmpty->name = fileName + "_" + std::to_string(parentIndex);
+            parentEmpty->meshPath = "";
+            parentEmpty->meshIndexInFBX = -1;
+            parentEmpty->mesh->meshIndex = -1;
+
+            parentEmpty->transform->translation = aiVector3D(groupCenter.x, groupCenter.y, groupCenter.z);
+            parentEmpty->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+            parentEmpty->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+            opengl->gameObjects.push_back(parentEmpty);
+
+            int meshIndex = 0;
+            for (GameObject* child : createdObjects)
+            {
+                child->name = parentEmpty->name + "_Mesh_" + std::to_string(meshIndex);
+                meshIndex++;
+
+                child->parent = parentEmpty;
+                parentEmpty->children.push_back(child);
+            }
+
+            //logs
+            LOG("=== FBX Import (Assets Window) ===");
+            LOG("File: " + fileName);
+            LOG("Created parent: " + parentEmpty->name + " at position (" +
+                std::to_string(groupCenter.x) + ", " +
+                std::to_string(groupCenter.y) + ", " +
+                std::to_string(groupCenter.z) + ")");
+            LOG("Total meshes imported: " + std::to_string(createdObjects.size()));
+        }
 
         editor->sceneModified = true;
     }

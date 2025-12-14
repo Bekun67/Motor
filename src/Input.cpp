@@ -9,6 +9,8 @@
 #include <ImGuizmo.h>  
 #include "EditorPlaySystem.h"
 #include <functional>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #define MAX_KEYS 300
 
@@ -175,15 +177,15 @@ bool Input::PreUpdate()
                     }
                 }
 
-                std::function<void(GameObject*)> addWithChildren = [&](GameObject* go) 
-                {
-                    if (go == nullptr) return;
-                    flatHierarchy.push_back(go);
-                    for (GameObject* child : go->children)
+                std::function<void(GameObject*)> addWithChildren = [&](GameObject* go)
                     {
-                        addWithChildren(child);
-                    }
-                };
+                        if (go == nullptr) return;
+                        flatHierarchy.push_back(go);
+                        for (GameObject* child : go->children)
+                        {
+                            addWithChildren(child);
+                        }
+                    };
 
                 for (GameObject* root : roots)
                 {
@@ -218,7 +220,7 @@ bool Input::PreUpdate()
                     }
                 }
             }
-            else 
+            else
             {
                 //no game objects
                 LOG("No Game Objects in scene to select");
@@ -410,8 +412,48 @@ bool Input::PreUpdate()
                         float t = -camPos.y / rayWorld.y;
                         glm::vec3 dropPosition = camPos + rayWorld * t;
 
-                        float normalizeScale = 1.0f;
+                        // Calculate model size for normalization
+                        glm::vec3 globalMin(FLT_MAX);
+                        glm::vec3 globalMax(-FLT_MAX);
 
+                        for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
+                        {
+                            const MeshWithTransform& inst = g_MeshInstances[i];
+                            int meshIdx = inst.meshIndex;
+
+                            if (meshIdx >= 0 && meshIdx < (int)g_Meshes.size())
+                            {
+                                const MeshData& meshData = g_Meshes[meshIdx];
+
+                                glm::vec3 corners[8] = {
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMin.z),
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMax.z),
+                                    glm::vec3(meshData.aabbMax.x, meshData.aabbMax.y, meshData.aabbMax.z),
+                                    glm::vec3(meshData.aabbMin.x, meshData.aabbMax.y, meshData.aabbMax.z)
+                                };
+
+                                for (int c = 0; c < 8; ++c)
+                                {
+                                    glm::vec4 worldCorner = inst.transform * glm::vec4(corners[c], 1.0f);
+                                    glm::vec3 corner3 = glm::vec3(worldCorner);
+
+                                    globalMin = glm::vec3(std::min(globalMin.x, corner3.x),
+                                        std::min(globalMin.y, corner3.y),
+                                        std::min(globalMin.z, corner3.z));
+                                    globalMax = glm::vec3(std::max(globalMax.x, corner3.x),
+                                        std::max(globalMax.y, corner3.y),
+                                        std::max(globalMax.z, corner3.z));
+                                }
+                            }
+                        }
+
+                        float modelSize = glm::length(globalMax - globalMin);
+                        float targetSize = 2.0f;
+                        float normalizeScale = (modelSize > 0.0001f) ? (targetSize / modelSize) : 1.0f;
                         //calculate global minimum Y from ALL geometry
                         float globalMinY = FLT_MAX;
 
@@ -434,6 +476,9 @@ bool Input::PreUpdate()
                         int numMeshesInFBX = countScene ? countScene->mNumMeshes : 2;
 
                         //game object for each model
+                        std::vector<GameObject*> createdObjects;
+                        int baseIndex = moduleEditor->CountNames("DroppedMesh_");
+
                         for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                         {
                             //create gameobject with mesh
@@ -461,7 +506,7 @@ bool Input::PreUpdate()
                             for (int v = 0; v < numVertices; ++v) {
                                 int offset = v * vertexSize;
                                 vertexData[offset + 0] -= meshLocalCenter.x;
-                                vertexData[offset + 1] -= meshLocalCenter.y;  
+                                vertexData[offset + 1] -= meshLocalCenter.y;
                                 vertexData[offset + 2] -= meshLocalCenter.z;
                             }
 
@@ -560,6 +605,7 @@ bool Input::PreUpdate()
                             }
 
                             Application::GetInstance().opengl->gameObjects.push_back(go);
+                            createdObjects.push_back(go);
 
                             std::cout << "Created GameObject " << go->name
                                 << " at position (" << go->transform->translation.x
@@ -568,10 +614,51 @@ bool Input::PreUpdate()
                                 << std::endl;
                         }
 
+                        if (!createdObjects.empty())
+                        {
+                            glm::vec3 groupCenter(0.0f);
+                            for (GameObject* obj : createdObjects)
+                            {
+                                groupCenter.x += obj->transform->translation.x;
+                                groupCenter.y += obj->transform->translation.y;
+                                groupCenter.z += obj->transform->translation.z;
+                            }
+                            groupCenter /= (float)createdObjects.size();
+
+                            GameObject* parentEmpty = new GameObject();
+                            std::string fileName = fs::path(path).stem().string();
+                            int parentIndex = moduleEditor->CountNames(fileName + "_");
+                            parentEmpty->name = fileName + "_" + std::to_string(parentIndex);
+                            parentEmpty->meshPath = "";
+                            parentEmpty->meshIndexInFBX = -1;
+                            parentEmpty->mesh->meshIndex = -1;
+
+                            parentEmpty->transform->translation = aiVector3D(groupCenter.x, groupCenter.y, groupCenter.z);
+                            parentEmpty->transform->rotation = aiQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+                            parentEmpty->transform->scaling = aiVector3D(1.0f, 1.0f, 1.0f);
+
+                            Application::GetInstance().opengl->gameObjects.push_back(parentEmpty);
+
+                            for (GameObject* child : createdObjects)
+                            {
+                                child->parent = parentEmpty;
+                                parentEmpty->children.push_back(child);
+                            }
+
+                            //logs
+                            LOG("=== FBX Import (Drag & Drop) ===");
+                            LOG("File: " + fileName);
+                            LOG("Created parent: " + parentEmpty->name + " at position (" +
+                                std::to_string(groupCenter.x) + ", " +
+                                std::to_string(groupCenter.y) + ", " +
+                                std::to_string(groupCenter.z) + ")");
+                            LOG("Total meshes imported: " + std::to_string(createdObjects.size()));
+                        }
+
                         ModuleEditor* editor = Application::GetInstance().editor.get();
                         if (editor) editor->sceneModified = true;
 
-                        std::cout << "Total GameObjects created: " << (g_MeshInstances.size() - instanceCountBefore) << std::endl;
+                        std::cout << "Total GameObjects created: " << createdObjects.size() << std::endl;
                         std::cout << "Total GameObjects in scene: " << Application::GetInstance().opengl->gameObjects.size() << std::endl;
                     }
                 }
