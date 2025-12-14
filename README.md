@@ -41,8 +41,6 @@ Transform objects directly in the scene using an intuitive **gizmo** that appear
 Objects can be selected simply by clicking on them.  
 Mouse picking also allows **drag & drop** of objects and textures directly to the cursor position.
 
-![Mouse Picking](images/mouse_picking.png)
-
 ---
 
 ### 💾 Scene Serialization
@@ -116,10 +114,17 @@ This enables **frustum culling**, preventing objects outside the camera view fro
 
 ![AABB Visualization](images/aabb.png)
 
+- Raycast visualization to objects:  
+![Raycast visualization](images/raycast.png)  
+
+- Debug Z buffer depth:
+![Buffer depth](images/buffer.png)
+
 ---
 
 ### 🌳 Octree (Spatial Partitioning)
 The **Octree** is a spatial data structure used to optimize scene performance.
+It speeds up mouse picking (in microseconds), wich can be seen in the extra logs.
 
 **How it works:**
 - Divides the 3D space into **eight recursive regions**
