@@ -47,6 +47,12 @@ public:
     bool ImportDroppedFile(const std::string& filePath);
     int GetReferenceCount(const std::string& libraryPath);
 
+    void RefreshCurrentFolder();
+    void NavigateToFolder(const std::string& folderPath);
+    void NavigateUp();
+
+    std::string currentPath;
+
 private:
     void DrawToolbar();
     void DrawNavigationBar();
@@ -54,10 +60,6 @@ private:
     void DrawAssetGrid();
     void DrawAssetList();
     void DrawAssetContextMenu(const AssetInfo& asset);
-
-    void RefreshCurrentFolder();
-    void NavigateToFolder(const std::string& folderPath);
-    void NavigateUp();
 
     void ScanFolderRecursive(const std::string& path, std::vector<std::string>& outFolders);
 
@@ -72,6 +74,7 @@ private:
     const char* GetAssetTypeIcon(AssetType type);
 
     void HandleAssetDragToScene(const AssetInfo& asset);
+    void HandleFileDrop();
     void HandleAssetDoubleClick(const AssetInfo& asset);
     bool IsModelFile(const std::string& extension);
     bool IsTextureFile(const std::string& extension);
@@ -79,7 +82,6 @@ private:
 
 private:
     std::string assetsRoot;
-    std::string currentPath;
     std::vector<AssetInfo> currentAssets;
     std::vector<std::string> allFolders;
 

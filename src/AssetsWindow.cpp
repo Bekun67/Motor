@@ -104,6 +104,8 @@ void AssetsWindow::Draw()
 
     ImGui::EndChild();
 
+	HandleFileDrop();
+
     ImGui::Separator();
     int inMemoryCount = std::count_if(currentAssets.begin(), currentAssets.end(),
         [](const AssetInfo& a) { return a.isInMemory; });
@@ -1002,4 +1004,36 @@ bool AssetsWindow::IsSceneFile(const std::string& extension)
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
     return (ext == ".ilscene");
+}
+
+void AssetsWindow::HandleFileDrop()
+{
+    // Create an invisible window that covers the entire Assets area to capture drops
+    ImVec2 windowPos = ImGui::GetWindowPos();
+    ImVec2 windowSize = ImGui::GetWindowSize();
+
+    // Check if there is an active drag
+    if (ImGui::BeginDragDropTarget())
+    {
+        // Try to accept files from the system
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SDL_DROP_FILE"))
+        {
+            // This payload will come from the system when a file is dropped
+            const char* droppedPath = (const char*)payload->Data;
+            if (droppedPath && strlen(droppedPath) > 0)
+            {
+                std::string filePath = droppedPath;
+                LOG("File dropped on Assets window: " + filePath);
+
+                // Copy the file to the current folder
+                if (ImportDroppedFile(filePath))
+                {
+                    LOG("File successfully imported to Assets folder");
+                    RefreshCurrentFolder();
+                }
+            }
+        }
+
+        ImGui::EndDragDropTarget();
+    }
 }

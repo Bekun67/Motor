@@ -1,6 +1,7 @@
 ﻿#include "Input.h"
 #include "Window.h"
 #include "Application.h"
+#include "AssetsWindow.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -316,38 +317,143 @@ bool Input::PreUpdate()
             float mouseX, mouseY;
             SDL_GetMouseState(&mouseX, &mouseY);
 
-            //sceneViewportPos is located in upper left corner
-            int minX = moduleEditor->sceneViewportPos.x;
-            int maxX = moduleEditor->sceneViewportPos.x + moduleEditor->sceneViewportSize.x;
-
-            int minY = moduleEditor->sceneViewportPos.y;
-            int maxY = moduleEditor->sceneViewportPos.y + moduleEditor->sceneViewportSize.y;
-
+            // Check if mouse is inside different windows
+            bool mouseInsideAssets = false;
             bool mouseInsideScene = false;
             bool mouseInsideTextureInspector = false;
 
-            if (mouseX > minX && mouseX < maxX &&
-                mouseY > minY && mouseY < maxY)
+            // Check Assets window
+            if (moduleEditor->showAssets)
             {
-                mouseInsideScene = true;
-            }
+                Window* window = Application::GetInstance().window.get();
+                int windowWidth, windowHeight;
+                window->GetWindowSize(windowWidth, windowHeight);
 
-            if (moduleEditor->showInspector)
-            {
-                if (moduleEditor->selectedGameObjects.empty())
-                    LOG_WARNING("No GameObject selected!");
-                //texture drag area;
-                else if (mouseX >= moduleEditor->textureDropPos.x && mouseX <= moduleEditor->textureDropPos.x + moduleEditor->textureDropSize.x &&
-                    mouseY >= moduleEditor->textureDropPos.y && mouseY <= moduleEditor->textureDropPos.y + moduleEditor->textureDropSize.y)
+                float assetsMinX = windowWidth * moduleEditor->layout.consoleXPercent;
+                float assetsMaxX = assetsMinX + (windowWidth * moduleEditor->layout.consoleWidthPercent);
+                float assetsMinY = windowHeight * moduleEditor->layout.consoleYPercent;
+                float assetsMaxY = assetsMinY + (windowHeight * moduleEditor->layout.consoleHeightPercent);
+
+                if (mouseX >= assetsMinX && mouseX <= assetsMaxX &&
+                    mouseY >= assetsMinY && mouseY <= assetsMaxY)
                 {
-                    mouseInsideTextureInspector = true;
+                    mouseInsideAssets = true;
                 }
             }
 
-            if (droppedFile) {
+            // Check Scene viewport
+            if (!mouseInsideAssets)
+            {
+                int minX = moduleEditor->sceneViewportPos.x;
+                int maxX = moduleEditor->sceneViewportPos.x + moduleEditor->sceneViewportSize.x;
+                int minY = moduleEditor->sceneViewportPos.y;
+                int maxY = moduleEditor->sceneViewportPos.y + moduleEditor->sceneViewportSize.y;
+
+                if (mouseX > minX && mouseX < maxX &&
+                    mouseY > minY && mouseY < maxY)
+                {
+                    mouseInsideScene = true;
+                }
+            }
+
+            // Check Inspector texture drop area
+            if (!mouseInsideAssets && !mouseInsideScene && moduleEditor->showInspector)
+            {
+                if (!moduleEditor->selectedGameObjects.empty())
+                {
+                    if (mouseX >= moduleEditor->textureDropPos.x &&
+                        mouseX <= moduleEditor->textureDropPos.x + moduleEditor->textureDropSize.x &&
+                        mouseY >= moduleEditor->textureDropPos.y &&
+                        mouseY <= moduleEditor->textureDropPos.y + moduleEditor->textureDropSize.y)
+                    {
+                        mouseInsideTextureInspector = true;
+                    }
+                }
+            }
+
+            // Assets Window: Import file to current Assets folder
+            if (mouseInsideAssets && droppedFile)
+            {
                 std::string path(droppedFile);
 
-                //normalize route just in case
+                // Normalize path separators
+                for (size_t i = 0; i < path.size(); ++i) {
+                    if (path[i] == '\\') path[i] = '/';
+                }
+
+                LOG("File dropped on Assets window: " + path);
+
+                // Get file extension
+                std::string extension = "";
+                size_t dotPos = path.find_last_of('.');
+                if (dotPos != std::string::npos && dotPos < path.length() - 1) {
+                    extension = path.substr(dotPos);
+                    for (size_t i = 0; i < extension.size(); ++i) {
+                        extension[i] = (char)tolower(extension[i]);
+                    }
+                }
+
+                // Determine target directory based on file type
+                std::string targetDir = static_cast<AssetsWindow*>(moduleEditor->assetsWindow.get())->currentPath;
+
+                // If we're in the root Assets folder, use appropriate subfolder
+                if (targetDir == "Assets")
+                {
+                    if (extension == ".fbx" || extension == ".obj" ||
+                        extension == ".dae" || extension == ".gltf" || extension == ".glb")
+                    {
+                        targetDir = "Assets/Models";
+                    }
+                    else if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
+                        extension == ".bmp" || extension == ".tga" || extension == ".dds" || extension == ".hdr")
+                    {
+                        targetDir = "Assets/Textures";
+                    }
+                    else if (extension == ".ilscene")
+                    {
+                        targetDir = "Assets/Scenes";
+                    }
+                }
+
+                // Create directory if it doesn't exist
+                if (!fs::exists(targetDir))
+                {
+                    fs::create_directories(targetDir);
+                }
+
+                std::string fileName = fs::path(path).filename().string();
+                std::string targetPath = targetDir + "/" + fileName;
+
+                try
+                {
+                    // Copy file to target directory
+                    fs::copy_file(path, targetPath, fs::copy_options::overwrite_existing);
+                    LOG("File copied to: " + targetPath);
+
+                    // Refresh Assets window view
+                    if (moduleEditor->assetsWindow)
+                    {
+                        AssetsWindow* assetsWindow = static_cast<AssetsWindow*>(moduleEditor->assetsWindow.get());
+
+                        // Navigate to the folder where file was copied
+                        assetsWindow->NavigateToFolder(targetDir);
+                        assetsWindow->RefreshCurrentFolder();
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    LOG_ERROR("Failed to copy file: " + std::string(e.what()));
+                }
+
+                break; // Stop processing this event
+            }
+
+            // Scene Viewport: Load mesh into scene at mouse position
+            if (mouseInsideScene && droppedFile)
+            {
+                std::string path(droppedFile);
+
+                // Normalize path
                 for (size_t i = 0; i < path.size(); ++i) {
                     if (path[i] == '\\') path[i] = '/';
                 }
@@ -355,12 +461,12 @@ bool Input::PreUpdate()
                 std::cout << "========================" << std::endl;
                 std::cout << "Dropped file: " << path << std::endl;
 
-                //get extension
+                // Get file extension
                 std::string extension = "";
                 size_t dotPos = path.find_last_of('.');
                 if (dotPos != std::string::npos && dotPos < path.length() - 1) {
                     extension = path.substr(dotPos);
-                    //convert it to lower case
+                    // Convert to lowercase
                     for (size_t i = 0; i < extension.size(); ++i) {
                         extension[i] = (char)tolower(extension[i]);
                     }
@@ -383,31 +489,31 @@ bool Input::PreUpdate()
 
                         size_t newInstanceCount = g_MeshInstances.size() - instanceCountBefore;
 
-                        //get mouse pos
+                        // Get mouse position
                         float mouseX, mouseY;
                         SDL_GetMouseState(&mouseX, &mouseY);
 
                         float relativeMouseX = mouseX - moduleEditor->sceneViewportPos.x;
                         float relativeMouseY = mouseY - moduleEditor->sceneViewportPos.y;
 
-                        //get camera
+                        // Get camera
                         Camera* camera = &(Application::GetInstance().opengl->camera);
 
                         int viewportWidth = (int)moduleEditor->sceneViewportSize.x;
                         int viewportHeight = (int)moduleEditor->sceneViewportSize.y;
 
-                        //convert coordinates usando las coordenadas relativas
+                        // Convert coordinates using relative coordinates
                         float x = (2.0f * relativeMouseX) / viewportWidth - 1.0f;
                         float y = 1.0f - (2.0f * relativeMouseY) / viewportHeight;
 
-                        //calculate ray
+                        // Calculate ray
                         glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
                         glm::vec4 rayEye = glm::inverse(camera->GetProjectionMatrix()) * rayClip;
                         rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
                         glm::vec3 rayWorld = glm::vec3(glm::inverse(camera->GetViewMatrix()) * rayEye);
                         rayWorld = glm::normalize(rayWorld);
 
-                        //interesct with floor
+                        // Intersect with floor
                         glm::vec3 camPos = camera->GetPosition();
                         float t = -camPos.y / rayWorld.y;
                         glm::vec3 dropPosition = camPos + rayWorld * t;
@@ -454,7 +560,8 @@ bool Input::PreUpdate()
                         float modelSize = glm::length(globalMax - globalMin);
                         float targetSize = 2.0f;
                         float normalizeScale = (modelSize > 0.0001f) ? (targetSize / modelSize) : 1.0f;
-                        //calculate global minimum Y from ALL geometry
+
+                        // Calculate global minimum Y from ALL geometry
                         float globalMinY = FLT_MAX;
 
                         for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
@@ -470,18 +577,18 @@ bool Input::PreUpdate()
                             }
                         }
 
-                        //count unique meshes
+                        // Count unique meshes
                         Assimp::Importer counter;
                         const aiScene* countScene = counter.ReadFile(path.c_str(), aiProcess_Triangulate);
                         int numMeshesInFBX = countScene ? countScene->mNumMeshes : 2;
 
-                        //game object for each model
+                        // Game object for each model
                         std::vector<GameObject*> createdObjects;
                         int baseIndex = moduleEditor->CountNames("DroppedMesh_");
 
                         for (size_t i = instanceCountBefore; i < g_MeshInstances.size(); ++i)
                         {
-                            //create gameobject with mesh
+                            // Create gameobject with mesh
                             const MeshWithTransform& inst = g_MeshInstances[i];
                             int meshIdx = inst.meshIndex;
 
@@ -497,7 +604,7 @@ bool Input::PreUpdate()
                             GLint bufferSize;
                             glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
 
-                            int vertexSize = 8; // 3 pos + 3 normal + 2 uv
+                            int vertexSize = 8;
                             int numVertices = bufferSize / (vertexSize * sizeof(float));
 
                             std::vector<float> vertexData(bufferSize / sizeof(float));
@@ -517,7 +624,7 @@ bool Input::PreUpdate()
                             meshData.aabbMax -= meshLocalCenter;
                             meshData.center = glm::vec3(0, 0, 0);
 
-                            //create game object
+                            // Create game object
                             GameObject* go = new GameObject();
                             int index = moduleEditor->CountNames("DroppedMesh_");
                             go->name = "DroppedMesh_" + std::to_string(index);
@@ -539,10 +646,10 @@ bool Input::PreUpdate()
                             finalPos.z = dropPosition.z + (meshWorldCenter.z - g_ModelCenter.z) * normalizeScale;
                             finalPos.y = (meshWorldCenter.y - globalMinY) * normalizeScale;
 
-                            //change the translation to match the obtained coordinates
+                            // Set translation to match obtained coordinates
                             go->transform->translation = aiVector3D(finalPos.x, finalPos.y, finalPos.z);
 
-                            //change the rotation to match the obtained rotation
+                            // Set rotation to match obtained rotation
                             go->transform->rotation = aiQuaternion(
                                 instanceRotation.w,
                                 instanceRotation.x,
@@ -550,14 +657,14 @@ bool Input::PreUpdate()
                                 instanceRotation.z
                             );
 
-                            //change the scale to match the obtained normalized scale
+                            // Set scale to match obtained normalized scale
                             go->transform->scaling = aiVector3D(
                                 instanceScale.x * normalizeScale,
                                 instanceScale.y * normalizeScale,
                                 instanceScale.z * normalizeScale
                             );
 
-                            //try to load texture
+                            // Try to load texture
                             std::string texturePath = GetTexturePathFromFBX(path.c_str(), go->meshIndexInFBX);
 
                             bool textureLoaded = false;
@@ -567,7 +674,7 @@ bool Input::PreUpdate()
                             }
 
                             if (!textureLoaded) {
-                                //if no texture available we use checkerboard
+                                // If no texture available we use checkerboard
                                 std::cout << "No valid texture found, using checkerboard" << std::endl;
 
                                 const int size = 64;
@@ -645,7 +752,7 @@ bool Input::PreUpdate()
                                 parentEmpty->children.push_back(child);
                             }
 
-                            //logs
+                            // Logs
                             LOG("=== FBX Import (Drag & Drop) ===");
                             LOG("File: " + fileName);
                             LOG("Created parent: " + parentEmpty->name + " at position (" +
@@ -664,7 +771,7 @@ bool Input::PreUpdate()
                 }
 
                 else if (extension == ".png" || extension == ".jpg" || extension == ".jpeg") {
-                    //get mouse pos
+                    // Get mouse position
                     if (!mouseInsideScene && !mouseInsideTextureInspector)
                     {
                         if (!moduleEditor->selectedGameObjects.empty())
@@ -674,17 +781,17 @@ bool Input::PreUpdate()
                     std::cout << "========TEXTURE==========" << std::endl;
                     SDL_GetMouseState(&mouseX, &mouseY);
 
-                    //get camera
+                    // Get camera
                     Camera* camera = &(Application::GetInstance().opengl->camera);
 
                     int viewport[4];
                     glGetIntegerv(GL_VIEWPORT, viewport);
 
-                    //convert coordinates
+                    // Convert coordinates
                     float x = (2.0f * mouseX) / viewport[2] - 1.0f;
                     float y = 1.0f - (2.0f * mouseY) / viewport[3];
 
-                    //create ray
+                    // Create ray
                     glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
                     glm::vec4 rayEye = glm::inverse(camera->GetProjectionMatrix()) * rayClip;
                     rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
@@ -695,11 +802,11 @@ bool Input::PreUpdate()
 
                     GameObject* closestObject = nullptr;
 
-                    //if we are hovering inside the "Drag new texture here:" panel we change the selectedGameObject's texture
+                    // If we are hovering inside the "Drag new texture here:" panel we change the selectedGameObject's texture
                     if (mouseInsideTextureInspector && !moduleEditor->selectedGameObjects.empty())
                         closestObject = moduleEditor->selectedGameObjects[0];
 
-                    //if we are hovering over the scene we find the closest game object
+                    // If we are hovering over the scene we find the closest game object
                     else
                     {
                         float closestDistance = FLT_MAX;
@@ -719,7 +826,7 @@ bool Input::PreUpdate()
                         {
                             ModuleMousePicking* mousePicking = Application::GetInstance().mousePicking.get();
 
-                            // create ray using viewport-relative coordinates
+                            // Create ray using viewport-relative coordinates
                             Ray ray = mousePicking->CreateRayFromMouse(
                                 relativeMouseX,
                                 relativeMouseY,
@@ -728,7 +835,7 @@ bool Input::PreUpdate()
                                 (int)viewportHeight
                             );
 
-                            //test ray against all game objects using AABB
+                            // Test ray against all game objects using AABB
                             for (GameObject* go : Application::GetInstance().opengl->gameObjects) {
                                 if (go->mesh->meshIndex < 0 || go->mesh->meshIndex >= (int)g_Meshes.size()) {
                                     continue;
@@ -758,7 +865,7 @@ bool Input::PreUpdate()
                                     transform->scaling.z
                                 ));
 
-                                //transform AABB corners to world space
+                                // Transform AABB corners to world space
                                 glm::vec3 corners[8] = {
                                     glm::vec3(meshData.aabbMin.x, meshData.aabbMin.y, meshData.aabbMin.z),
                                     glm::vec3(meshData.aabbMax.x, meshData.aabbMin.y, meshData.aabbMin.z),
@@ -806,10 +913,10 @@ bool Input::PreUpdate()
                         }
                     }
 
-                    //bind texture to the closest game object or inspector object
+                    // Bind texture to the closest game object or inspector object
                     if (closestObject != nullptr)
                     {
-                        //new texture data (delete the previous)
+                        // New texture data (delete the previous)
                         if (closestObject->texture->texturedata != nullptr)
                         {
                             delete closestObject->texture->texturedata;
@@ -841,7 +948,7 @@ bool Input::PreUpdate()
                     }
                     else
                     {
-                        //if there is no close object
+                        // If there is no close object
                         std::cout << "No object found under cursor" << std::endl;
                         LOG_WARNING("No GameObject in that position");
                     }
