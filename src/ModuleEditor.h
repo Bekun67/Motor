@@ -195,7 +195,7 @@ public:
 
     // About info
     const char* motorName = "Ilium Engine";
-    const char* version = "v0.9";
+    const char* version = "v1.0";
     const char* team = "Team Hutao";
     const char* repoURL = "https://github.com/Bekun67/Motor";
 

@@ -9,4 +9,7 @@ public:
     ~ConfigurationWindow() override = default;
 
     void Draw() override;
+
+	bool showOctreeStats = false;
+	bool showCullingStats = false;
 };

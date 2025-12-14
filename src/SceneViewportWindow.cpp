@@ -480,7 +480,7 @@ void SceneViewportWindow::HandleDragDropArea()
             const char* droppedPath = (const char*)payload->Data;
             if (droppedPath)
             {
-                HandleTextureDrop(std::string(droppedPath)); // Ya no necesitas pasar coordenadas
+                HandleTextureDrop(std::string(droppedPath));
             }
         }
 
