@@ -93,8 +93,6 @@ void AssetsWindow::Draw()
     DrawNavigationBar();
     ImGui::Separator();
 
-    DrawFileDropArea();
-
     if (gridView)
     {
         DrawAssetGrid();
@@ -494,35 +492,6 @@ void AssetsWindow::DrawAssetList()
         }
 
         ImGui::EndTable();
-    }
-}
-
-void AssetsWindow::DrawFileDropArea()
-{
-    ImVec2 dropSize = ImGui::GetContentRegionAvail();
-    dropSize.y = std::min(dropSize.y, 50.0f);
-
-    ImGui::InvisibleButton("##dropzone", dropSize);
-
-    if (ImGui::BeginDragDropTarget())
-    {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("FILES"))
-        {
-            const char* droppedPath = (const char*)payload->Data;
-            if (droppedPath)
-            {
-                ImportDroppedFile(std::string(droppedPath));
-            }
-        }
-        ImGui::EndDragDropTarget();
-    }
-
-    if (ImGui::IsItemHovered())
-    {
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImVec2 pMin = ImGui::GetItemRectMin();
-        ImVec2 pMax = ImGui::GetItemRectMax();
-        drawList->AddRect(pMin, pMax, IM_COL32(100, 150, 255, 255), 4.0f, 0, 2.0f);
     }
 }
 

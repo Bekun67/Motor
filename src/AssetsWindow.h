@@ -53,7 +53,6 @@ private:
     void DrawFolderTree();
     void DrawAssetGrid();
     void DrawAssetList();
-    void DrawFileDropArea();
     void DrawAssetContextMenu(const AssetInfo& asset);
 
     void RefreshCurrentFolder();
