@@ -82,6 +82,8 @@ public:
 	bool EmptyQuadtree();
 	bool extraQuadtreeInfo = false;
 
+	int gridSize = 75;
+
 private:
 	bool Start() override;
 	bool CleanUp() override;

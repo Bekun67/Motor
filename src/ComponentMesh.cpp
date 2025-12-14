@@ -121,29 +121,9 @@ void ComponentMesh::Draw(Camera* camera)
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    if (isTransparent)
-    {
-        glDisable(GL_DEPTH_TEST);
-
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_FRONT);
-
-        glBindVertexArray(meshdata.VAO);
-        glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
-
-        glCullFace(GL_BACK);
-        glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-
-        glDisable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST); 
-    }
-    else
-    {
-        glBindVertexArray(meshdata.VAO);
-        glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-    }
+    glBindVertexArray(meshdata.VAO);
+    glDrawElements(GL_TRIANGLES, meshdata.numIndices, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 
     if (texturebound) {
         glBindTexture(GL_TEXTURE_2D, 0);
