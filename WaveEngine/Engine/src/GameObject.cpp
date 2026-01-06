@@ -5,6 +5,7 @@
 #include "ComponentMaterial.h"
 #include "ComponentCamera.h"
 #include "ComponentRotate.h"
+#include "ComponentRigidBody.h"
 #include <nlohmann/json.hpp>
 
 GameObject::GameObject(const std::string& name) : name(name), active(true), parent(nullptr) {
@@ -51,6 +52,10 @@ Component* GameObject::CreateComponent(ComponentType type) {
 
     case ComponentType::ROTATE:
         newComponent = new ComponentRotate(this);
+        break;
+
+    case ComponentType::RIGIDBODY:
+        newComponent = new ComponentRigidBody(this);
         break;
 
     default:

@@ -15,6 +15,7 @@ find_package(imgui REQUIRED)
 find_package(imguizmo CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(Tracy CONFIG REQUIRED)
+find_package(Bullet CONFIG REQUIRED)
 
 set(CORE_SRC 
     src/Main.cpp 
@@ -67,7 +68,9 @@ set(GAMEOBJECTS_SRC
 
 set(PHYSICS_SRC
     src/ModulePhysics.cpp 
-    src/ModulePhysics.h 
+    src/ModulePhysics.h
+    src/ComponentRigidBody.cpp
+    src/ComponentRigidBody.h
 )
 
 set(COMPONENTS_SRC
@@ -155,3 +158,6 @@ target_link_libraries(Engine PRIVATE imgui::imgui)
 target_link_libraries(Engine PRIVATE imguizmo::imguizmo)
 target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(Engine PRIVATE Tracy::TracyClient)
+
+target_link_libraries(Engine PRIVATE ${BULLET_LIBRARIES})
+target_include_directories(Engine PRIVATE ${BULLET_INCLUDE_DIRS})
