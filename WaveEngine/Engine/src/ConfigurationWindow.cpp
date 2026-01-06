@@ -50,6 +50,13 @@ void ConfigurationWindow::Draw()
 
     ImGui::Separator();
 
+    if (ImGui::CollapsingHeader("Physics"))
+    {
+        DrawPhysicsSettings();
+    }
+
+    ImGui::Separator();
+
     if (ImGui::CollapsingHeader("Hardware"))
     {
         DrawHardwareInfo();
@@ -477,4 +484,103 @@ void ConfigurationWindow::DrawRendererSettings()
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Show ray used for mouse picking");
 
     ImGui::Spacing();
+}
+
+void ConfigurationWindow::DrawPhysicsSettings()
+{
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (!physics)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Error: Physics module not available");
+        return;
+    }
+
+    ImGui::Text("Physics Engine: Bullet Physics");
+    ImGui::Separator();
+
+    // Gravity configuration
+    ImGui::Text("Gravity");
+    glm::vec3 gravity = physics->GetGravity();
+
+    if (ImGui::DragFloat3("##gravity", &gravity.x, 0.1f, -50.0f, 50.0f, "%.2f"))
+    {
+        physics->SetGravity(gravity);
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Gravity acceleration (m/s²)\nEarth gravity: (0, -9.81, 0)");
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Reset##gravity"))
+    {
+        physics->SetGravity(glm::vec3(0.0f, -9.81f, 0.0f));
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Simulation settings
+    ImGui::Text("Simulation Settings");
+
+    int substeps = physics->GetSubsteps();
+    if (ImGui::SliderInt("Max Substeps", &substeps, 1, 20))
+    {
+        physics->SetSubsteps(substeps);
+    }
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("More substeps = more accurate but slower\nRecommended: 10");
+    }
+
+    float fixedTimeStep = physics->GetFixedTimeStep();
+    if (ImGui::SliderFloat("Fixed Timestep", &fixedTimeStep, 0.001f, 0.1f, "%.4f"))
+    {
+        physics->SetFixedTimeStep(fixedTimeStep);
+    }
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Internal physics timestep\nDefault: 1/60 = 0.0167");
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Debug visualization
+    ImGui::Text("Debug Visualization");
+
+    bool debugDraw = physics->IsDebugDrawEnabled();
+    if (ImGui::Checkbox("Show Physics Debug", &debugDraw))
+    {
+        physics->SetDebugDrawEnabled(debugDraw);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Quick presets
+    ImGui::Text("Quick Presets");
+
+    if (ImGui::Button("Earth Gravity"))
+    {
+        physics->SetGravity(glm::vec3(0.0f, -9.81f, 0.0f));
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Moon Gravity"))
+    {
+        physics->SetGravity(glm::vec3(0.0f, -1.62f, 0.0f));
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Zero Gravity"))
+    {
+        physics->SetGravity(glm::vec3(0.0f, 0.0f, 0.0f));
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Information
+    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Info:");
+    ImGui::TextWrapped("Physics simulation is linked to play mode. Use Play/Pause/Stop controls to manage simulation.");
 }
