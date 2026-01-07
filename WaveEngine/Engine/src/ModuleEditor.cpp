@@ -413,6 +413,18 @@ void ModuleEditor::ShowMenuBar()
                 }
             }
 
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Add RigidBody Component"))
+            {
+                GameObject* selected = Application::GetInstance().selectionManager->GetSelectedObject();
+                if (selected != nullptr)
+                {
+                    selected->CreateComponent(ComponentType::RIGIDBODY);
+                    LOG_CONSOLE("Auto Rotate component added to %s", selected->GetName().c_str());
+                }
+            }
+
             ImGui::EndMenu();
         }
 

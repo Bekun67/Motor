@@ -8,6 +8,7 @@
 #include "ComponentMaterial.h"
 #include "ComponentCamera.h"
 #include "ComponentRotate.h"
+#include "ComponentRigidBody.h"
 #include "ResourceTexture.h"
 #include "Log.h"
 
@@ -80,6 +81,7 @@ void InspectorWindow::Draw()
     DrawMeshComponent(selectedObject);
     DrawMaterialComponent(selectedObject);
     DrawRotateComponent(selectedObject);
+    DrawRigidBodyComponent(selectedObject);
 
     ImGui::End();
 }
@@ -894,4 +896,86 @@ bool InspectorWindow::IsDescendantOf(GameObject* potentialDescendant, GameObject
     }
 
     return false;
+}
+
+void InspectorWindow::DrawRigidBodyComponent(GameObject* selectedObject)
+{
+    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(selectedObject->GetComponent(ComponentType::RIGIDBODY));
+
+    if (rigidBody == nullptr)
+        return;
+
+    if (ImGui::CollapsingHeader("RigidBody", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::PushID("RigidBody");
+
+        // Active checkbox
+        bool isActive = rigidBody->IsActive();
+        if (ImGui::Checkbox("Active##RigidBody", &isActive))
+        {
+            rigidBody->SetActive(isActive);
+        }
+
+        ImGui::Separator();
+
+        // Mass
+        float mass = rigidBody->GetMass();
+        if (ImGui::DragFloat("Mass", &mass, 0.1f, 0.0f, 1000.0f))
+        {
+            rigidBody->SetMass(mass);
+        }
+
+        // Kinematic
+        bool isKinematic = rigidBody->IsKinematic();
+        if (ImGui::Checkbox("Is Kinematic", &isKinematic))
+        {
+            rigidBody->SetKinematic(isKinematic);
+        }
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Kinematic objects are not affected by forces");
+            ImGui::Text("but can still collide with other objects");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::Separator();
+
+        // Velocity (read-only)
+        glm::vec3 velocity = rigidBody->GetVelocity();
+        ImGui::Text("Velocity: (%.2f, %.2f, %.2f)", velocity.x, velocity.y, velocity.z);
+
+        ImGui::Spacing();
+
+        // Apply force buttons (only when playing)
+        Application::PlayState playState = Application::GetInstance().GetPlayState();
+        bool isPlaying = (playState == Application::PlayState::PLAYING);
+
+        if (!isPlaying)
+        {
+            ImGui::BeginDisabled();
+        }
+
+        if (ImGui::Button("Apply Upward Force"))
+        {
+            rigidBody->ApplyForce(glm::vec3(0.0f, 10.0f, 0.0f));
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Apply Forward Impulse"))
+        {
+            rigidBody->ApplyImpulse(glm::vec3(0.0f, 0.0f, 5.0f));
+        }
+
+        if (!isPlaying)
+        {
+            ImGui::EndDisabled();
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f),
+                "Physics controls only available in Play mode");
+        }
+
+        ImGui::PopID();
+    }
 }
