@@ -7,6 +7,7 @@
 #include "Log.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 ComponentRigidBody::ComponentRigidBody(GameObject* owner)
     : Component(owner, ComponentType::RIGIDBODY),
@@ -31,17 +32,29 @@ void ComponentRigidBody::CreateRigidBody()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
-    // Get AABB from mesh component
+	// Use global matrix for world position, rotation, and scale
+    glm::mat4 globalMatrix = transform->GetGlobalMatrix();
+
+    // Decompose global matrix
+    glm::vec3 worldPosition;
+    glm::quat worldRotation;
+    glm::vec3 worldScale;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+
+    glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
+
+    // Get AABB from mesh component using global scale
     ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
     if (meshComp && meshComp->HasMesh())
     {
         glm::vec3 minBounds = meshComp->GetAABBMin();
         glm::vec3 maxBounds = meshComp->GetAABBMax();
-        glm::vec3 size = (maxBounds - minBounds) * transform->GetScale();
 
-        scale = transform->GetScale();
+        glm::vec3 size = (maxBounds - minBounds) * worldScale;
 
-        // Create box collision shape
+        scale = worldScale;
+
         collisionShape = new btBoxShape(btVector3(
             size.x * 0.5f,
             size.y * 0.5f,
@@ -51,7 +64,7 @@ void ComponentRigidBody::CreateRigidBody()
     else
     {
         // Default box shape
-        scale = transform->GetScale();
+        scale = worldScale;
         collisionShape = new btBoxShape(btVector3(
             scale.x * 0.5f,
             scale.y * 0.5f,
@@ -60,13 +73,10 @@ void ComponentRigidBody::CreateRigidBody()
     }
 
     // Create motion state
-    glm::vec3 pos = transform->GetPosition();
-    glm::quat rot = transform->GetRotationQuat();
-
     btTransform startTransform;
     startTransform.setIdentity();
-    startTransform.setOrigin(btVector3(pos.x, pos.y, pos.z));
-    startTransform.setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w));
+    startTransform.setOrigin(btVector3(worldPosition.x, worldPosition.y, worldPosition.z));
+    startTransform.setRotation(btQuaternion(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w));
 
     motionState = new btDefaultMotionState(startTransform);
 
@@ -97,6 +107,11 @@ void ComponentRigidBody::CreateRigidBody()
     {
         physics->GetDynamicsWorld()->addRigidBody(rigidBody);
     }
+
+    LOG_DEBUG("[RigidBody] Created for '%s' at world pos (%.2f, %.2f, %.2f) with world scale (%.2f, %.2f, %.2f)",
+        owner->GetName().c_str(),
+        worldPosition.x, worldPosition.y, worldPosition.z,
+        worldScale.x, worldScale.y, worldScale.z);
 }
 
 void ComponentRigidBody::DestroyRigidBody()
@@ -131,14 +146,50 @@ void ComponentRigidBody::SyncTransformFromPhysics()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
+	// Get the world transform from bullet
     btTransform worldTrans;
     motionState->getWorldTransform(worldTrans);
 
     btVector3 origin = worldTrans.getOrigin();
     btQuaternion rotation = worldTrans.getRotation();
 
-    transform->SetPosition(glm::vec3(origin.x(), origin.y(), origin.z()));
-    transform->SetRotationQuat(glm::quat(rotation.w(), rotation.x(), rotation.y(), rotation.z()));
+    glm::vec3 worldPosition(origin.x(), origin.y(), origin.z());
+    glm::quat worldRotation(rotation.w(), rotation.x(), rotation.y(), rotation.z());
+
+	// if it has a parent, convert from world to local
+    GameObject* parent = owner->GetParent();
+    if (parent)
+    {
+        Transform* parentTransform = static_cast<Transform*>(parent->GetComponent(ComponentType::TRANSFORM));
+        if (parentTransform)
+        {
+            glm::mat4 parentGlobal = parentTransform->GetGlobalMatrix();
+            glm::mat4 parentInverse = glm::inverse(parentGlobal);
+
+			// Convert world position to local
+            glm::vec4 localPos4 = parentInverse * glm::vec4(worldPosition, 1.0f);
+            glm::vec3 localPosition(localPos4.x, localPos4.y, localPos4.z);
+
+			// Convert world rotation to local
+            glm::quat parentRotation = glm::quat_cast(parentGlobal);
+            glm::quat localRotation = glm::inverse(parentRotation) * worldRotation;
+
+            transform->SetPosition(localPosition);
+            transform->SetRotationQuat(localRotation);
+        }
+        else
+        {
+			// Without parent transform, use world directly
+            transform->SetPosition(worldPosition);
+            transform->SetRotationQuat(worldRotation);
+        }
+    }
+    else
+    {
+		// Without parent, set world directly
+        transform->SetPosition(worldPosition);
+        transform->SetRotationQuat(worldRotation);
+    }
 }
 
 void ComponentRigidBody::SyncTransformToPhysics()
@@ -148,12 +199,21 @@ void ComponentRigidBody::SyncTransformToPhysics()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
-    glm::vec3 pos = transform->GetPosition();
-    glm::quat rot = transform->GetRotationQuat();
+	// Get global matrix for world position, rotation, and scale
+    glm::mat4 globalMatrix = transform->GetGlobalMatrix();
 
+    glm::vec3 worldPosition;
+    glm::quat worldRotation;
+    glm::vec3 worldScale;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+
+    glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
+
+	// Apply world transform to bullet
     btTransform worldTrans;
-    worldTrans.setOrigin(btVector3(pos.x, pos.y, pos.z));
-    worldTrans.setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w));
+    worldTrans.setOrigin(btVector3(worldPosition.x, worldPosition.y, worldPosition.z));
+    worldTrans.setRotation(btQuaternion(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w));
 
     rigidBody->setWorldTransform(worldTrans);
     motionState->setWorldTransform(worldTrans);
