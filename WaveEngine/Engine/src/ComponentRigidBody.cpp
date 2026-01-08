@@ -146,7 +146,7 @@ void ComponentRigidBody::SyncTransformFromPhysics()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
-	// Get the world transform from bullet
+    // Get the world transform from bullet
     btTransform worldTrans;
     motionState->getWorldTransform(worldTrans);
 
@@ -156,7 +156,7 @@ void ComponentRigidBody::SyncTransformFromPhysics()
     glm::vec3 worldPosition(origin.x(), origin.y(), origin.z());
     glm::quat worldRotation(rotation.w(), rotation.x(), rotation.y(), rotation.z());
 
-	// if it has a parent, convert from world to local
+    // If it has a parent, convert from world to local
     GameObject* parent = owner->GetParent();
     if (parent)
     {
@@ -166,27 +166,36 @@ void ComponentRigidBody::SyncTransformFromPhysics()
             glm::mat4 parentGlobal = parentTransform->GetGlobalMatrix();
             glm::mat4 parentInverse = glm::inverse(parentGlobal);
 
-			// Convert world position to local
+            // Convert world position to local
             glm::vec4 localPos4 = parentInverse * glm::vec4(worldPosition, 1.0f);
             glm::vec3 localPosition(localPos4.x, localPos4.y, localPos4.z);
 
-			// Convert world rotation to local
-            glm::quat parentRotation = glm::quat_cast(parentGlobal);
+            // Extract parent rotation WITHOUT scale to avoid deformation
+            glm::vec3 parentScale;
+            glm::quat parentRotation;
+            glm::vec3 parentTranslation;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+
+            glm::decompose(parentGlobal, parentScale, parentRotation, parentTranslation, skew, perspective);
+
+            // Convert world rotation to local using ONLY rotation (no scale)
             glm::quat localRotation = glm::inverse(parentRotation) * worldRotation;
 
             transform->SetPosition(localPosition);
             transform->SetRotationQuat(localRotation);
+
         }
         else
         {
-			// Without parent transform, use world directly
+            // Without parent transform, use world directly
             transform->SetPosition(worldPosition);
             transform->SetRotationQuat(worldRotation);
         }
     }
     else
     {
-		// Without parent, set world directly
+        // Without parent, set world directly
         transform->SetPosition(worldPosition);
         transform->SetRotationQuat(worldRotation);
     }
