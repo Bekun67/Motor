@@ -17,6 +17,7 @@
 #include "ComponentMesh.h"
 #include "Transform.h"           
 #include "ComponentCamera.h"   
+#include "ComponentCollider.h"   
 #include "ComponentMaterial.h"
 
 #include "ConfigurationWindow.h"
@@ -423,6 +424,61 @@ void ModuleEditor::ShowMenuBar()
                     selected->CreateComponent(ComponentType::RIGIDBODY);
                     LOG_CONSOLE("Auto Rotate component added to %s", selected->GetName().c_str());
                 }
+            }
+
+            ImGui::Separator();
+
+            //colliders menu
+            if (ImGui::BeginMenu("Add Collider"))
+            {
+                GameObject* selected = Application::GetInstance().selectionManager->GetSelectedObject();
+
+                if (selected == nullptr)
+                {
+                    ImGui::TextDisabled("(No GameObject selected)");
+                }
+                else
+                {
+                    if (ImGui::MenuItem("Box Collider"))
+                    {
+                        selected->CreateCollider(ColliderType::BOX);
+                        LOG_CONSOLE("Box Collider added to %s", selected->GetName().c_str());
+                    }
+
+                    if (ImGui::MenuItem("Sphere Collider"))
+                    {
+                        selected->CreateCollider(ColliderType::SPHERE);
+                        LOG_CONSOLE("Sphere Collider added to %s", selected->GetName().c_str());
+                    }
+
+                    if (ImGui::MenuItem("Cylinder Collider"))
+                    {
+                        selected->CreateCollider(ColliderType::CYLINDER);
+                        LOG_CONSOLE("Cylinder Collider added to %s", selected->GetName().c_str());
+                    }
+
+                    if (ImGui::MenuItem("Capsule Collider"))
+                    {
+                        selected->CreateCollider(ColliderType::CAPSULE);
+                        LOG_CONSOLE("Capsule Collider added to %s", selected->GetName().c_str());
+                    }
+
+                    if (ImGui::MenuItem("Plane Collider"))
+                    {
+                        selected->CreateCollider(ColliderType::PLANE);
+                        LOG_CONSOLE("Plane Collider added to %s", selected->GetName().c_str());
+                    }
+
+                    ImGui::Separator();
+
+                    if (ImGui::MenuItem("Mesh Collider"))
+                    {
+                        selected->CreateCollider(ColliderType::MESH);
+                        LOG_CONSOLE("TODO", selected->GetName().c_str());
+                    }
+                }
+
+                ImGui::EndMenu();
             }
 
             ImGui::EndMenu();

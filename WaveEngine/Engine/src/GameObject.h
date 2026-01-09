@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include "ComponentCollider.h"
 
 class Component;
 enum class ComponentType;
@@ -13,6 +14,8 @@ public:
     ~GameObject();
 
     Component* CreateComponent(ComponentType type);
+
+    ComponentCollider* CreateCollider(ColliderType colliderType);
 
     Component* GetComponent(ComponentType type) const;
 
@@ -53,5 +56,4 @@ private:
     std::vector<std::unique_ptr<Component>> componentOwners;
 
     bool markedForDeletion = false;
-
 };

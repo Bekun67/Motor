@@ -1,4 +1,4 @@
-#include "InspectorWindow.h"
+ï»¿#include "InspectorWindow.h"
 #include <imgui.h>
 #include "Application.h"
 #include "GameObject.h"
@@ -10,6 +10,7 @@
 #include "ComponentRotate.h"
 #include "ComponentRigidBody.h"
 #include "ResourceTexture.h"
+#include "ComponentCollider.h"
 #include "Log.h"
 
 InspectorWindow::InspectorWindow()
@@ -82,6 +83,7 @@ void InspectorWindow::Draw()
     DrawMaterialComponent(selectedObject);
     DrawRotateComponent(selectedObject);
     DrawRigidBodyComponent(selectedObject);
+    DrawColliderComponent(selectedObject);
 
     ImGui::End();
 }
@@ -254,7 +256,6 @@ void InspectorWindow::DrawTransformComponent(GameObject* selectedObject)
             transform->SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
             transform->SetScale(glm::vec3(1.0f, 1.0f, 1.0f));
 
-            // Rebuild después de reset
             Application::GetInstance().scene->MarkOctreeForRebuild();
 
             LOG_DEBUG("Transform reset for: %s", selectedObject->GetName().c_str());
@@ -442,7 +443,7 @@ void InspectorWindow::DrawMeshComponent(GameObject* selectedObject)
         ImGui::SetNextItemWidth(-1);
         if (ImGui::BeginCombo("##MeshSelector", currentMeshName.c_str()))
         {
-			// Get mesh resources
+            // Get mesh resources
             ModuleResources* resources = Application::GetInstance().resources.get();
             const std::map<UID, Resource*>& allResources = resources->GetAllResources();
 
@@ -483,7 +484,7 @@ void InspectorWindow::DrawMeshComponent(GameObject* selectedObject)
 
                     if (isSelected)
                     {
-						ImGui::SetItemDefaultFocus(); // Highlight selected item
+                        ImGui::SetItemDefaultFocus(); // Highlight selected item
                     }
 
                     // Show tooltip with UID and path
@@ -974,6 +975,232 @@ void InspectorWindow::DrawRigidBodyComponent(GameObject* selectedObject)
             ImGui::EndDisabled();
             ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f),
                 "Physics controls only available in Play mode");
+        }
+
+        ImGui::PopID();
+    }
+}
+void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
+{
+    std::vector<Component*> colliders = selectedObject->GetComponentsOfType(ComponentType::COLLIDER);
+
+    if (colliders.empty())
+        return;
+
+    //draw each collider
+    for (size_t colliderIndex = 0; colliderIndex < colliders.size(); ++colliderIndex)
+    {
+        ComponentCollider* collider = static_cast<ComponentCollider*>(colliders[colliderIndex]);
+
+        if (collider == nullptr)
+            continue;
+
+        ImGui::PushID(static_cast<int>(colliderIndex));
+
+        std::string headerName = collider->GetColliderTypeName() + " Collider";
+
+        if (ImGui::CollapsingHeader(headerName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            //active checkbox
+            bool isActive = collider->IsActive();
+            if (ImGui::Checkbox("Active##Collider", &isActive))
+            {
+                collider->SetActive(isActive);
+            }
+
+            ImGui::SameLine();
+
+            //show Debug checkbox
+            bool showDebug = collider->GetShowDebug();
+            if (ImGui::Checkbox("Show Debug##Collider", &showDebug))
+            {
+                collider->SetShowDebug(showDebug);
+                LOG_DEBUG("Collider debug visualization %s for '%s'",
+                    showDebug ? "enabled" : "disabled",
+                    selectedObject->GetName().c_str());
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Visualize collider shape in the scene view");
+            }
+
+            ImGui::Separator();
+
+            //collider type
+            const char* colliderTypes[] = { "Box", "Sphere", "Cylinder", "Capsule", "Plane", "Mesh" };
+            int currentType = static_cast<int>(collider->GetColliderType());
+
+            ImGui::Text("Collider Type:");
+            if (ImGui::Combo("##ColliderType", &currentType, colliderTypes, IM_ARRAYSIZE(colliderTypes)))
+            {
+                collider->SetColliderType(static_cast<ColliderType>(currentType));
+                LOG_DEBUG("Changed collider type to %s for '%s'",
+                    colliderTypes[currentType],
+                    selectedObject->GetName().c_str());
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Changing collider type will reset manual edits");
+                ImGui::Text("and recalculate size from mesh bounds");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::Separator();
+
+            ColliderType type = collider->GetColliderType();
+
+            switch (type)
+            {
+            case ColliderType::BOX:
+            {
+                glm::vec3 size = collider->GetBoxSize();
+                if (ImGui::DragFloat3("Size", &size.x, 0.1f, 0.01f, 100.0f))
+                {
+                    collider->SetBoxSize(size);
+                }
+                break;
+            }
+
+            case ColliderType::SPHERE:
+            {
+                float radius = collider->GetSphereRadius();
+                if (ImGui::DragFloat("Radius", &radius, 0.1f, 0.01f, 100.0f))
+                {
+                    collider->SetSphereRadius(radius);
+                }
+                break;
+            }
+
+            case ColliderType::CYLINDER:
+            {
+                float radius = collider->GetCylinderRadius();
+                float height = collider->GetCylinderHeight();
+
+                if (ImGui::DragFloat("Radius##Cylinder", &radius, 0.1f, 0.01f, 100.0f))
+                {
+                    collider->SetCylinderSize(radius, height);
+                }
+
+                if (ImGui::DragFloat("Height##Cylinder", &height, 0.1f, 0.01f, 100.0f))
+                {
+                    collider->SetCylinderSize(radius, height);
+                }
+                break;
+            }
+
+            case ColliderType::CAPSULE:
+            {
+                float radius = collider->GetCapsuleRadius();
+                float height = collider->GetCapsuleHeight();
+
+                if (ImGui::DragFloat("Radius##Capsule", &radius, 0.1f, 0.01f, 100.0f))
+                {
+                    collider->SetCapsuleSize(radius, height);
+                }
+
+                if (ImGui::DragFloat("Height##Capsule", &height, 0.1f, 0.01f, 100.0f))
+                {
+                    collider->SetCapsuleSize(radius, height);
+                }
+                break;
+            }
+
+            case ColliderType::PLANE:
+            {
+                glm::vec3 size = collider->GetBoxSize();
+
+                ImGui::Text("Plane Dimensions:");
+
+                float width = size.x;
+                float height = glm::max(size.y, size.z);
+
+                if (ImGui::DragFloat("Width", &width, 0.1f, 0.01f, 100.0f))
+                {
+                    size.x = width;
+                    collider->SetBoxSize(size);
+                }
+
+                if (ImGui::DragFloat("Height", &height, 0.1f, 0.01f, 100.0f))
+                {
+                    size.y = height;
+                    size.z = height;
+                    collider->SetBoxSize(size);
+                }
+
+                break;
+            }
+
+            case ColliderType::MESH:
+            {
+                ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f),
+                    "TODO");
+                break;
+            }
+            }
+
+            ImGui::Separator();
+
+            //offset
+            ImGui::Text("Offset:");
+            glm::vec3 offset = collider->GetOffset();
+            if (ImGui::DragFloat3("##Offset", &offset.x, 0.1f, -100.0f, 100.0f))
+            {
+                collider->SetOffset(offset);
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Position offset from GameObject's transform");
+            }
+
+            ImGui::Separator();
+
+            //trigger checkbox
+            bool isTrigger = collider->IsTrigger();
+            if (ImGui::Checkbox("Is Trigger", &isTrigger))
+            {
+                collider->SetIsTrigger(isTrigger);
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Trigger colliders don't cause physical collisions");
+                ImGui::Text("but still detect overlaps for game logic");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::Separator();
+
+            //physics mat
+            ImGui::Text("Physics Material:");
+
+            float friction = collider->GetFriction();
+            if (ImGui::SliderFloat("Friction", &friction, 0.0f, 1.0f))
+            {
+                collider->SetFriction(friction);
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Surface friction (0 = slippery, 1 = rough)");
+            }
+
+            float restitution = collider->GetRestitution();
+            if (ImGui::SliderFloat("Bounciness", &restitution, 0.0f, 1.0f))
+            {
+                collider->SetRestitution(restitution);
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Bounciness (0 = no bounce, 1 = perfect bounce)");
+            }
+
+            ImGui::Separator();
         }
 
         ImGui::PopID();

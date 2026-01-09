@@ -71,6 +71,8 @@ set(PHYSICS_SRC
     src/ModulePhysics.h
     src/ComponentRigidBody.cpp
     src/ComponentRigidBody.h
+    src/ComponentCollider.cpp
+    src/ComponentCollider.h
 )
 
 set(COMPONENTS_SRC

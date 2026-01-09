@@ -7,6 +7,7 @@
 #include <memory>
 #include "Primitives.h"
 #include "ComponentCamera.h"
+#include "ComponentCollider.h"
 
 class GameObject;
 
@@ -64,6 +65,8 @@ public:
     ComponentCamera* GetCamera();
 
     void DrawCameraFrustum(ComponentCamera* camera, const glm::vec3& color);
+
+    void DrawCollider(ComponentCollider* collider, const glm::mat4& transform);
 
     // Render configuration
     bool IsDepthTestEnabled() const { return depthTestEnabled; }

@@ -6,6 +6,7 @@
 #include "ComponentCamera.h"
 #include "ComponentRotate.h"
 #include "ComponentRigidBody.h"
+#include "ComponentCollider.h"
 #include <nlohmann/json.hpp>
 
 GameObject::GameObject(const std::string& name) : name(name), active(true), parent(nullptr) {
@@ -43,6 +44,7 @@ Component* GameObject::CreateComponent(ComponentType type) {
         }
         newComponent = new ComponentMaterial(this);
         break;
+
     case ComponentType::CAMERA:
         if (GetComponent(ComponentType::CAMERA) != nullptr) {
             return GetComponent(ComponentType::CAMERA);
@@ -58,6 +60,10 @@ Component* GameObject::CreateComponent(ComponentType type) {
         newComponent = new ComponentRigidBody(this);
         break;
 
+    case ComponentType::COLLIDER:
+        newComponent = new ComponentCollider(this, ColliderType::BOX);
+        break;
+
     default:
         LOG_DEBUG("ERROR: Unknown component type requested for GameObject '%s'", name.c_str());
         LOG_CONSOLE("Failed to create component");
@@ -70,6 +76,18 @@ Component* GameObject::CreateComponent(ComponentType type) {
     }
 
     return newComponent;
+}
+
+ComponentCollider* GameObject::CreateCollider(ColliderType colliderType)
+{
+    ComponentCollider* collider = new ComponentCollider(this, colliderType);
+
+    if (collider) {
+        componentOwners.push_back(std::unique_ptr<Component>(collider));
+        components.push_back(collider);
+    }
+
+    return collider;
 }
 
 Component* GameObject::GetComponent(ComponentType type) const {
