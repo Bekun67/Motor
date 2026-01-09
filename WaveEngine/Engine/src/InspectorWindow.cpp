@@ -1135,8 +1135,14 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
 
             case ColliderType::MESH:
             {
-                ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f),
-                    "TODO");
+                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f),
+                    "Convex Hull Mesh Collider");
+                ImGui::Text("Automatically fits mesh geometry");
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+
                 break;
             }
             }
@@ -1145,15 +1151,26 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
 
             //offset
             ImGui::Text("Offset:");
-            glm::vec3 offset = collider->GetOffset();
-            if (ImGui::DragFloat3("##Offset", &offset.x, 0.1f, -100.0f, 100.0f))
+            glm::vec3 displayOffset = collider->GetUserOffset();
+            if (ImGui::DragFloat3("##Offset", &displayOffset.x, 0.1f, -100.0f, 100.0f))
             {
-                collider->SetOffset(offset);
+                collider->SetOffset(displayOffset);
             }
 
             if (ImGui::IsItemHovered())
             {
                 ImGui::SetTooltip("Position offset from GameObject's transform");
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Reset##OffsetReset"))
+            {
+                collider->SetOffset(glm::vec3(0.0f, 0.0f, 0.0f));
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Reset offset to (0, 0, 0)");
             }
 
             ImGui::Separator();
@@ -1202,6 +1219,22 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
 
             ImGui::Separator();
         }
+
+        ImGui::Separator();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+        if (ImGui::Button("Remove Collider", ImVec2(-1, 0)))
+        {
+            selectedObject->RemoveComponent(collider);
+            ImGui::PopStyleColor(3);
+            ImGui::PopID();
+            return;
+        }
+
+        ImGui::PopStyleColor(3);
 
         ImGui::PopID();
     }

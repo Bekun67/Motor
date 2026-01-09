@@ -22,10 +22,13 @@ ComponentCollider::ComponentCollider(GameObject* owner, ColliderType type)
     capsuleHeight(1.0f),
     planeNormal(0.0f, 1.0f, 0.0f),
     offsetPosition(0.0f, 0.0f, 0.0f),
+    internalOffset(0.0f, 0.0f, 0.0f),
+    userOffset(0.0f, 0.0f, 0.0f),
     isTrigger(false),
     friction(0.5f),
     restitution(0.0f),
-    showDebug(false)
+    showDebug(false),
+    manuallyEdited(false)
 {
     name = "Collider";
     CreateCollisionShape();
@@ -41,7 +44,6 @@ void ComponentCollider::CreateCollisionShape()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
-    //get world transform
     glm::mat4 globalMatrix = transform->GetGlobalMatrix();
 
     glm::vec3 worldPosition;
@@ -52,7 +54,6 @@ void ComponentCollider::CreateCollisionShape()
 
     glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
 
-    //get mesh bounds
     ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
     if (meshComp && meshComp->HasMesh() && !manuallyEdited)
     {
@@ -65,25 +66,25 @@ void ComponentCollider::CreateCollisionShape()
         {
         case ColliderType::BOX:
             boxSize = meshSize;
-            offsetPosition = meshCenter;
+            internalOffset = meshCenter;
             break;
         case ColliderType::SPHERE:
             sphereRadius = glm::max(glm::max(meshSize.x, meshSize.y), meshSize.z) * 0.5f;
-            offsetPosition = meshCenter;
+            internalOffset = meshCenter;
             break;
         case ColliderType::CYLINDER:
             cylinderRadius = glm::max(meshSize.x, meshSize.z) * 0.5f;
             cylinderHeight = meshSize.z;
-            offsetPosition = meshCenter;
+            internalOffset = meshCenter;
             break;
         case ColliderType::CAPSULE:
             capsuleRadius = glm::max(meshSize.x, meshSize.z) * 0.5f;
             capsuleHeight = meshSize.z;
-            offsetPosition = meshCenter;
+            internalOffset = meshCenter;
             break;
         case ColliderType::PLANE:
             boxSize = meshSize;
-            offsetPosition = meshCenter;
+            internalOffset = meshCenter;
             planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
             break;
         default:
@@ -91,7 +92,6 @@ void ComponentCollider::CreateCollisionShape()
         }
     }
 
-    //create collision shape based on type
     switch (colliderType)
     {
     case ColliderType::BOX:
@@ -122,8 +122,27 @@ void ComponentCollider::CreateCollisionShape()
         break;
 
     case ColliderType::MESH:
-        LOG_DEBUG("TODO");
-        collisionShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
+        if (meshComp && meshComp->HasMesh())
+        {
+            const Mesh& mesh = meshComp->GetMesh();
+
+            btConvexHullShape* convexHull = new btConvexHullShape();
+
+            for (const auto& vertex : mesh.vertices)
+            {
+                convexHull->addPoint(btVector3(vertex.position.x, vertex.position.y, vertex.position.z), true);
+            }
+
+            convexHull->recalcLocalAabb();
+
+            collisionShape = convexHull;
+
+            LOG_DEBUG("[ComponentCollider] Created convex hull with %d vertices", mesh.vertices.size());
+        }
+        else
+        {
+            collisionShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
+        }
         break;
     }
 
@@ -134,6 +153,8 @@ void ComponentCollider::CreateCollisionShape()
     }
 
     //apply offset to transform
+    offsetPosition = internalOffset + userOffset;
+
     glm::mat4 rotationMatrix = glm::mat4_cast(worldRotation);
     glm::vec3 scaledOffset = offsetPosition * worldScale;
     glm::vec3 rotatedOffset = glm::vec3(rotationMatrix * glm::vec4(scaledOffset, 0.0f));
@@ -220,7 +241,7 @@ void ComponentCollider::SyncTransformToPhysics()
 
     glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
 
-    // Apply offset
+    offsetPosition = internalOffset + userOffset;
     glm::vec3 finalPosition = worldPosition + offsetPosition;
 
     btTransform worldTrans;
@@ -236,6 +257,10 @@ void ComponentCollider::SetColliderType(ColliderType type)
     {
         colliderType = type;
         manuallyEdited = false;
+
+        userOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+        internalOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+
         UpdateCollisionShape();
         LOG_DEBUG("[ComponentCollider] Changed to %s for '%s'",
             GetColliderTypeName().c_str(),
@@ -311,7 +336,7 @@ void ComponentCollider::SetPlaneNormal(const glm::vec3& normal)
 
 void ComponentCollider::SetOffset(const glm::vec3& offset)
 {
-    offsetPosition = offset;
+    userOffset = offset;
     SyncTransformToPhysics();
 }
 
@@ -368,7 +393,8 @@ void ComponentCollider::Serialize(nlohmann::json& componentObj) const
     componentObj["capsuleHeight"] = capsuleHeight;
     componentObj["planeNormal"] = { planeNormal.x, planeNormal.y, planeNormal.z };
 
-    componentObj["offset"] = { offsetPosition.x, offsetPosition.y, offsetPosition.z };
+    componentObj["internalOffset"] = { internalOffset.x, internalOffset.y, internalOffset.z };
+    componentObj["userOffset"] = { userOffset.x, userOffset.y, userOffset.z };
     componentObj["isTrigger"] = isTrigger;
     componentObj["friction"] = friction;
     componentObj["restitution"] = restitution;
@@ -419,10 +445,29 @@ void ComponentCollider::Deserialize(const nlohmann::json& componentObj)
         planeNormal = glm::vec3(normal[0], normal[1], normal[2]);
     }
 
-    if (componentObj.contains("offset"))
+    if (componentObj.contains("internalOffset"))
+    {
+        auto& offset = componentObj["internalOffset"];
+        internalOffset = glm::vec3(offset[0], offset[1], offset[2]);
+    }
+    else
+    {
+        internalOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+    }
+
+    if (componentObj.contains("userOffset"))
+    {
+        auto& offset = componentObj["userOffset"];
+        userOffset = glm::vec3(offset[0], offset[1], offset[2]);
+    }
+    else if (componentObj.contains("offset"))
     {
         auto& offset = componentObj["offset"];
-        offsetPosition = glm::vec3(offset[0], offset[1], offset[2]);
+        userOffset = glm::vec3(offset[0], offset[1], offset[2]);
+    }
+    else
+    {
+        userOffset = glm::vec3(0.0f, 0.0f, 0.0f);
     }
 
     if (componentObj.contains("isTrigger"))

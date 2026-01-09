@@ -258,3 +258,22 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
 
     return newObject;
 }
+
+void GameObject::RemoveComponent(Component* component)
+{
+    auto it = std::find(components.begin(), components.end(), component);
+    if (it != components.end())
+    {
+        components.erase(it);
+    }
+
+    auto ownerIt = std::find_if(componentOwners.begin(), componentOwners.end(),
+        [component](const std::unique_ptr<Component>& ptr) {
+            return ptr.get() == component;
+        });
+
+    if (ownerIt != componentOwners.end())
+    {
+        componentOwners.erase(ownerIt);
+    }
+}

@@ -69,6 +69,8 @@ public:
     void SetShowDebug(bool show) { showDebug = show; }
     bool GetShowDebug() const { return showDebug; }
 
+    glm::vec3 GetUserOffset() const { return userOffset; }
+
 private:
     void CreateCollisionShape();
     void DestroyCollisionShape();
@@ -92,6 +94,8 @@ private:
     glm::vec3 planeNormal;
 
     glm::vec3 offsetPosition;
+    glm::vec3 internalOffset;
+    glm::vec3 userOffset;
 
     bool isTrigger;
 

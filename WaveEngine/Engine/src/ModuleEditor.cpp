@@ -474,7 +474,7 @@ void ModuleEditor::ShowMenuBar()
                     if (ImGui::MenuItem("Mesh Collider"))
                     {
                         selected->CreateCollider(ColliderType::MESH);
-                        LOG_CONSOLE("TODO", selected->GetName().c_str());
+                        LOG_CONSOLE("Mesh Collider (Convex Hull) added to %s", selected->GetName().c_str());
                     }
                 }
 

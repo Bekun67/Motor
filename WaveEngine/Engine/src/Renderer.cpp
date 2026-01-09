@@ -10,6 +10,8 @@
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <stack>
+#include <set>
+#include <BulletCollision/CollisionShapes/btShapeHull.h>
 
 #include "tracy/Tracy.hpp"
 
@@ -1792,29 +1794,6 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
                 }
             }
         }
-
-        //horizontal circles
-        for (int h = 1; h < 4; ++h)
-        {
-            float angle = (h * glm::pi<float>() * 0.25f);
-            float zTop = halfCylinderHeight + cos(angle) * scaledRadius;
-            float rTop = sin(angle) * scaledRadius;
-            float zBottom = -halfCylinderHeight - cos(angle) * scaledRadius;
-
-            for (int i = 0; i < segments; ++i)
-            {
-                float theta1 = (i * 2.0f * glm::pi<float>()) / segments;
-                float theta2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
-
-                glm::vec3 p1 = center + (rotation * glm::vec3(cos(theta1) * rTop, sin(theta1) * rTop, zTop));
-                glm::vec3 p2 = center + (rotation * glm::vec3(cos(theta2) * rTop, sin(theta2) * rTop, zTop));
-                lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
-
-                p1 = center + (rotation * glm::vec3(cos(theta1) * rTop, sin(theta1) * rTop, zBottom));
-                p2 = center + (rotation * glm::vec3(cos(theta2) * rTop, sin(theta2) * rTop, zBottom));
-                lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
-            }
-        }
         break;
     }
 
@@ -1871,7 +1850,67 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
                 corners[next].x, corners[next].y, corners[next].z
                 });
         }
+        break;
+    }
 
+    case ColliderType::MESH:
+    {
+        GameObject* owner = collider->owner;
+        if (!owner) return;
+
+        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+        if (!meshComp || !meshComp->HasMesh()) return;
+
+        btCollisionShape* shape = collider->GetCollisionObject()->getCollisionShape();
+        btConvexHullShape* convexHull = static_cast<btConvexHullShape*>(shape);
+
+        btShapeHull* hull = new btShapeHull(convexHull);
+        btScalar margin = convexHull->getMargin();
+        hull->buildHull(margin);
+
+        int numTriangles = hull->numTriangles();
+        const unsigned int* indices = hull->getIndexPointer();
+        const btVector3* vertices = hull->getVertexPointer();
+
+        if (!vertices || !indices || numTriangles == 0)
+        {
+            delete hull;
+            return;
+        }
+
+        std::vector<glm::vec3> worldPoints;
+        int numVertices = hull->numVertices();
+        worldPoints.reserve(numVertices);
+
+        for (int i = 0; i < numVertices; ++i)
+        {
+            glm::vec3 offset = collider->GetOffset();
+            glm::mat4 offsetMatrix = glm::translate(transform, offset);
+            glm::vec4 worldPos = offsetMatrix * glm::vec4(vertices[i].x(), vertices[i].y(), vertices[i].z(), 1.0f);
+            worldPoints.push_back(glm::vec3(worldPos));
+        }
+
+        std::set<std::pair<int, int>> edges;
+        for (int i = 0; i < numTriangles * 3; i += 3)
+        {
+            int idx0 = indices[i];
+            int idx1 = indices[i + 1];
+            int idx2 = indices[i + 2];
+
+            edges.insert(std::make_pair(std::min(idx0, idx1), std::max(idx0, idx1)));
+            edges.insert(std::make_pair(std::min(idx1, idx2), std::max(idx1, idx2)));
+            edges.insert(std::make_pair(std::min(idx2, idx0), std::max(idx2, idx0)));
+        }
+
+        for (const auto& edge : edges)
+        {
+            lineVertices.insert(lineVertices.end(), {
+                worldPoints[edge.first].x, worldPoints[edge.first].y, worldPoints[edge.first].z,
+                worldPoints[edge.second].x, worldPoints[edge.second].y, worldPoints[edge.second].z
+                });
+        }
+
+        delete hull;
         break;
     }
 
