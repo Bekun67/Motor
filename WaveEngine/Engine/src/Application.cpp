@@ -191,12 +191,13 @@ void Application::Play()
 
     playState = PlayState::PLAYING;
     time->Resume();
-}
 
-void Application::Pause()
-{
-    playState = PlayState::PAUSED;
-    time->Pause();
+    LOG_CONSOLE("Syncing physics to current transforms...");
+    GameObject* root = scene->GetRoot();
+    if (root)
+    {
+        SyncPhysicsRecursive(root);
+    }
 }
 
 void Application::Stop()
@@ -209,6 +210,12 @@ void Application::Stop()
 
     playState = PlayState::EDITING;
     time->Reset();
+    time->Pause();
+}
+
+void Application::Pause()
+{
+    playState = PlayState::PAUSED;
     time->Pause();
 }
 
@@ -254,4 +261,23 @@ bool Application::CleanUp()
     LOG_DEBUG("=== Application Cleanup Complete ===");
     LOG_CONSOLE("Shutdown complete");
     return result;
+}
+
+void Application::SyncPhysicsRecursive(GameObject* obj)
+{
+    if (!obj || !obj->IsActive()) return;
+
+    ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+        obj->GetComponent(ComponentType::RIGIDBODY)
+        );
+
+    if (rb && rb->IsActive())
+    {
+        rb->SyncTransformToPhysics();
+    }
+
+    for (GameObject* child : obj->GetChildren())
+    {
+        SyncPhysicsRecursive(child);
+    }
 }

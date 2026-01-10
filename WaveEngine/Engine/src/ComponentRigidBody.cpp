@@ -2,6 +2,7 @@
 #include "GameObject.h"
 #include "Transform.h"
 #include "ComponentMesh.h"
+#include "ComponentCollider.h"
 #include "Application.h"
 #include "ModulePhysics.h"
 #include "Log.h"
@@ -19,7 +20,7 @@ ComponentRigidBody::ComponentRigidBody(GameObject* owner)
     scale(1.0f)
 {
     name = "RigidBody";
-    CreateRigidBody();
+    CreateRigidBody(); // <--- AÑADE ESTA LÍNEA
 }
 
 ComponentRigidBody::~ComponentRigidBody()
@@ -27,8 +28,43 @@ ComponentRigidBody::~ComponentRigidBody()
     DestroyRigidBody();
 }
 
+void ComponentRigidBody::Enable()
+{
+    CreateRigidBody();
+
+    std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : colliders)
+    {
+        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+        if (collider && collider->IsActive())
+        {
+            collider->UpdateCollisionShape();
+        }
+    }
+}
+
+void ComponentRigidBody::Disable()
+{
+    std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : colliders)
+    {
+        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+        if (collider && collider->IsActive())
+        {
+            collider->UpdateCollisionShape();
+        }
+    }
+
+    DestroyRigidBody();
+}
+
 void ComponentRigidBody::CreateRigidBody()
 {
+    if (rigidBody != nullptr)
+    {
+        DestroyRigidBody();
+    }
+
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
@@ -230,6 +266,11 @@ void ComponentRigidBody::SyncTransformToPhysics()
 
     rigidBody->setWorldTransform(worldTrans);
     motionState->setWorldTransform(worldTrans);
+
+    rigidBody->setLinearVelocity(btVector3(0, 0, 0));
+    rigidBody->setAngularVelocity(btVector3(0, 0, 0));
+    rigidBody->clearForces();
+    rigidBody->activate(true);
 }
 
 void ComponentRigidBody::SetMass(float newMass)
@@ -314,5 +355,4 @@ void ComponentRigidBody::Deserialize(const nlohmann::json& componentObj)
 
 void ComponentRigidBody::OnEditor()
 {
-    // To be implemented in InspectorWindow
 }

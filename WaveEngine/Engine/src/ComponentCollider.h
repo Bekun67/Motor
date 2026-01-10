@@ -20,7 +20,9 @@ public:
     ComponentCollider(GameObject* owner, ColliderType type = ColliderType::BOX);
     ~ComponentCollider();
 
+    void Enable() override;
     void Update() override;
+    void Disable() override;
 
     // Serialization
     void Serialize(nlohmann::json& componentObj) const override;
@@ -72,12 +74,13 @@ public:
 
     glm::vec3 GetUserOffset() const { return userOffset; }
 
+    void UpdateCollisionShape();
+
 private:
     void CreateCollisionShape();
     void DestroyCollisionShape();
-    void UpdateCollisionShape();
     void SyncTransformToPhysics();
-    void RemoveFromRigidBody(); 
+    void RemoveFromRigidBody();
 
     // Collision object
     btCollisionObject* collisionObject;
@@ -107,5 +110,5 @@ private:
     bool showDebug;
     bool manuallyEdited = false;
 
-    bool isAttachedToRigidBody = false; 
+    bool isAttachedToRigidBody = false;
 };

@@ -41,8 +41,23 @@ ComponentCollider::~ComponentCollider()
     DestroyCollisionShape();
 }
 
+void ComponentCollider::Enable()
+{
+    CreateCollisionShape();
+}
+
+void ComponentCollider::Disable()
+{
+    DestroyCollisionShape();
+}
+
 void ComponentCollider::CreateCollisionShape()
 {
+    if (collisionShape != nullptr)
+    {
+        DestroyCollisionShape();
+    }
+
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
@@ -75,12 +90,12 @@ void ComponentCollider::CreateCollisionShape()
             internalOffset = meshCenter;
             break;
         case ColliderType::CYLINDER:
-            cylinderRadius = glm::max(meshSize.x, meshSize.z) * 0.5f;
+            cylinderRadius = glm::max(meshSize.x, meshSize.y) * 0.5f;
             cylinderHeight = meshSize.z;
             internalOffset = meshCenter;
             break;
         case ColliderType::CAPSULE:
-            capsuleRadius = glm::max(meshSize.x, meshSize.z) * 0.5f;
+            capsuleRadius = glm::max(meshSize.x, meshSize.y) * 0.5f;
             capsuleHeight = meshSize.z;
             internalOffset = meshCenter;
             break;
@@ -99,23 +114,45 @@ void ComponentCollider::CreateCollisionShape()
     {
     case ColliderType::BOX:
         collisionShape = new btBoxShape(btVector3(
-            boxSize.x * 0.5f,
-            boxSize.y * 0.5f,
-            boxSize.z * 0.5f
+            boxSize.x * 0.5f * worldScale.x,
+            boxSize.y * 0.5f * worldScale.y,
+            boxSize.z * 0.5f * worldScale.z
         ));
         break;
 
     case ColliderType::SPHERE:
-        collisionShape = new btSphereShape(sphereRadius);
+    {
+        float uniformScale = glm::max(glm::max(worldScale.x, worldScale.y), worldScale.z);
+        collisionShape = new btSphereShape(sphereRadius * uniformScale);
         break;
+    }
 
     case ColliderType::CYLINDER:
-        collisionShape = new btCylinderShape(btVector3(cylinderRadius, cylinderHeight * 0.5f, cylinderRadius));
+    {
+        btVector3 halfExtents(
+            cylinderRadius * worldScale.x,
+            cylinderRadius * worldScale.y,
+            cylinderHeight * 0.5f * worldScale.z
+        );
+        collisionShape = new btCylinderShapeZ(halfExtents);
         break;
+    }
 
     case ColliderType::CAPSULE:
-        collisionShape = new btCapsuleShape(capsuleRadius, capsuleHeight);
+    {
+        float radialScale = glm::max(worldScale.x, worldScale.y);
+        float scaledRadius = capsuleRadius * radialScale * 0.8;
+
+        float halfHeight = capsuleHeight * 0.5f * worldScale.z;
+
+        float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
+
+        collisionShape = new btCapsuleShapeZ(
+            scaledRadius,
+            cylinderHalfHeight * 2.0f * 1.2f
+        );
         break;
+    }
 
     case ColliderType::PLANE:
         collisionShape = new btStaticPlaneShape(
@@ -160,7 +197,7 @@ void ComponentCollider::CreateCollisionShape()
         owner->GetComponent(ComponentType::RIGIDBODY)
         );
 
-    if (rigidBody)
+    if (rigidBody && rigidBody->IsActive())
     {
         // If there's a rigidbody, attach this shape to its compound shape
         btCompoundShape* compoundShape = rigidBody->GetCompoundShape();
@@ -170,9 +207,11 @@ void ComponentCollider::CreateCollisionShape()
             // Create local transform for the shape within the compound
             btTransform localTransform;
             localTransform.setIdentity();
-            localTransform.setOrigin(btVector3(offsetPosition.x, offsetPosition.y, offsetPosition.z));
 
             // Add shape to compound
+            glm::vec3 scaledOffset = offsetPosition * worldScale;
+            localTransform.setOrigin(btVector3(scaledOffset.x, scaledOffset.y, scaledOffset.z));
+
             compoundShape->addChildShape(localTransform, collisionShape);
 
             // Recalculate mass properties
@@ -318,7 +357,11 @@ void ComponentCollider::SyncTransformToPhysics()
     glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
 
     offsetPosition = internalOffset + userOffset;
-    glm::vec3 finalPosition = worldPosition + offsetPosition;
+
+    glm::mat4 rotationMatrix = glm::mat4_cast(worldRotation);
+    glm::vec3 scaledOffset = offsetPosition * worldScale;
+    glm::vec3 rotatedOffset = glm::vec3(rotationMatrix * glm::vec4(scaledOffset, 0.0f));
+    glm::vec3 finalPosition = worldPosition + rotatedOffset;
 
     btTransform worldTrans;
     worldTrans.setOrigin(btVector3(finalPosition.x, finalPosition.y, finalPosition.z));
@@ -413,23 +456,18 @@ void ComponentCollider::SetPlaneNormal(const glm::vec3& normal)
 void ComponentCollider::SetOffset(const glm::vec3& offset)
 {
     userOffset = offset;
-
-    if (isAttachedToRigidBody)
-    {
-        // If attached to RigidBody, we need to update the child transform in the compound
-        UpdateCollisionShape();
-    }
-    else if (collisionObject)
-    {
-        SyncTransformToPhysics();
-    }
+    UpdateCollisionShape();
 }
 
 void ComponentCollider::SetIsTrigger(bool trigger)
 {
     isTrigger = trigger;
 
-    if (collisionObject)
+    if (isAttachedToRigidBody)
+    {
+        UpdateCollisionShape();
+    }
+    else if (collisionObject)
     {
         if (isTrigger)
         {

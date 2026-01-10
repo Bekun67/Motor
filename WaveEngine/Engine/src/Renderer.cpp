@@ -1697,15 +1697,19 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
 
     case ColliderType::CAPSULE:
     {
-        float radius = collider->GetCapsuleRadius();
-        float height = collider->GetCapsuleHeight();
+        btCollisionShape* shape = collider->GetCollisionShape();
+        if (!shape) return;
+
+        btCapsuleShape* capsuleShape = static_cast<btCapsuleShape*>(shape);
+
+        float scaledRadius = capsuleShape->getRadius();
+        float cylinderOnlyHeight = capsuleShape->getHalfHeight() * 2.0f;
 
         glm::vec3 scaleVec(
             glm::length(glm::vec3(offsetMatrix[0])),
             glm::length(glm::vec3(offsetMatrix[1])),
             glm::length(glm::vec3(offsetMatrix[2]))
         );
-        float radialScale = glm::max(scaleVec.x, scaleVec.y);
         glm::vec3 center = glm::vec3(offsetMatrix[3]);
         glm::mat3 rotation(
             glm::normalize(glm::vec3(offsetMatrix[0])),
@@ -1714,9 +1718,7 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
         );
 
         const int segments = 24;
-        float cylinderHeight = (height * scaleVec.z) - (2.0f * radius * radialScale);
-        float halfCylinderHeight = cylinderHeight * 0.5f;
-        float scaledRadius = radius * radialScale;
+        float halfCylinderHeight = cylinderOnlyHeight * 0.5f;
 
         //upper circle
         for (int i = 0; i < segments; ++i)
@@ -1773,6 +1775,7 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
             }
         }
 
+        // Arcos inferiores
         for (int i = 0; i <= arcSegments; ++i)
         {
             float angle = (i * glm::pi<float>()) / arcSegments;
@@ -1855,13 +1858,21 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
 
     case ColliderType::MESH:
     {
+        if (!collider) return;
+
         GameObject* owner = collider->owner;
         if (!owner) return;
 
         ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
         if (!meshComp || !meshComp->HasMesh()) return;
 
-        btCollisionShape* shape = collider->GetCollisionObject()->getCollisionShape();
+        btCollisionShape* shape = collider->GetCollisionShape();
+        if (!shape)
+        {
+            LOG_DEBUG("[Renderer] MESH collider has null shape!");
+            return;
+        }
+
         btConvexHullShape* convexHull = static_cast<btConvexHullShape*>(shape);
 
         btShapeHull* hull = new btShapeHull(convexHull);

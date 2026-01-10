@@ -17,6 +17,9 @@
 #include "ModuleResources.h"
 #include "ModulePhysics.h"  
 
+#include "GameObject.h"
+#include "ComponentRigidBody.h"
+
 class Module;
 
 class Application
@@ -107,4 +110,5 @@ public:
         EXIT
     };
 
+    void SyncPhysicsRecursive(GameObject* obj);
 };
