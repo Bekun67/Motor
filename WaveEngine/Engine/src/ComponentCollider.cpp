@@ -2,6 +2,7 @@
 #include "GameObject.h"
 #include "Transform.h"
 #include "ComponentMesh.h"
+#include "ComponentRigidBody.h"
 #include "Application.h"
 #include "ModulePhysics.h"
 #include "Log.h"
@@ -28,7 +29,8 @@ ComponentCollider::ComponentCollider(GameObject* owner, ColliderType type)
     friction(0.5f),
     restitution(0.0f),
     showDebug(false),
-    manuallyEdited(false)
+    manuallyEdited(false),
+    isAttachedToRigidBody(false)
 {
     name = "Collider";
     CreateCollisionShape();
@@ -92,6 +94,7 @@ void ComponentCollider::CreateCollisionShape()
         }
     }
 
+    // Create the collision shape based on type
     switch (colliderType)
     {
     case ColliderType::BOX:
@@ -125,7 +128,6 @@ void ComponentCollider::CreateCollisionShape()
         if (meshComp && meshComp->HasMesh())
         {
             const Mesh& mesh = meshComp->GetMesh();
-
             btConvexHullShape* convexHull = new btConvexHullShape();
 
             for (const auto& vertex : mesh.vertices)
@@ -134,7 +136,6 @@ void ComponentCollider::CreateCollisionShape()
             }
 
             convexHull->recalcLocalAabb();
-
             collisionShape = convexHull;
 
             LOG_DEBUG("[ComponentCollider] Created convex hull with %d vertices", mesh.vertices.size());
@@ -152,15 +153,51 @@ void ComponentCollider::CreateCollisionShape()
         return;
     }
 
-    //apply offset to transform
     offsetPosition = internalOffset + userOffset;
+
+    // Check if there's a rigidbody component
+    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+        owner->GetComponent(ComponentType::RIGIDBODY)
+        );
+
+    if (rigidBody)
+    {
+        // If there's a rigidbody, attach this shape to its compound shape
+        btCompoundShape* compoundShape = rigidBody->GetCompoundShape();
+
+        if (compoundShape)
+        {
+            // Create local transform for the shape within the compound
+            btTransform localTransform;
+            localTransform.setIdentity();
+            localTransform.setOrigin(btVector3(offsetPosition.x, offsetPosition.y, offsetPosition.z));
+
+            // Add shape to compound
+            compoundShape->addChildShape(localTransform, collisionShape);
+
+            // Recalculate mass properties
+            rigidBody->RecalculateInertia();
+
+            isAttachedToRigidBody = true;
+
+            LOG_DEBUG("[ComponentCollider] Attached %s to RigidBody (total shapes: %d)",
+                GetColliderTypeName().c_str(),
+                compoundShape->getNumChildShapes());
+
+            // We don't create a separate collision object
+            collisionObject = nullptr;
+            return;
+        }
+    }
+
+    // If there's NO RigidBody, create a standalone collision object
+    isAttachedToRigidBody = false;
 
     glm::mat4 rotationMatrix = glm::mat4_cast(worldRotation);
     glm::vec3 scaledOffset = offsetPosition * worldScale;
     glm::vec3 rotatedOffset = glm::vec3(rotationMatrix * glm::vec4(scaledOffset, 0.0f));
     glm::vec3 finalPosition = worldPosition + rotatedOffset;
 
-    //create collision object
     btTransform startTransform;
     startTransform.setIdentity();
     startTransform.setOrigin(btVector3(finalPosition.x, finalPosition.y, finalPosition.z));
@@ -169,11 +206,9 @@ void ComponentCollider::CreateCollisionShape()
     collisionObject = new btCollisionObject();
     collisionObject->setCollisionShape(collisionShape);
     collisionObject->setWorldTransform(startTransform);
-
     collisionObject->setFriction(friction);
     collisionObject->setRestitution(restitution);
 
-    //set trigger
     if (isTrigger)
     {
         collisionObject->setCollisionFlags(
@@ -184,30 +219,67 @@ void ComponentCollider::CreateCollisionShape()
 
     collisionObject->setUserPointer(owner);
 
-    //add to physics world
     ModulePhysics* physics = Application::GetInstance().physics.get();
     if (physics && physics->GetDynamicsWorld())
     {
         physics->GetDynamicsWorld()->addCollisionObject(collisionObject);
     }
 
-    LOG_DEBUG("[ComponentCollider] Created %s collider for '%s'",
+    LOG_DEBUG("[ComponentCollider] Created standalone %s collider for '%s'",
         GetColliderTypeName().c_str(),
         owner->GetName().c_str());
 }
 
+void ComponentCollider::RemoveFromRigidBody()
+{
+    if (!isAttachedToRigidBody || !collisionShape) return;
+
+    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+        owner->GetComponent(ComponentType::RIGIDBODY)
+        );
+
+    if (rigidBody)
+    {
+        btCompoundShape* compoundShape = rigidBody->GetCompoundShape();
+        if (compoundShape)
+        {
+            // Find and remove this specific shape from the compound
+            for (int i = compoundShape->getNumChildShapes() - 1; i >= 0; i--)
+            {
+                if (compoundShape->getChildShape(i) == collisionShape)
+                {
+                    compoundShape->removeChildShapeByIndex(i);
+                    LOG_DEBUG("[ComponentCollider] Removed shape from RigidBody (index: %d)", i);
+                    break;
+                }
+            }
+
+            // Recalculate inertia after removing shape
+            rigidBody->RecalculateInertia();
+        }
+    }
+
+    isAttachedToRigidBody = false;
+}
+
 void ComponentCollider::DestroyCollisionShape()
 {
+    // First, remove from rigidbody if attached
+    RemoveFromRigidBody();
+
+    // Then remove from physics world if standalone
     ModulePhysics* physics = Application::GetInstance().physics.get();
     if (physics && physics->GetDynamicsWorld() && collisionObject)
     {
         physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
     }
 
+    // Delete collision object 
     delete collisionObject;
-    delete collisionShape;
-
     collisionObject = nullptr;
+
+    // Delete the collision shape
+    delete collisionShape;
     collisionShape = nullptr;
 }
 
@@ -219,9 +291,13 @@ void ComponentCollider::UpdateCollisionShape()
 
 void ComponentCollider::Update()
 {
-    if (!IsActive() || !collisionObject) return;
+    if (!IsActive() || isAttachedToRigidBody) return;
 
-    SyncTransformToPhysics();
+    // Only sync transform if this is a standalone collider
+    if (collisionObject)
+    {
+        SyncTransformToPhysics();
+    }
 }
 
 void ComponentCollider::SyncTransformToPhysics()
@@ -337,7 +413,16 @@ void ComponentCollider::SetPlaneNormal(const glm::vec3& normal)
 void ComponentCollider::SetOffset(const glm::vec3& offset)
 {
     userOffset = offset;
-    SyncTransformToPhysics();
+
+    if (isAttachedToRigidBody)
+    {
+        // If attached to RigidBody, we need to update the child transform in the compound
+        UpdateCollisionShape();
+    }
+    else if (collisionObject)
+    {
+        SyncTransformToPhysics();
+    }
 }
 
 void ComponentCollider::SetIsTrigger(bool trigger)

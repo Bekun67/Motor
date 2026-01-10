@@ -12,7 +12,7 @@
 ComponentRigidBody::ComponentRigidBody(GameObject* owner)
     : Component(owner, ComponentType::RIGIDBODY),
     rigidBody(nullptr),
-    collisionShape(nullptr),
+    compoundShape(nullptr),
     motionState(nullptr),
     mass(1.0f),
     isKinematic(false),
@@ -32,7 +32,7 @@ void ComponentRigidBody::CreateRigidBody()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
-	// Use global matrix for world position, rotation, and scale
+    // Use global matrix for world position, rotation, and scale
     glm::mat4 globalMatrix = transform->GetGlobalMatrix();
 
     // Decompose global matrix
@@ -44,33 +44,10 @@ void ComponentRigidBody::CreateRigidBody()
 
     glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
 
-    // Get AABB from mesh component using global scale
-    ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
-    if (meshComp && meshComp->HasMesh())
-    {
-        glm::vec3 minBounds = meshComp->GetAABBMin();
-        glm::vec3 maxBounds = meshComp->GetAABBMax();
+    scale = worldScale;
 
-        glm::vec3 size = (maxBounds - minBounds) * worldScale;
-
-        scale = worldScale;
-
-        collisionShape = new btBoxShape(btVector3(
-            size.x * 0.5f,
-            size.y * 0.5f,
-            size.z * 0.5f
-        ));
-    }
-    else
-    {
-        // Default box shape
-        scale = worldScale;
-        collisionShape = new btBoxShape(btVector3(
-            scale.x * 0.5f,
-            scale.y * 0.5f,
-            scale.z * 0.5f
-        ));
-    }
+    // Create an empty compound shape
+    compoundShape = new btCompoundShape();
 
     // Create motion state
     btTransform startTransform;
@@ -84,11 +61,11 @@ void ComponentRigidBody::CreateRigidBody()
     btVector3 localInertia(0, 0, 0);
     if (mass > 0.0f && !isKinematic)
     {
-        collisionShape->calculateLocalInertia(mass, localInertia);
+        compoundShape->calculateLocalInertia(mass, localInertia);
     }
 
     // Create rigid body
-    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, collisionShape, localInertia);
+    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, compoundShape, localInertia);
     rigidBody = new btRigidBody(rbInfo);
 
     // Set kinematic flag
@@ -98,7 +75,7 @@ void ComponentRigidBody::CreateRigidBody()
         rigidBody->setActivationState(DISABLE_DEACTIVATION);
     }
 
-    // Store GameObject pointer for collision detection
+    // Store gameobject pointer for collision detection
     rigidBody->setUserPointer(owner);
 
     // Add to physics world
@@ -108,10 +85,9 @@ void ComponentRigidBody::CreateRigidBody()
         physics->GetDynamicsWorld()->addRigidBody(rigidBody);
     }
 
-    LOG_DEBUG("[RigidBody] Created for '%s' at world pos (%.2f, %.2f, %.2f) with world scale (%.2f, %.2f, %.2f)",
+    LOG_DEBUG("[RigidBody] Created for '%s' at world pos (%.2f, %.2f, %.2f)",
         owner->GetName().c_str(),
-        worldPosition.x, worldPosition.y, worldPosition.z,
-        worldScale.x, worldScale.y, worldScale.z);
+        worldPosition.x, worldPosition.y, worldPosition.z);
 }
 
 void ComponentRigidBody::DestroyRigidBody()
@@ -122,13 +98,42 @@ void ComponentRigidBody::DestroyRigidBody()
         physics->GetDynamicsWorld()->removeRigidBody(rigidBody);
     }
 
+    // Clean up child shapes in compound before deleting
+    if (compoundShape)
+    {
+        while (compoundShape->getNumChildShapes() > 0)
+        {
+            compoundShape->removeChildShapeByIndex(0);
+        }
+    }
+
     delete rigidBody;
     delete motionState;
-    delete collisionShape;
+    delete compoundShape;
 
     rigidBody = nullptr;
     motionState = nullptr;
-    collisionShape = nullptr;
+    compoundShape = nullptr;
+}
+
+void ComponentRigidBody::RecalculateInertia()
+{
+    if (!rigidBody || !compoundShape) return;
+
+    btVector3 localInertia(0, 0, 0);
+
+    // Only calculate inertia if there are shapes attached and mass > 0
+    if (compoundShape->getNumChildShapes() > 0 && mass > 0.0f && !isKinematic)
+    {
+        compoundShape->calculateLocalInertia(mass, localInertia);
+    }
+
+    rigidBody->setMassProps(mass, localInertia);
+    rigidBody->updateInertiaTensor();
+
+    LOG_DEBUG("[RigidBody] Recalculated inertia for '%s' (shapes: %d)",
+        owner->GetName().c_str(),
+        compoundShape->getNumChildShapes());
 }
 
 void ComponentRigidBody::Update()
@@ -146,7 +151,7 @@ void ComponentRigidBody::SyncTransformFromPhysics()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
-    // Get the world transform from bullet
+    // Get the world transform from Bullet
     btTransform worldTrans;
     motionState->getWorldTransform(worldTrans);
 
@@ -179,12 +184,11 @@ void ComponentRigidBody::SyncTransformFromPhysics()
 
             glm::decompose(parentGlobal, parentScale, parentRotation, parentTranslation, skew, perspective);
 
-            // Convert world rotation to local using ONLY rotation (no scale)
+            // Convert world rotation to local using only rotation 
             glm::quat localRotation = glm::inverse(parentRotation) * worldRotation;
 
             transform->SetPosition(localPosition);
             transform->SetRotationQuat(localRotation);
-
         }
         else
         {
@@ -208,7 +212,7 @@ void ComponentRigidBody::SyncTransformToPhysics()
     Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transform) return;
 
-	// Get global matrix for world position, rotation, and scale
+    // Get global matrix for world position, rotation, and scale
     glm::mat4 globalMatrix = transform->GetGlobalMatrix();
 
     glm::vec3 worldPosition;
@@ -219,7 +223,7 @@ void ComponentRigidBody::SyncTransformToPhysics()
 
     glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
 
-	// Apply world transform to bullet
+    // Apply world transform to Bullet
     btTransform worldTrans;
     worldTrans.setOrigin(btVector3(worldPosition.x, worldPosition.y, worldPosition.z));
     worldTrans.setRotation(btQuaternion(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w));
@@ -231,18 +235,7 @@ void ComponentRigidBody::SyncTransformToPhysics()
 void ComponentRigidBody::SetMass(float newMass)
 {
     mass = newMass;
-
-    if (rigidBody && collisionShape)
-    {
-        btVector3 localInertia(0, 0, 0);
-        if (mass > 0.0f && !isKinematic)
-        {
-            collisionShape->calculateLocalInertia(mass, localInertia);
-        }
-
-        rigidBody->setMassProps(mass, localInertia);
-        rigidBody->updateInertiaTensor();
-    }
+    RecalculateInertia();
 }
 
 void ComponentRigidBody::SetKinematic(bool kinematic)

@@ -4,6 +4,8 @@
 #include <btBulletDynamicsCommon.h>
 #include <glm/glm.hpp>
 
+class ComponentCollider;
+
 class ComponentRigidBody : public Component
 {
 public:
@@ -30,6 +32,13 @@ public:
     glm::vec3 GetVelocity() const;
     void SetVelocity(const glm::vec3& velocity);
 
+    // Get the Bullet rigid body for colliders to attach to
+    btRigidBody* GetBulletRigidBody() { return rigidBody; }
+    // Get the compound shape that holds all attached collider shapes
+    btCompoundShape* GetCompoundShape() { return compoundShape; }
+    // Recalculate inertia tensor after adding/removing collider shapes
+    void RecalculateInertia();
+
 private:
     void CreateRigidBody();
     void DestroyRigidBody();
@@ -37,7 +46,7 @@ private:
     void SyncTransformToPhysics();
 
     btRigidBody* rigidBody;
-    btCollisionShape* collisionShape;
+    btCompoundShape* compoundShape;  
     btDefaultMotionState* motionState;
 
     float mass;

@@ -22,16 +22,16 @@ public:
 
     void Update() override;
 
-    //serialization
+    // Serialization
     void Serialize(nlohmann::json& componentObj) const override;
     void Deserialize(const nlohmann::json& componentObj) override;
 
-    //collider types
+    // Collider types
     void SetColliderType(ColliderType type);
     ColliderType GetColliderType() const { return colliderType; }
     std::string GetColliderTypeName() const;
 
-    //collider properties
+    // Collider properties
     void SetBoxSize(const glm::vec3& size);
     glm::vec3 GetBoxSize() const { return boxSize; }
 
@@ -49,11 +49,11 @@ public:
     void SetPlaneNormal(const glm::vec3& normal);
     glm::vec3 GetPlaneNormal() const { return planeNormal; }
 
-    //offset
+    // Offset
     void SetOffset(const glm::vec3& offset);
     glm::vec3 GetOffset() const { return offsetPosition; }
 
-    //trigger mode
+    // Trigger mode
     void SetIsTrigger(bool trigger);
     bool IsTrigger() const { return isTrigger; }
 
@@ -64,8 +64,9 @@ public:
     float GetRestitution() const { return restitution; }
 
     btCollisionObject* GetCollisionObject() const { return collisionObject; }
+    btCollisionShape* GetCollisionShape() const { return collisionShape; }
 
-    //debug visualization
+    // Debug visualization
     void SetShowDebug(bool show) { showDebug = show; }
     bool GetShowDebug() const { return showDebug; }
 
@@ -76,15 +77,16 @@ private:
     void DestroyCollisionShape();
     void UpdateCollisionShape();
     void SyncTransformToPhysics();
+    void RemoveFromRigidBody(); 
 
-    //collision object
+    // Collision object
     btCollisionObject* collisionObject;
     btCollisionShape* collisionShape;
 
-    //collider type
+    // Collider type
     ColliderType colliderType;
 
-    //collider parameters
+    // Collider parameters
     glm::vec3 boxSize;
     float sphereRadius;
     float cylinderRadius;
@@ -94,8 +96,8 @@ private:
     glm::vec3 planeNormal;
 
     glm::vec3 offsetPosition;
-    glm::vec3 internalOffset;
-    glm::vec3 userOffset;
+    glm::vec3 internalOffset; 
+    glm::vec3 userOffset;     
 
     bool isTrigger;
 
@@ -104,4 +106,6 @@ private:
 
     bool showDebug;
     bool manuallyEdited = false;
+
+    bool isAttachedToRigidBody = false; 
 };
