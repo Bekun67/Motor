@@ -114,4 +114,13 @@ private:
     bool manuallyEdited = false;
 
     bool isAttachedToRigidBody = false;
+
+    friend class ComponentRigidBody;  
+
+	// Force clearing the standalone collision object without deleting it
+    void ClearStandaloneObject()
+    {
+        collisionObject = nullptr;
+        isAttachedToRigidBody = true;
+    }
 };

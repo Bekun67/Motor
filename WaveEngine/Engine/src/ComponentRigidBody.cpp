@@ -88,16 +88,38 @@ void ComponentRigidBody::CreateRigidBody()
             btCollisionShape* shape = collider->GetCollisionShape();
             if (shape)
             {
-                // Remove the standalone collision object from physics world if it exists
+				// Remove standalone collision object from world if it exists
                 btCollisionObject* standaloneCO = collider->GetCollisionObject();
                 if (standaloneCO)
                 {
                     ModulePhysics* physics = Application::GetInstance().physics.get();
                     if (physics && physics->GetDynamicsWorld())
                     {
-                        physics->GetDynamicsWorld()->removeCollisionObject(standaloneCO);
+						// Verify that the standalone collision object is actually in the world before removing
+                        btCollisionObjectArray& objectArray = physics->GetDynamicsWorld()->getCollisionObjectArray();
+                        bool found = false;
+                        for (int i = 0; i < objectArray.size(); i++)
+                        {
+                            if (objectArray[i] == standaloneCO)
+                            {
+                                found = true;
+                                physics->GetDynamicsWorld()->removeCollisionObject(standaloneCO);
+                                LOG_DEBUG("[ComponentRigidBody] Removed standalone collision object from world");
+                                break;
+                            }
+                        }
+
+                        if (!found)
+                        {
+                            LOG_DEBUG("[ComponentRigidBody] WARNING: Standalone collision object not in world");
+                        }
                     }
+
+					// Delete the standalone collision object
                     delete standaloneCO;
+
+					//Force nullify the pointer in the collider
+                    collider->ClearStandaloneObject();
                 }
 
                 // Add shape to compound
@@ -159,7 +181,19 @@ void ComponentRigidBody::CreateRigidBody()
 
 void ComponentRigidBody::DestroyRigidBody()
 {
-    // Remove from physics world
+	// notify all attached colliders that they're being detached
+    std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : colliders)
+    {
+        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+        if (collider && collider->IsActive())
+        {
+			// Force collider to standalone mode so it doesn't try to remove from compound again
+            collider->ForceStandaloneMode();
+        }
+    }
+
+	// Remove from physics world
     ModulePhysics* physics = Application::GetInstance().physics.get();
     if (physics && physics->GetDynamicsWorld() && rigidBody)
     {
@@ -167,7 +201,7 @@ void ComponentRigidBody::DestroyRigidBody()
         LOG_DEBUG("[ComponentRigidBody] Removed from physics world");
     }
 
-    // Clean up child shapes from compound without deleting them
+	// Clear compound shapes
     if (compoundShape)
     {
         int numShapes = compoundShape->getNumChildShapes();
@@ -178,7 +212,7 @@ void ComponentRigidBody::DestroyRigidBody()
         LOG_DEBUG("[ComponentRigidBody] Removed %d child shapes from compound", numShapes);
     }
 
-    // Delete Bullet objects
+	// Delete Bullet objects
     if (rigidBody)
     {
         delete rigidBody;
@@ -199,6 +233,7 @@ void ComponentRigidBody::DestroyRigidBody()
 
     LOG_DEBUG("[ComponentRigidBody] Destroyed RigidBody completely");
 }
+
 void ComponentRigidBody::RecalculateInertia()
 {
     if (!rigidBody || !compoundShape) return;

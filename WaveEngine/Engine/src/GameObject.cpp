@@ -14,6 +14,19 @@ GameObject::GameObject(const std::string& name) : name(name), active(true), pare
 }
 
 GameObject::~GameObject() {
+
+    for (auto* comp : components) {
+        if (comp->GetType() == ComponentType::RIGIDBODY) {
+            comp->Disable();
+        }
+    }
+
+    for (auto* comp : components) {
+        if (comp->GetType() == ComponentType::COLLIDER) {
+            comp->Disable();
+        }
+    }
+
     components.clear();
     componentOwners.clear();
 
@@ -261,6 +274,25 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
 
 void GameObject::RemoveComponent(Component* component)
 {
+    if (!component) return;
+
+	// If it is a RigidBody, notify all attached colliders
+    if (component->GetType() == ComponentType::RIGIDBODY)
+    {
+        std::vector<Component*> colliders = GetComponentsOfType(ComponentType::COLLIDER);
+        for (Component* comp : colliders)
+        {
+            ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+            if (collider && collider->IsActive())
+            {
+                collider->ForceStandaloneMode();
+            }
+        }
+    }
+
+	// Deactivate before removal
+    component->Disable();
+
     auto it = std::find(components.begin(), components.end(), component);
     if (it != components.end())
     {

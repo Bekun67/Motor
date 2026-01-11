@@ -63,13 +63,8 @@ void ComponentCollider::Disable()
     if (isAttachedToRigidBody)
     {
         isAttachedToRigidBody = false;
-
-        // Delete our shape since we own it
-        if (collisionShape)
-        {
-            delete collisionShape;
-            collisionShape = nullptr;
-        }
+        collisionShape = nullptr;
+        collisionObject = nullptr;
 
         return;
     }
@@ -244,9 +239,21 @@ void ComponentCollider::CreateCollisionShape()
 
     if (rigidBody && rigidBody->IsActive())
     {
-        // We need to trigger a rebuild of the RigidBody to include this collider
+		// If we already had a standalone collider, remove it
+        if (collisionObject)
+        {
+            ModulePhysics* physics = Application::GetInstance().physics.get();
+            if (physics && physics->GetDynamicsWorld())
+            {
+                physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
+                LOG_DEBUG("[ComponentCollider] Removed old standalone collider before attaching to RigidBody");
+            }
+
+            delete collisionObject;
+            collisionObject = nullptr;
+        }
+
         isAttachedToRigidBody = true;
-        collisionObject = nullptr;
 
         // Force RigidBody to rebuild and include this collider
         rigidBody->CreateRigidBody();
@@ -349,40 +356,66 @@ void ComponentCollider::RemoveStandaloneFromWorld()
 
 void ComponentCollider::DestroyCollisionShape()
 {
-    // First, check if we're attached to a RigidBody
+	// Verify if attached to RigidBody
     if (isAttachedToRigidBody)
     {
-        // Don't remove from compound
+		// do not remove from rigid body here, as the rigid body handles it
         isAttachedToRigidBody = false;
 
-        // We still own the shape, so delete it
+		// Only delete the collision shape
         if (collisionShape)
         {
             delete collisionShape;
             collisionShape = nullptr;
         }
 
-        // No collision object to clean up when attached
+		// there is no collision object in this case
         collisionObject = nullptr;
 
         LOG_DEBUG("[ComponentCollider] Destroyed attached collision shape");
         return;
     }
 
-    // Remove standalone collision object from physics world
+	// For standalone colliders, remove from physics world
     ModulePhysics* physics = Application::GetInstance().physics.get();
     if (physics && physics->GetDynamicsWorld() && collisionObject)
     {
-        physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
+		// Assure the collision object is still in the world before removing
+        btCollisionObjectArray& objectArray = physics->GetDynamicsWorld()->getCollisionObjectArray();
+        bool found = false;
+        for (int i = 0; i < objectArray.size(); i++)
+        {
+            if (objectArray[i] == collisionObject)
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if (found)
+        {
+            physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
+            LOG_DEBUG("[ComponentCollider] Removed standalone collider from physics world");
+        }
+        else
+        {
+            LOG_DEBUG("[ComponentCollider] WARNING: Collision object not found in world, skipping removal");
+        }
     }
 
-    // Delete collision object 
-    delete collisionObject;
-    collisionObject = nullptr;
+	// Delete collision object
+    if (collisionObject)
+    {
+        delete collisionObject;
+        collisionObject = nullptr;
+    }
 
-    // Delete the collision shape
-    delete collisionShape;
-    collisionShape = nullptr;
+	// Delete collision shape
+    if (collisionShape)
+    {
+        delete collisionShape;
+        collisionShape = nullptr;
+    }
 
     LOG_DEBUG("[ComponentCollider] Destroyed standalone collision shape");
 }
