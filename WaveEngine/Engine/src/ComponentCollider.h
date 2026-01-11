@@ -76,11 +76,14 @@ public:
 
     void UpdateCollisionShape();
 
+    void ForceStandaloneMode() { isAttachedToRigidBody = false; }
+
 private:
     void CreateCollisionShape();
     void DestroyCollisionShape();
     void SyncTransformToPhysics();
     void RemoveFromRigidBody();
+	void RemoveStandaloneFromWorld();
 
     // Collision object
     btCollisionObject* collisionObject;

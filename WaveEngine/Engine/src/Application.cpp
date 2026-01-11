@@ -205,6 +205,15 @@ void Application::Stop()
     // Restore
     if (playState != PlayState::EDITING) {
         LOG_CONSOLE("Restoring initial scene state...");
+
+        // CRITICAL: Clean up ALL physics objects before loading the saved scene
+        GameObject* root = scene->GetRoot();
+        if (root)
+        {
+            // First pass: disable all physics components to remove them from physics world
+            CleanupPhysicsRecursive(root);
+        }
+
         scene->LoadScene("../Library/TempScene/__temp_scene_state__.json");
     }
 
@@ -279,5 +288,58 @@ void Application::SyncPhysicsRecursive(GameObject* obj)
     for (GameObject* child : obj->GetChildren())
     {
         SyncPhysicsRecursive(child);
+    }
+}
+
+void Application::MarkCollidersAsStandalone(GameObject* obj)
+{
+    if (!obj) return;
+
+    // Get all colliders and mark them as not attached
+    std::vector<Component*> colliders = obj->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : colliders)
+    {
+        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+        if (collider)
+        {
+            collider->ForceStandaloneMode();
+        }
+    }
+
+    // Recursively process children
+    for (GameObject* child : obj->GetChildren())
+    {
+        MarkCollidersAsStandalone(child);
+    }
+}
+
+void Application::CleanupPhysicsRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
+    // Disable RigidBody first (this removes it from physics world)
+    ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+        obj->GetComponent(ComponentType::RIGIDBODY)
+        );
+    if (rb && rb->IsActive())
+    {
+        rb->Disable();
+    }
+
+    // Then disable all colliders (this removes standalone colliders from physics world)
+    std::vector<Component*> colliders = obj->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : colliders)
+    {
+        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+        if (collider && collider->IsActive())
+        {
+            collider->Disable();
+        }
+    }
+
+    // Recursively process children
+    for (GameObject* child : obj->GetChildren())
+    {
+        CleanupPhysicsRecursive(child);
     }
 }

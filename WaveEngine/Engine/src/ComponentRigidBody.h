@@ -12,6 +12,7 @@ public:
     ComponentRigidBody(GameObject* owner);
     ~ComponentRigidBody();
 
+    void CreateRigidBody();
     void Enable() override;
     void Update() override;
     void Disable() override;
@@ -39,7 +40,6 @@ public:
     void SyncTransformToPhysics();
 
 private:
-    void CreateRigidBody();
     void DestroyRigidBody();
     void SyncTransformFromPhysics();
 

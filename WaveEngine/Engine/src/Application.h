@@ -111,4 +111,6 @@ public:
     };
 
     void SyncPhysicsRecursive(GameObject* obj);
+    void MarkCollidersAsStandalone(GameObject* obj);
+    void CleanupPhysicsRecursive(GameObject* obj);
 };

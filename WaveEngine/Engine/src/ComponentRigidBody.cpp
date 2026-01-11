@@ -19,8 +19,8 @@ ComponentRigidBody::ComponentRigidBody(GameObject* owner)
     isKinematic(false),
     scale(1.0f)
 {
+    CreateRigidBody();
     name = "RigidBody";
-    CreateRigidBody(); // <--- AÑADE ESTA LÍNEA
 }
 
 ComponentRigidBody::~ComponentRigidBody()
@@ -31,27 +31,19 @@ ComponentRigidBody::~ComponentRigidBody()
 void ComponentRigidBody::Enable()
 {
     CreateRigidBody();
-
-    std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
-    for (Component* comp : colliders)
-    {
-        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
-        if (collider && collider->IsActive())
-        {
-            collider->UpdateCollisionShape();
-        }
-    }
 }
 
 void ComponentRigidBody::Disable()
 {
+    // notify all attached colliders that they're being detached
     std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
     for (Component* comp : colliders)
     {
         ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
         if (collider && collider->IsActive())
         {
-            collider->UpdateCollisionShape();
+            // Mark as not attached so they don't try to remove from compound
+            collider->ForceStandaloneMode();
         }
     }
 
@@ -82,8 +74,46 @@ void ComponentRigidBody::CreateRigidBody()
 
     scale = worldScale;
 
-    // Create an empty compound shape
+    // Create compound shape
     compoundShape = new btCompoundShape();
+
+    // Add any existing colliders to the compound shape before creating the rigid body
+    std::vector<Component*> existingColliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : existingColliders)
+    {
+        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+        if (collider && collider->IsActive())
+        {
+            // Get the collision shape from the collider
+            btCollisionShape* shape = collider->GetCollisionShape();
+            if (shape)
+            {
+                // Remove the standalone collision object from physics world if it exists
+                btCollisionObject* standaloneCO = collider->GetCollisionObject();
+                if (standaloneCO)
+                {
+                    ModulePhysics* physics = Application::GetInstance().physics.get();
+                    if (physics && physics->GetDynamicsWorld())
+                    {
+                        physics->GetDynamicsWorld()->removeCollisionObject(standaloneCO);
+                    }
+                    delete standaloneCO;
+                }
+
+                // Add shape to compound
+                btTransform localTransform;
+                localTransform.setIdentity();
+                glm::vec3 offset = collider->GetOffset();
+                glm::vec3 scaledOffset = offset * worldScale;
+                localTransform.setOrigin(btVector3(scaledOffset.x, scaledOffset.y, scaledOffset.z));
+
+                compoundShape->addChildShape(localTransform, shape);
+
+                LOG_DEBUG("[ComponentRigidBody] Added existing %s collider to compound shape",
+                    collider->GetColliderTypeName().c_str());
+            }
+        }
+    }
 
     // Create motion state
     btTransform startTransform;
@@ -121,37 +151,54 @@ void ComponentRigidBody::CreateRigidBody()
         physics->GetDynamicsWorld()->addRigidBody(rigidBody);
     }
 
-    LOG_DEBUG("[RigidBody] Created for '%s' at world pos (%.2f, %.2f, %.2f)",
+    LOG_DEBUG("[ComponentRigidBody] Created for '%s' at world pos (%.2f, %.2f, %.2f) with %d shapes",
         owner->GetName().c_str(),
-        worldPosition.x, worldPosition.y, worldPosition.z);
+        worldPosition.x, worldPosition.y, worldPosition.z,
+        compoundShape->getNumChildShapes());
 }
 
 void ComponentRigidBody::DestroyRigidBody()
 {
+    // Remove from physics world
     ModulePhysics* physics = Application::GetInstance().physics.get();
     if (physics && physics->GetDynamicsWorld() && rigidBody)
     {
         physics->GetDynamicsWorld()->removeRigidBody(rigidBody);
+        LOG_DEBUG("[ComponentRigidBody] Removed from physics world");
     }
 
-    // Clean up child shapes in compound before deleting
+    // Clean up child shapes from compound without deleting them
     if (compoundShape)
     {
-        while (compoundShape->getNumChildShapes() > 0)
+        int numShapes = compoundShape->getNumChildShapes();
+        for (int i = numShapes - 1; i >= 0; i--)
         {
-            compoundShape->removeChildShapeByIndex(0);
+            compoundShape->removeChildShapeByIndex(i);
         }
+        LOG_DEBUG("[ComponentRigidBody] Removed %d child shapes from compound", numShapes);
     }
 
-    delete rigidBody;
-    delete motionState;
-    delete compoundShape;
+    // Delete Bullet objects
+    if (rigidBody)
+    {
+        delete rigidBody;
+        rigidBody = nullptr;
+    }
 
-    rigidBody = nullptr;
-    motionState = nullptr;
-    compoundShape = nullptr;
+    if (motionState)
+    {
+        delete motionState;
+        motionState = nullptr;
+    }
+
+    if (compoundShape)
+    {
+        delete compoundShape;
+        compoundShape = nullptr;
+    }
+
+    LOG_DEBUG("[ComponentRigidBody] Destroyed RigidBody completely");
 }
-
 void ComponentRigidBody::RecalculateInertia()
 {
     if (!rigidBody || !compoundShape) return;

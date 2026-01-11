@@ -159,6 +159,28 @@ bool ModulePhysics::CleanUp()
 {
     LOG_CONSOLE("[ModulePhysics] Cleaning up physics module");
 
+    // Remove all rigid bodies from the world before destroying it
+    if (dynamicsWorld)
+    {
+        int numBodies = dynamicsWorld->getNumCollisionObjects();
+        for (int i = numBodies - 1; i >= 0; i--)
+        {
+            btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
+            btRigidBody* body = btRigidBody::upcast(obj);
+
+            if (body)
+            {
+                dynamicsWorld->removeRigidBody(body);
+            }
+            else
+            {
+                dynamicsWorld->removeCollisionObject(obj);
+            }
+        }
+
+        LOG_DEBUG("[ModulePhysics] Removed %d collision objects from world", numBodies);
+    }
+
     // Clean up in reverse order of creation
     dynamicsWorld.reset();
     solver.reset();

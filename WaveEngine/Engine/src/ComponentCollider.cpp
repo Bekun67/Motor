@@ -44,11 +44,56 @@ ComponentCollider::~ComponentCollider()
 void ComponentCollider::Enable()
 {
     CreateCollisionShape();
+
+    // If there's already a RigidBody, make sure we're properly attached
+    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+        owner->GetComponent(ComponentType::RIGIDBODY)
+        );
+
+    if (rigidBody && rigidBody->IsActive() && !isAttachedToRigidBody)
+    {
+        // We need to rebuild to attach to the RigidBody
+        UpdateCollisionShape();
+    }
 }
 
 void ComponentCollider::Disable()
 {
-    DestroyCollisionShape();
+    // If attached to RigidBody, just mark as not attached
+    if (isAttachedToRigidBody)
+    {
+        isAttachedToRigidBody = false;
+
+        // Delete our shape since we own it
+        if (collisionShape)
+        {
+            delete collisionShape;
+            collisionShape = nullptr;
+        }
+
+        return;
+    }
+
+    // For standalone colliders, remove from physics world
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (physics && physics->GetDynamicsWorld() && collisionObject)
+    {
+        physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
+        LOG_DEBUG("[ComponentCollider] Removed standalone collider from physics world");
+    }
+
+    // Clean up
+    if (collisionObject)
+    {
+        delete collisionObject;
+        collisionObject = nullptr;
+    }
+
+    if (collisionShape)
+    {
+        delete collisionShape;
+        collisionShape = nullptr;
+    }
 }
 
 void ComponentCollider::CreateCollisionShape()
@@ -199,34 +244,17 @@ void ComponentCollider::CreateCollisionShape()
 
     if (rigidBody && rigidBody->IsActive())
     {
-        // If there's a rigidbody, attach this shape to its compound shape
-        btCompoundShape* compoundShape = rigidBody->GetCompoundShape();
+        // We need to trigger a rebuild of the RigidBody to include this collider
+        isAttachedToRigidBody = true;
+        collisionObject = nullptr;
 
-        if (compoundShape)
-        {
-            // Create local transform for the shape within the compound
-            btTransform localTransform;
-            localTransform.setIdentity();
+        // Force RigidBody to rebuild and include this collider
+        rigidBody->CreateRigidBody();
 
-            // Add shape to compound
-            glm::vec3 scaledOffset = offsetPosition * worldScale;
-            localTransform.setOrigin(btVector3(scaledOffset.x, scaledOffset.y, scaledOffset.z));
+        LOG_DEBUG("[ComponentCollider] Created %s shape, triggering RigidBody rebuild",
+            GetColliderTypeName().c_str());
 
-            compoundShape->addChildShape(localTransform, collisionShape);
-
-            // Recalculate mass properties
-            rigidBody->RecalculateInertia();
-
-            isAttachedToRigidBody = true;
-
-            LOG_DEBUG("[ComponentCollider] Attached %s to RigidBody (total shapes: %d)",
-                GetColliderTypeName().c_str(),
-                compoundShape->getNumChildShapes());
-
-            // We don't create a separate collision object
-            collisionObject = nullptr;
-            return;
-        }
+        return;
     }
 
     // If there's NO RigidBody, create a standalone collision object
@@ -301,12 +329,47 @@ void ComponentCollider::RemoveFromRigidBody()
     isAttachedToRigidBody = false;
 }
 
+void ComponentCollider::RemoveStandaloneFromWorld()
+{
+    // Remove standalone collision object from physics world
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (physics && physics->GetDynamicsWorld() && collisionObject)
+    {
+        physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
+        LOG_DEBUG("[ComponentCollider] Removed standalone collider from physics world");
+    }
+
+    // Delete the standalone collision object
+    if (collisionObject)
+    {
+        delete collisionObject;
+        collisionObject = nullptr;
+    }
+}
+
 void ComponentCollider::DestroyCollisionShape()
 {
-    // First, remove from rigidbody if attached
-    RemoveFromRigidBody();
+    // First, check if we're attached to a RigidBody
+    if (isAttachedToRigidBody)
+    {
+        // Don't remove from compound
+        isAttachedToRigidBody = false;
 
-    // Then remove from physics world if standalone
+        // We still own the shape, so delete it
+        if (collisionShape)
+        {
+            delete collisionShape;
+            collisionShape = nullptr;
+        }
+
+        // No collision object to clean up when attached
+        collisionObject = nullptr;
+
+        LOG_DEBUG("[ComponentCollider] Destroyed attached collision shape");
+        return;
+    }
+
+    // Remove standalone collision object from physics world
     ModulePhysics* physics = Application::GetInstance().physics.get();
     if (physics && physics->GetDynamicsWorld() && collisionObject)
     {
@@ -320,6 +383,8 @@ void ComponentCollider::DestroyCollisionShape()
     // Delete the collision shape
     delete collisionShape;
     collisionShape = nullptr;
+
+    LOG_DEBUG("[ComponentCollider] Destroyed standalone collision shape");
 }
 
 void ComponentCollider::UpdateCollisionShape()
