@@ -183,18 +183,15 @@ void ComponentCollider::CreateCollisionShape()
                 cylinderRadius * worldScale.z
             );
             collisionShape = new btCylinderShape(halfExtents);
-            LOG_DEBUG("[CYLINDER] Created with btCylinderShape (Y-axis)");
         }
         else
         {
-            LOG_DEBUG("[CYLINDER] Creating Z-up cylinder (imported mesh)");
             btVector3 halfExtents(
                 cylinderRadius * worldScale.x,
                 cylinderRadius * worldScale.y,
                 cylinderHeight * 0.5f * worldScale.z
             );
             collisionShape = new btCylinderShapeZ(halfExtents);
-            LOG_DEBUG("[CYLINDER] Created with btCylinderShapeZ (Z-axis)");
         }
         break;
     }
@@ -210,8 +207,10 @@ void ComponentCollider::CreateCollisionShape()
         if (usePrimitiveOrientation)
         {
             float radialScale = glm::max(worldScale.x, worldScale.z);
-            float scaledRadius = capsuleRadius * radialScale * 0.8;
+            float scaledRadius = capsuleRadius * radialScale;
+
             float halfHeight = capsuleHeight * 0.5f * worldScale.y;
+
             float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
 
             collisionShape = new btCapsuleShape(
@@ -222,8 +221,10 @@ void ComponentCollider::CreateCollisionShape()
         else
         {
             float radialScale = glm::max(worldScale.x, worldScale.y);
-            float scaledRadius = capsuleRadius * radialScale * 0.8;
+            float scaledRadius = capsuleRadius * radialScale;
+
             float halfHeight = capsuleHeight * 0.5f * worldScale.z;
+
             float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
 
             collisionShape = new btCapsuleShapeZ(
@@ -244,7 +245,6 @@ void ComponentCollider::CreateCollisionShape()
 
         if (usePrimitiveOrientation)
         {
-            //TODO
             collisionShape = new btStaticPlaneShape(
                 btVector3(planeNormal.x, planeNormal.y, planeNormal.z),
                 0.0f
