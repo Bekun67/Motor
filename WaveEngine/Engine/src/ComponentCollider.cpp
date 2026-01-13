@@ -209,10 +209,13 @@ void ComponentCollider::CreateCollisionShape()
 
             for (const auto& vertex : mesh.vertices)
             {
-                convexHull->addPoint(btVector3(vertex.position.x, vertex.position.y, vertex.position.z), true);
+                convexHull->addPoint(btVector3(vertex.position.x, vertex.position.y, vertex.position.z), false);
             }
 
             convexHull->recalcLocalAabb();
+            convexHull->setLocalScaling(btVector3(worldScale.x, worldScale.y, worldScale.z));
+            convexHull->setMargin(0.04f);
+
             collisionShape = convexHull;
 
             LOG_DEBUG("[ComponentCollider] Created convex hull with %d vertices", mesh.vertices.size());

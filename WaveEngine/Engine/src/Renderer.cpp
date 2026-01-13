@@ -1874,35 +1874,23 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
         }
 
         btConvexHullShape* convexHull = static_cast<btConvexHullShape*>(shape);
+        btVector3 scaling = convexHull->getLocalScaling();
 
         btShapeHull* hull = new btShapeHull(convexHull);
         btScalar margin = convexHull->getMargin();
         hull->buildHull(margin);
 
-        int numTriangles = hull->numTriangles();
         const unsigned int* indices = hull->getIndexPointer();
         const btVector3* vertices = hull->getVertexPointer();
 
-        if (!vertices || !indices || numTriangles == 0)
+        if (!vertices || !indices || hull->numTriangles() == 0)
         {
             delete hull;
             return;
         }
 
-        std::vector<glm::vec3> worldPoints;
-        int numVertices = hull->numVertices();
-        worldPoints.reserve(numVertices);
-
-        for (int i = 0; i < numVertices; ++i)
-        {
-            glm::vec3 offset = collider->GetOffset();
-            glm::mat4 offsetMatrix = glm::translate(transform, offset);
-            glm::vec4 worldPos = offsetMatrix * glm::vec4(vertices[i].x(), vertices[i].y(), vertices[i].z(), 1.0f);
-            worldPoints.push_back(glm::vec3(worldPos));
-        }
-
         std::set<std::pair<int, int>> edges;
-        for (int i = 0; i < numTriangles * 3; i += 3)
+        for (int i = 0; i < hull->numTriangles() * 3; i += 3)
         {
             int idx0 = indices[i];
             int idx1 = indices[i + 1];
@@ -1913,11 +1901,17 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
             edges.insert(std::make_pair(std::min(idx2, idx0), std::max(idx2, idx0)));
         }
 
+        glm::vec3 offset = collider->GetOffset();
+        glm::mat4 offsetMatrix = glm::translate(transform, offset);
+
         for (const auto& edge : edges)
         {
+            glm::vec4 worldV1 = offsetMatrix * glm::vec4(vertices[edge.first].x() / scaling.x(), vertices[edge.first].y() / scaling.y(), vertices[edge.first].z() / scaling.z(), 1.0f);
+            glm::vec4 worldV2 = offsetMatrix * glm::vec4(vertices[edge.second].x() / scaling.x(), vertices[edge.second].y() / scaling.y(), vertices[edge.second].z() / scaling.z(), 1.0f);
+
             lineVertices.insert(lineVertices.end(), {
-                worldPoints[edge.first].x, worldPoints[edge.first].y, worldPoints[edge.first].z,
-                worldPoints[edge.second].x, worldPoints[edge.second].y, worldPoints[edge.second].z
+                worldV1.x, worldV1.y, worldV1.z,
+                worldV2.x, worldV2.y, worldV2.z
                 });
         }
 
