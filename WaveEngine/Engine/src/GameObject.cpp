@@ -195,6 +195,7 @@ void GameObject::Serialize(nlohmann::json& gameObjectArray) const {
     // Set the name and active state
     gameObjectObj["name"] = name;
     gameObjectObj["active"] = active;
+    gameObjectObj["isprimitive"] = isPrimitive;
 
     // Components
     nlohmann::json componentsArray = nlohmann::json::array();
@@ -230,6 +231,10 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
 
     if (gameObjectObj.contains("active")) {
         newObject->SetActive(gameObjectObj["active"].get<bool>());
+    }
+
+    if (gameObjectObj.contains("isprimitive")) {
+        newObject->isPrimitive = gameObjectObj["isprimitive"].get<bool>();
     }
 
     if (parent) {

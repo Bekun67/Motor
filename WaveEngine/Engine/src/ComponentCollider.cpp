@@ -169,37 +169,97 @@ void ComponentCollider::CreateCollisionShape()
 
     case ColliderType::CYLINDER:
     {
-        btVector3 halfExtents(
-            cylinderRadius * worldScale.x,
-            cylinderRadius * worldScale.y,
-            cylinderHeight * 0.5f * worldScale.z
-        );
-        collisionShape = new btCylinderShapeZ(halfExtents);
+        bool usePrimitiveOrientation = false;
+        if (meshComp && meshComp->HasMesh())
+        {
+            usePrimitiveOrientation = meshComp->owner->isPrimitive;
+        }
+
+        if (usePrimitiveOrientation)
+        {
+            btVector3 halfExtents(
+                cylinderRadius * worldScale.x,
+                cylinderHeight * 0.5f * worldScale.y,
+                cylinderRadius * worldScale.z
+            );
+            collisionShape = new btCylinderShape(halfExtents);
+            LOG_DEBUG("[CYLINDER] Created with btCylinderShape (Y-axis)");
+        }
+        else
+        {
+            LOG_DEBUG("[CYLINDER] Creating Z-up cylinder (imported mesh)");
+            btVector3 halfExtents(
+                cylinderRadius * worldScale.x,
+                cylinderRadius * worldScale.y,
+                cylinderHeight * 0.5f * worldScale.z
+            );
+            collisionShape = new btCylinderShapeZ(halfExtents);
+            LOG_DEBUG("[CYLINDER] Created with btCylinderShapeZ (Z-axis)");
+        }
         break;
     }
 
     case ColliderType::CAPSULE:
     {
-        float radialScale = glm::max(worldScale.x, worldScale.y);
-        float scaledRadius = capsuleRadius * radialScale * 0.8;
+        bool usePrimitiveOrientation = false;
+        if (meshComp && meshComp->HasMesh())
+        {
+            usePrimitiveOrientation = meshComp->owner->isPrimitive;
+        }
 
-        float halfHeight = capsuleHeight * 0.5f * worldScale.z;
+        if (usePrimitiveOrientation)
+        {
+            float radialScale = glm::max(worldScale.x, worldScale.z);
+            float scaledRadius = capsuleRadius * radialScale * 0.8;
+            float halfHeight = capsuleHeight * 0.5f * worldScale.y;
+            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
 
-        float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
+            collisionShape = new btCapsuleShape(
+                scaledRadius,
+                cylinderHalfHeight * 2.0f * 1.2f
+            );
+        }
+        else
+        {
+            float radialScale = glm::max(worldScale.x, worldScale.y);
+            float scaledRadius = capsuleRadius * radialScale * 0.8;
+            float halfHeight = capsuleHeight * 0.5f * worldScale.z;
+            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
 
-        collisionShape = new btCapsuleShapeZ(
-            scaledRadius,
-            cylinderHalfHeight * 2.0f * 1.2f
-        );
+            collisionShape = new btCapsuleShapeZ(
+                scaledRadius,
+                cylinderHalfHeight * 2.0f * 1.2f
+            );
+        }
         break;
     }
 
     case ColliderType::PLANE:
-        collisionShape = new btStaticPlaneShape(
-            btVector3(planeNormal.x, planeNormal.y, planeNormal.z),
-            0.0f
-        );
+    {
+        bool usePrimitiveOrientation = false;
+        if (meshComp && meshComp->HasMesh())
+        {
+            usePrimitiveOrientation = meshComp->owner->isPrimitive;
+        }
+
+        if (usePrimitiveOrientation)
+        {
+            //TODO
+            collisionShape = new btStaticPlaneShape(
+                btVector3(planeNormal.x, planeNormal.y, planeNormal.z),
+                0.0f
+            );
+        }
+        else
+        {
+            collisionShape = new btStaticPlaneShape(
+                btVector3(planeNormal.x, planeNormal.y, planeNormal.z),
+                0.0f
+            );
+        }
+
         break;
+    }
 
     case ColliderType::MESH:
         if (meshComp && meshComp->HasMesh())

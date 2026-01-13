@@ -49,6 +49,7 @@ public:
 public:
     std::string name;
     bool active = true;
+    bool isPrimitive = false;
 
 private:
     GameObject* parent = nullptr;

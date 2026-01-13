@@ -1648,155 +1648,114 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
         float radius = collider->GetCylinderRadius();
         float height = collider->GetCylinderHeight();
 
+        GameObject* owner = collider->owner;
+        bool isYUp = false;
+
+        if (owner)
+        {
+            ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+            if (meshComp && meshComp->HasMesh())
+            {
+                isYUp = meshComp->owner->isPrimitive;
+            }
+        }
+
         glm::vec3 scaleVec(
             glm::length(glm::vec3(offsetMatrix[0])),
             glm::length(glm::vec3(offsetMatrix[1])),
             glm::length(glm::vec3(offsetMatrix[2]))
         );
-        float radialScale = glm::max(scaleVec.x, scaleVec.y);
+
         glm::mat3 rotation(
             glm::normalize(glm::vec3(offsetMatrix[0])),
             glm::normalize(glm::vec3(offsetMatrix[1])),
             glm::normalize(glm::vec3(offsetMatrix[2]))
         );
+
         glm::vec3 center = glm::vec3(offsetMatrix[3]);
-
         const int segments = 32;
-        float halfHeight = (height * scaleVec.z) * 0.5f; 
-        float scaledRadius = radius * radialScale;
 
-        for (int i = 0; i < segments; ++i)
+        if (isYUp)
         {
-            float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
-            float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
+            float scaledRadius = radius * glm::max(scaleVec.x, scaleVec.z);
+            float scaledHalfHeight = (height * scaleVec.y) * 0.5f;
 
-            glm::vec3 p1 = center + (rotation * glm::vec3(cos(angle1) * scaledRadius, sin(angle1) * scaledRadius, halfHeight));
-            glm::vec3 p2 = center + (rotation * glm::vec3(cos(angle2) * scaledRadius, sin(angle2) * scaledRadius, halfHeight));
-            lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
+            for (int i = 0; i < segments; ++i)
+            {
+                float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
+                float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
+
+                glm::vec3 localP1(cos(angle1) * scaledRadius, scaledHalfHeight, sin(angle1) * scaledRadius);
+                glm::vec3 localP2(cos(angle2) * scaledRadius, scaledHalfHeight, sin(angle2) * scaledRadius);
+
+                glm::vec3 p1 = center + (rotation * localP1);
+                glm::vec3 p2 = center + (rotation * localP2);
+                lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
+            }
+
+            for (int i = 0; i < segments; ++i)
+            {
+                float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
+                float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
+
+                glm::vec3 localP1(cos(angle1) * scaledRadius, -scaledHalfHeight, sin(angle1) * scaledRadius);
+                glm::vec3 localP2(cos(angle2) * scaledRadius, -scaledHalfHeight, sin(angle2) * scaledRadius);
+
+                glm::vec3 p1 = center + (rotation * localP1);
+                glm::vec3 p2 = center + (rotation * localP2);
+                lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
+            }
+
+            for (int i = 0; i < 4; ++i)
+            {
+                float angle = (i * 2.0f * glm::pi<float>()) / 4;
+                glm::vec3 localTop(cos(angle) * scaledRadius, scaledHalfHeight, sin(angle) * scaledRadius);
+                glm::vec3 localBottom(cos(angle) * scaledRadius, -scaledHalfHeight, sin(angle) * scaledRadius);
+
+                glm::vec3 top = center + (rotation * localTop);
+                glm::vec3 bottom = center + (rotation * localBottom);
+                lineVertices.insert(lineVertices.end(), { top.x, top.y, top.z, bottom.x, bottom.y, bottom.z });
+            }
         }
-
-        for (int i = 0; i < segments; ++i)
+        else
         {
-            float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
-            float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
+            float radialScale = glm::max(scaleVec.x, scaleVec.y);
+            float halfHeight = (height * scaleVec.z) * 0.5f;
+            float scaledRadius = radius * radialScale;
 
-            glm::vec3 p1 = center + (rotation * glm::vec3(cos(angle1) * scaledRadius, sin(angle1) * scaledRadius, -halfHeight));
-            glm::vec3 p2 = center + (rotation * glm::vec3(cos(angle2) * scaledRadius, sin(angle2) * scaledRadius, -halfHeight));
-            lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
-        }
+            for (int i = 0; i < segments; ++i)
+            {
+                float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
+                float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
 
-        for (int i = 0; i < 4; ++i)
-        {
-            float angle = (i * 2.0f * glm::pi<float>()) / 4;
-            glm::vec3 top = center + (rotation * glm::vec3(cos(angle) * scaledRadius, sin(angle) * scaledRadius, halfHeight));
-            glm::vec3 bottom = center + (rotation * glm::vec3(cos(angle) * scaledRadius, sin(angle) * scaledRadius, -halfHeight));
-            lineVertices.insert(lineVertices.end(), { top.x, top.y, top.z, bottom.x, bottom.y, bottom.z });
+                glm::vec3 p1 = center + (rotation * glm::vec3(cos(angle1) * scaledRadius, sin(angle1) * scaledRadius, halfHeight));
+                glm::vec3 p2 = center + (rotation * glm::vec3(cos(angle2) * scaledRadius, sin(angle2) * scaledRadius, halfHeight));
+                lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
+            }
+
+            for (int i = 0; i < segments; ++i)
+            {
+                float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
+                float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
+
+                glm::vec3 p1 = center + (rotation * glm::vec3(cos(angle1) * scaledRadius, sin(angle1) * scaledRadius, -halfHeight));
+                glm::vec3 p2 = center + (rotation * glm::vec3(cos(angle2) * scaledRadius, sin(angle2) * scaledRadius, -halfHeight));
+                lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
+            }
+
+            for (int i = 0; i < 4; ++i)
+            {
+                float angle = (i * 2.0f * glm::pi<float>()) / 4;
+                glm::vec3 top = center + (rotation * glm::vec3(cos(angle) * scaledRadius, sin(angle) * scaledRadius, halfHeight));
+                glm::vec3 bottom = center + (rotation * glm::vec3(cos(angle) * scaledRadius, sin(angle) * scaledRadius, -halfHeight));
+                lineVertices.insert(lineVertices.end(), { top.x, top.y, top.z, bottom.x, bottom.y, bottom.z });
+            }
         }
         break;
     }
 
     case ColliderType::CAPSULE:
     {
-        btCollisionShape* shape = collider->GetCollisionShape();
-        if (!shape) return;
-
-        btCapsuleShape* capsuleShape = static_cast<btCapsuleShape*>(shape);
-
-        float scaledRadius = capsuleShape->getRadius();
-        float cylinderOnlyHeight = capsuleShape->getHalfHeight() * 2.0f;
-
-        glm::vec3 scaleVec(
-            glm::length(glm::vec3(offsetMatrix[0])),
-            glm::length(glm::vec3(offsetMatrix[1])),
-            glm::length(glm::vec3(offsetMatrix[2]))
-        );
-        glm::vec3 center = glm::vec3(offsetMatrix[3]);
-        glm::mat3 rotation(
-            glm::normalize(glm::vec3(offsetMatrix[0])),
-            glm::normalize(glm::vec3(offsetMatrix[1])),
-            glm::normalize(glm::vec3(offsetMatrix[2]))
-        );
-
-        const int segments = 24;
-        float halfCylinderHeight = cylinderOnlyHeight * 0.5f;
-
-        //upper circle
-        for (int i = 0; i < segments; ++i)
-        {
-            float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
-            float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
-
-            glm::vec3 p1 = center + (rotation * glm::vec3(cos(angle1) * scaledRadius, sin(angle1) * scaledRadius, halfCylinderHeight));
-            glm::vec3 p2 = center + (rotation * glm::vec3(cos(angle2) * scaledRadius, sin(angle2) * scaledRadius, halfCylinderHeight));
-            lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
-        }
-
-        //lower circle
-        for (int i = 0; i < segments; ++i)
-        {
-            float angle1 = (i * 2.0f * glm::pi<float>()) / segments;
-            float angle2 = ((i + 1) * 2.0f * glm::pi<float>()) / segments;
-
-            glm::vec3 p1 = center + (rotation * glm::vec3(cos(angle1) * scaledRadius, sin(angle1) * scaledRadius, -halfCylinderHeight));
-            glm::vec3 p2 = center + (rotation * glm::vec3(cos(angle2) * scaledRadius, sin(angle2) * scaledRadius, -halfCylinderHeight));
-            lineVertices.insert(lineVertices.end(), { p1.x, p1.y, p1.z, p2.x, p2.y, p2.z });
-        }
-
-        //vertical lines
-        for (int i = 0; i < 4; ++i)
-        {
-            float angle = (i * glm::pi<float>() * 0.5f);
-            glm::vec3 top = center + (rotation * glm::vec3(cos(angle) * scaledRadius, sin(angle) * scaledRadius, halfCylinderHeight));
-            glm::vec3 bottom = center + (rotation * glm::vec3(cos(angle) * scaledRadius, sin(angle) * scaledRadius, -halfCylinderHeight));
-            lineVertices.insert(lineVertices.end(), { top.x, top.y, top.z, bottom.x, bottom.y, bottom.z });
-        }
-
-        //arc segments
-        const int arcSegments = segments / 2;
-        for (int i = 0; i <= arcSegments; ++i)
-        {
-            float angle = (i * glm::pi<float>()) / arcSegments;
-            float z = halfCylinderHeight + cos(angle) * scaledRadius;
-            float r = sin(angle) * scaledRadius;
-
-            for (int j = 0; j < 4; ++j)
-            {
-                float theta = j * glm::pi<float>() * 0.5f;
-                glm::vec3 p = center + (rotation * glm::vec3(cos(theta) * r, sin(theta) * r, z));
-
-                if (i > 0)
-                {
-                    float prevAngle = ((i - 1) * glm::pi<float>()) / arcSegments;
-                    float prevZ = halfCylinderHeight + cos(prevAngle) * scaledRadius;
-                    float prevR = sin(prevAngle) * scaledRadius;
-                    glm::vec3 prevP = center + (rotation * glm::vec3(cos(theta) * prevR, sin(theta) * prevR, prevZ));
-                    lineVertices.insert(lineVertices.end(), { prevP.x, prevP.y, prevP.z, p.x, p.y, p.z });
-                }
-            }
-        }
-
-        // Arcos inferiores
-        for (int i = 0; i <= arcSegments; ++i)
-        {
-            float angle = (i * glm::pi<float>()) / arcSegments;
-            float z = -halfCylinderHeight - cos(angle) * scaledRadius;
-            float r = sin(angle) * scaledRadius;
-
-            for (int j = 0; j < 4; ++j)
-            {
-                float theta = j * glm::pi<float>() * 0.5f;
-                glm::vec3 p = center + (rotation * glm::vec3(cos(theta) * r, sin(theta) * r, z));
-
-                if (i > 0)
-                {
-                    float prevAngle = ((i - 1) * glm::pi<float>()) / arcSegments;
-                    float prevZ = -halfCylinderHeight - cos(prevAngle) * scaledRadius;
-                    float prevR = sin(prevAngle) * scaledRadius;
-                    glm::vec3 prevP = center + (rotation * glm::vec3(cos(theta) * prevR, sin(theta) * prevR, prevZ));
-                    lineVertices.insert(lineVertices.end(), { prevP.x, prevP.y, prevP.z, p.x, p.y, p.z });
-                }
-            }
-        }
         break;
     }
 
@@ -1817,42 +1776,95 @@ void Renderer::DrawCollider(ComponentCollider* collider, const glm::mat4& transf
             glm::length(glm::vec3(offsetMatrix[2]))
         );
 
-        bool isHorizontalPlane = (objectSize.y < objectSize.x * 0.1f && objectSize.y < objectSize.z * 0.1f);
+        GameObject* owner = collider->owner;
+        bool isYUp = false;
+
+        if (owner)
+        {
+            ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+            if (meshComp && meshComp->HasMesh())
+            {
+                isYUp = meshComp->owner->isPrimitive;
+            }
+        }
 
         float sizeX, sizeY;
         glm::vec3 corners[4];
 
-        if (isHorizontalPlane)
+        if (isYUp)
         {
-            sizeX = objectSize.x * scaleVec.x * 0.5f;
-            sizeY = objectSize.z * scaleVec.z * 0.5f;
+            //TODO
+            bool isHorizontalPlane = (objectSize.y < objectSize.x * 0.1f && objectSize.y < objectSize.z * 0.1f);
 
-            corners[0] = center + (rotation * glm::vec3(-sizeX, 0, -sizeY));
-            corners[1] = center + (rotation * glm::vec3(sizeX, 0, -sizeY));
-            corners[2] = center + (rotation * glm::vec3(sizeX, 0, sizeY));
-            corners[3] = center + (rotation * glm::vec3(-sizeX, 0, sizeY));
+            if (isHorizontalPlane)
+            {
+                sizeX = objectSize.x * scaleVec.x * 0.5f;
+                sizeY = objectSize.z * scaleVec.z * 0.5f;
+
+                corners[0] = center + (rotation * glm::vec3(-sizeX, 0, -sizeY));
+                corners[1] = center + (rotation * glm::vec3(sizeX, 0, -sizeY));
+                corners[2] = center + (rotation * glm::vec3(sizeX, 0, sizeY));
+                corners[3] = center + (rotation * glm::vec3(-sizeX, 0, sizeY));
+            }
+            else
+            {
+                sizeX = objectSize.x * scaleVec.x * 0.5f;
+                sizeY = objectSize.y * scaleVec.y * 0.5f;
+
+                corners[0] = center + (rotation * glm::vec3(-sizeX, -sizeY, 0));
+                corners[1] = center + (rotation * glm::vec3(sizeX, -sizeY, 0));
+                corners[2] = center + (rotation * glm::vec3(sizeX, sizeY, 0));
+                corners[3] = center + (rotation * glm::vec3(-sizeX, sizeY, 0));
+            }
+
+            glm::vec3 transformedNormal = rotation * normal;
+
+            for (int i = 0; i < 4; ++i)
+            {
+                int next = (i + 1) % 4;
+                lineVertices.insert(lineVertices.end(), {
+                    corners[i].x, corners[i].y, corners[i].z,
+                    corners[next].x, corners[next].y, corners[next].z
+                    });
+            }
         }
         else
         {
-            sizeX = objectSize.x * scaleVec.x * 0.5f;
-            sizeY = objectSize.y * scaleVec.y * 0.5f;
+            bool isHorizontalPlane = (objectSize.y < objectSize.x * 0.1f && objectSize.y < objectSize.z * 0.1f);
 
-            corners[0] = center + (rotation * glm::vec3(-sizeX, -sizeY, 0));
-            corners[1] = center + (rotation * glm::vec3(sizeX, -sizeY, 0));
-            corners[2] = center + (rotation * glm::vec3(sizeX, sizeY, 0));
-            corners[3] = center + (rotation * glm::vec3(-sizeX, sizeY, 0));
+            if (isHorizontalPlane)
+            {
+                sizeX = objectSize.x * scaleVec.x * 0.5f;
+                sizeY = objectSize.z * scaleVec.z * 0.5f;
+
+                corners[0] = center + (rotation * glm::vec3(-sizeX, 0, -sizeY));
+                corners[1] = center + (rotation * glm::vec3(sizeX, 0, -sizeY));
+                corners[2] = center + (rotation * glm::vec3(sizeX, 0, sizeY));
+                corners[3] = center + (rotation * glm::vec3(-sizeX, 0, sizeY));
+            }
+            else
+            {
+                sizeX = objectSize.x * scaleVec.x * 0.5f;
+                sizeY = objectSize.y * scaleVec.y * 0.5f;
+
+                corners[0] = center + (rotation * glm::vec3(-sizeX, -sizeY, 0));
+                corners[1] = center + (rotation * glm::vec3(sizeX, -sizeY, 0));
+                corners[2] = center + (rotation * glm::vec3(sizeX, sizeY, 0));
+                corners[3] = center + (rotation * glm::vec3(-sizeX, sizeY, 0));
+            }
+
+            glm::vec3 transformedNormal = rotation * normal;
+
+            for (int i = 0; i < 4; ++i)
+            {
+                int next = (i + 1) % 4;
+                lineVertices.insert(lineVertices.end(), {
+                    corners[i].x, corners[i].y, corners[i].z,
+                    corners[next].x, corners[next].y, corners[next].z
+                    });
+            }
         }
 
-        glm::vec3 transformedNormal = rotation * normal;
-
-        for (int i = 0; i < 4; ++i)
-        {
-            int next = (i + 1) % 4;
-            lineVertices.insert(lineVertices.end(), {
-                corners[i].x, corners[i].y, corners[i].z,
-                corners[next].x, corners[next].y, corners[next].z
-                });
-        }
         break;
     }
 

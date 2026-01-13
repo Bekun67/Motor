@@ -726,6 +726,8 @@ void ModuleEditor::CreatePrimitiveGameObject(const std::string& name, Mesh mesh)
     ComponentMesh* meshComp = static_cast<ComponentMesh*>(
         Object->CreateComponent(ComponentType::MESH)
         );
+    
+    Object->isPrimitive = true;
 
     Mesh selectedMesh;
 
