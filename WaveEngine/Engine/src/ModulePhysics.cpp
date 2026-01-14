@@ -200,6 +200,20 @@ void ModulePhysics::SetGravity(const glm::vec3& newGravity)
     if (dynamicsWorld)
     {
         dynamicsWorld->setGravity(btVector3(gravity.x, gravity.y, gravity.z));
+
+        int numObjects = dynamicsWorld->getNumCollisionObjects();
+        for (int i = 0; i < numObjects; i++)
+        {
+            btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
+            btRigidBody* body = btRigidBody::upcast(obj);
+
+            if (body && body->getInvMass() != 0.0f)
+            {
+                body->activate(true);
+                body->clearForces();
+            }
+        }
+
         LOG_DEBUG("[ModulePhysics] Gravity set to (%.2f, %.2f, %.2f)",
             gravity.x, gravity.y, gravity.z);
     }

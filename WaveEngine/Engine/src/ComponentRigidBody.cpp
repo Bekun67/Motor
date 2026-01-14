@@ -258,8 +258,18 @@ void ComponentRigidBody::Update()
 {
     if (!IsActive() || !rigidBody) return;
 
-    // Sync physics transform to GameObject
-    SyncTransformFromPhysics();
+    if (isBeingManipulated)
+    {
+        SyncTransformToPhysics();
+    }
+    else if (isKinematic)
+    {
+        SyncTransformToPhysics();
+    }
+    else
+    {
+        SyncTransformFromPhysics();
+    }
 }
 
 void ComponentRigidBody::SyncTransformFromPhysics()
@@ -456,4 +466,36 @@ void ComponentRigidBody::Deserialize(const nlohmann::json& componentObj)
 
 void ComponentRigidBody::OnEditor()
 {
+}
+
+void ComponentRigidBody::SetManipulating(bool manipulating)
+{
+    isBeingManipulated = manipulating;
+
+    if (rigidBody)
+    {
+        if (manipulating)
+        {
+            rigidBody->setLinearVelocity(btVector3(0, 0, 0));
+            rigidBody->setAngularVelocity(btVector3(0, 0, 0));
+            rigidBody->clearForces();
+
+            rigidBody->setCollisionFlags(
+                rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT
+            );
+            rigidBody->setActivationState(DISABLE_DEACTIVATION);
+        }
+        else
+        {
+            if (!isKinematic)
+            {
+                rigidBody->setCollisionFlags(
+                    rigidBody->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT
+                );
+                rigidBody->setActivationState(ACTIVE_TAG);
+            }
+
+            SyncTransformToPhysics();
+        }
+    }
 }

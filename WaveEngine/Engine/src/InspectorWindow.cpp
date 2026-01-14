@@ -183,20 +183,29 @@ void InspectorWindow::DrawTransformComponent(GameObject* selectedObject)
         bool transformChanged = false;
         bool wasEditing = false;
 
+        ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+            selectedObject->GetComponent(ComponentType::RIGIDBODY)
+            );
+        bool anyItemActive = false;
+        static bool wasManipulating = false;
+
         ImGui::Text("Position");
         ImGui::PushItemWidth(80);
         ImGui::Text("X"); ImGui::SameLine(20);
         if (ImGui::DragFloat("##PosX", &position.x, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::SameLine(120);
         ImGui::Text("Y"); ImGui::SameLine(130);
         if (ImGui::DragFloat("##PosY", &position.y, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::SameLine(230);
         ImGui::Text("Z"); ImGui::SameLine(240);
         if (ImGui::DragFloat("##PosZ", &position.z, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::Spacing();
@@ -204,16 +213,19 @@ void InspectorWindow::DrawTransformComponent(GameObject* selectedObject)
         ImGui::Text("Rotation");
         ImGui::Text("X"); ImGui::SameLine(20);
         if (ImGui::DragFloat("##RotX", &rotation.x, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::SameLine(120);
         ImGui::Text("Y"); ImGui::SameLine(130);
         if (ImGui::DragFloat("##RotY", &rotation.y, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::SameLine(230);
         ImGui::Text("Z"); ImGui::SameLine(240);
         if (ImGui::DragFloat("##RotZ", &rotation.z, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::Spacing();
@@ -221,19 +233,40 @@ void InspectorWindow::DrawTransformComponent(GameObject* selectedObject)
         ImGui::Text("Scale");
         ImGui::Text("X"); ImGui::SameLine(20);
         if (ImGui::DragFloat("##ScaleX", &scale.x, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::SameLine(120);
         ImGui::Text("Y"); ImGui::SameLine(130);
         if (ImGui::DragFloat("##ScaleY", &scale.y, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::SameLine(230);
         ImGui::Text("Z"); ImGui::SameLine(240);
         if (ImGui::DragFloat("##ScaleZ", &scale.z, 0.1f)) transformChanged = true;
+        if (ImGui::IsItemActive()) anyItemActive = true;
         if (ImGui::IsItemDeactivatedAfterEdit()) wasEditing = true;
 
         ImGui::PopItemWidth();
+
+        if (rb && rb->IsActive())
+        {
+            if (anyItemActive && !wasManipulating)
+            {
+                rb->SetManipulating(true);
+                wasManipulating = true;
+            }
+            else if (!anyItemActive && wasManipulating)
+            {
+                rb->SetManipulating(false);
+                wasManipulating = false;
+            }
+        }
+        else
+        {
+            wasManipulating = false;
+        }
 
         if (transformChanged)
         {

@@ -547,17 +547,17 @@ void ConfigurationWindow::DrawPhysicsSettings()
     ImGui::Spacing();
     ImGui::Separator();
 
-    // Debug visualization
-    ImGui::Text("Debug Visualization");
+    //// Debug visualization
+    //ImGui::Text("Debug Visualization");
 
-    bool debugDraw = physics->IsDebugDrawEnabled();
-    if (ImGui::Checkbox("Show Physics Debug", &debugDraw))
-    {
-        physics->SetDebugDrawEnabled(debugDraw);
-    }
+    //bool debugDraw = physics->IsDebugDrawEnabled();
+    //if (ImGui::Checkbox("Show Physics Debug", &debugDraw))
+    //{
+    //    physics->SetDebugDrawEnabled(debugDraw);
+    //}
 
-    ImGui::Spacing();
-    ImGui::Separator();
+    //ImGui::Spacing();
+    //ImGui::Separator();
 
     // Quick presets
     ImGui::Text("Quick Presets");

@@ -39,6 +39,9 @@ public:
 
     void SyncTransformToPhysics();
 
+    void SetManipulating(bool manipulating);
+    bool IsBeingManipulated() const { return isBeingManipulated; }
+
 private:
     void DestroyRigidBody();
     void SyncTransformFromPhysics();
@@ -50,4 +53,6 @@ private:
     float mass;
     bool isKinematic;
     glm::vec3 scale;
+
+    bool isBeingManipulated = false;
 };

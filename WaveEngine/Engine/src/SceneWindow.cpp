@@ -374,6 +374,20 @@ void SceneWindow::DrawGizmo()
 
     // Update the flag indicating whether the gizmo is being used
     isGizmoActive = ImGuizmo::IsUsing();
+    bool currentlyUsingGizmo = ImGuizmo::IsUsing();
+
+    if (currentlyUsingGizmo && !wasUsingGizmo)
+    {
+        ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+            selectedObject->GetComponent(ComponentType::RIGIDBODY)
+            );
+        if (rb && rb->IsActive())
+        {
+            rb->SetManipulating(true);
+        }
+    }
+
+    isGizmoActive = currentlyUsingGizmo;
 
     if (ImGuizmo::IsUsing())
     {
@@ -401,6 +415,14 @@ void SceneWindow::DrawGizmo()
     }
     else if (wasUsingGizmo)
     {
+        ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+            selectedObject->GetComponent(ComponentType::RIGIDBODY)
+            );
+        if (rb && rb->IsActive())
+        {
+            rb->SetManipulating(false);
+        }
+
         // We just released the gizmo, mark for octree rebuild
         Application::GetInstance().scene->MarkOctreeForRebuild();
     }
