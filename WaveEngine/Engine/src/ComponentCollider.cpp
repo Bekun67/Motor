@@ -324,6 +324,16 @@ void ComponentCollider::CreateCollisionShape()
         LOG_DEBUG("[ComponentCollider] Created %s shape, triggering RigidBody rebuild",
             GetColliderTypeName().c_str());
 
+        btRigidBody* btBody = rigidBody->GetBulletRigidBody();
+        if (btBody)
+        {
+            btBody->setFriction(friction);
+            btBody->setRestitution(restitution);
+
+            LOG_DEBUG("[ComponentCollider] Applied friction %.2f and restitution %.2f to RigidBody",
+                friction, restitution);
+        }
+
         return;
     }
 
@@ -650,18 +660,60 @@ void ComponentCollider::SetIsTrigger(bool trigger)
 void ComponentCollider::SetFriction(float newFriction)
 {
     friction = newFriction;
+
     if (collisionObject)
     {
         collisionObject->setFriction(friction);
+    }
+
+	// If is attached to RigidBody, also update there
+    if (isAttachedToRigidBody)
+    {
+        ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+            owner->GetComponent(ComponentType::RIGIDBODY)
+            );
+
+        if (rigidBody)
+        {
+            btRigidBody* btBody = rigidBody->GetBulletRigidBody();
+            if (btBody)
+            {
+                btBody->setFriction(friction);
+                btBody->activate(true); // Wake up to apply changes
+
+                LOG_DEBUG("[ComponentCollider] Updated friction to %.2f on RigidBody", friction);
+            }
+        }
     }
 }
 
 void ComponentCollider::SetRestitution(float newRestitution)
 {
     restitution = newRestitution;
+
     if (collisionObject)
     {
         collisionObject->setRestitution(restitution);
+    }
+
+    // If is attached to RigidBody, also update there
+    if (isAttachedToRigidBody)
+    {
+        ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+            owner->GetComponent(ComponentType::RIGIDBODY)
+            );
+
+        if (rigidBody)
+        {
+            btRigidBody* btBody = rigidBody->GetBulletRigidBody();
+            if (btBody)
+            {
+                btBody->setRestitution(restitution);
+                btBody->activate(true); // Wake up to apply changes
+
+                LOG_DEBUG("[ComponentCollider] Updated restitution to %.2f on RigidBody", restitution);
+            }
+        }
     }
 }
 

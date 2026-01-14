@@ -1002,6 +1002,10 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
     if (colliders.empty())
         return;
 
+	// Verify if in play mode
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    bool isPlaying = (playState == Application::PlayState::PLAYING);
+
     //draw each collider
     for (size_t colliderIndex = 0; colliderIndex < colliders.size(); ++colliderIndex)
     {
@@ -1047,6 +1051,12 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
             int currentType = static_cast<int>(collider->GetColliderType());
 
             ImGui::Text("Collider Type:");
+
+            if (isPlaying)
+            {
+                ImGui::BeginDisabled();
+            }
+
             if (ImGui::Combo("##ColliderType", &currentType, colliderTypes, IM_ARRAYSIZE(colliderTypes)))
             {
                 collider->SetColliderType(static_cast<ColliderType>(currentType));
@@ -1055,7 +1065,21 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
                     selectedObject->GetName().c_str());
             }
 
-            if (ImGui::IsItemHovered())
+            if (isPlaying)
+            {
+                ImGui::EndDisabled();
+
+				// Show tooltip when disabled explanation
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                {
+                    ImGui::BeginTooltip();
+                    ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f),
+                        "Cannot change collider type during Play mode");
+                    ImGui::Text("Stop the simulation to modify collider type");
+                    ImGui::EndTooltip();
+                }
+            }
+            else if (ImGui::IsItemHovered())
             {
                 ImGui::BeginTooltip();
                 ImGui::Text("Changing collider type will reset manual edits");

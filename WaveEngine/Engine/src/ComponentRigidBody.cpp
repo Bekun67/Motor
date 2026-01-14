@@ -358,7 +358,26 @@ void ComponentRigidBody::SyncTransformToPhysics()
 void ComponentRigidBody::SetMass(float newMass)
 {
     mass = newMass;
-    RecalculateInertia();
+
+    if (rigidBody && compoundShape)
+    {
+        btVector3 localInertia(0, 0, 0);
+
+        // Only calculate inertia if mass > 0 and not kinematic
+        if (mass > 0.0f && !isKinematic)
+        {
+            compoundShape->calculateLocalInertia(mass, localInertia);
+        }
+
+        rigidBody->setMassProps(mass, localInertia);
+        rigidBody->updateInertiaTensor();
+
+        // Wake up the body so changes take effect immediately
+        rigidBody->activate(true);
+
+        LOG_DEBUG("[ComponentRigidBody] Mass set to %.2f for '%s'",
+            mass, owner->GetName().c_str());
+    }
 }
 
 void ComponentRigidBody::SetKinematic(bool kinematic)
