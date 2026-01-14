@@ -237,27 +237,33 @@ void ComponentCollider::CreateCollisionShape()
 
     case ColliderType::PLANE:
     {
+        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
         bool usePrimitiveOrientation = false;
         if (meshComp && meshComp->HasMesh())
         {
             usePrimitiveOrientation = meshComp->owner->isPrimitive;
         }
 
+        float planeThickness = 0.1f;
+
         if (usePrimitiveOrientation)
         {
-            collisionShape = new btStaticPlaneShape(
-                btVector3(planeNormal.x, planeNormal.y, planeNormal.z),
-                0.0f
-            );
+            collisionShape = new btBoxShape(btVector3(
+                boxSize.x * 0.5f * worldScale.x,
+                planeThickness * 0.5f * worldScale.y, 
+                boxSize.z * 0.5f * worldScale.z
+            ));
         }
         else
         {
-            collisionShape = new btStaticPlaneShape(
-                btVector3(planeNormal.x, planeNormal.y, planeNormal.z),
-                0.0f
-            );
+            collisionShape = new btBoxShape(btVector3(
+                boxSize.x * 0.5f * worldScale.x,
+                boxSize.y * 0.5f * worldScale.y,
+                planeThickness * 0.5f * worldScale.z 
+            ));
         }
 
+        LOG_DEBUG("[ComponentCollider] Created thin box (plane simulation) with thickness %.2f", planeThickness);
         break;
     }
 
