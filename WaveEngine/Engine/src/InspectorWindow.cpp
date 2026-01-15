@@ -84,6 +84,7 @@ void InspectorWindow::Draw()
     DrawRotateComponent(selectedObject);
     DrawRigidBodyComponent(selectedObject);
     DrawColliderComponent(selectedObject);
+    DrawConstraintComponents(selectedObject);
 
     ImGui::End();
 }
@@ -1309,5 +1310,610 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
         ImGui::PopStyleColor(3);
 
         ImGui::PopID();
+    }
+}
+
+void InspectorWindow::DrawConstraintComponents(GameObject* selectedObject)
+{
+    std::vector<Component*> constraints = selectedObject->GetComponentsOfType(ComponentType::CONSTRAINT);
+
+    if (constraints.empty())
+        return;
+
+    // Check if in play mode
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    bool isPlaying = (playState == Application::PlayState::PLAYING);
+
+    // Draw each constraint
+    for (size_t constraintIndex = 0; constraintIndex < constraints.size(); ++constraintIndex)
+    {
+        ComponentConstraint* baseConstraint = static_cast<ComponentConstraint*>(constraints[constraintIndex]);
+
+        if (baseConstraint == nullptr)
+            continue;
+
+        ImGui::PushID(static_cast<int>(constraintIndex) + 1000); // Offset to avoid ID conflicts
+
+        ConstraintType type = baseConstraint->GetConstraintType();
+        std::string headerName;
+
+        // Determine header name based on constraint type
+        switch (type)
+        {
+        case ConstraintType::HINGE:
+            headerName = "Hinge Constraint";
+            break;
+        case ConstraintType::SLIDER:
+            headerName = "Slider Constraint";
+            break;
+        case ConstraintType::DISTANCE:
+            headerName = "Distance Constraint";
+            break;
+        case ConstraintType::CONE:
+            headerName = "Cone Constraint";
+            break;
+        default:
+            headerName = "Unknown Constraint";
+            break;
+        }
+
+        if (ImGui::CollapsingHeader(headerName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            // Active checkbox
+            bool isActive = baseConstraint->IsActive();
+            if (ImGui::Checkbox("Active##Constraint", &isActive))
+            {
+                baseConstraint->SetActive(isActive);
+            }
+
+            ImGui::Separator();
+
+            // Connected Body selection
+            ImGui::Text("Connected Body:");
+            GameObject* connectedBody = baseConstraint->GetConnectedBody();
+            std::string connectedBodyName = connectedBody ? connectedBody->GetName() : "None (World)";
+
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo("##ConnectedBody", connectedBodyName.c_str()))
+            {
+                // Option for "None" (attach to world)
+                bool isNone = (connectedBody == nullptr);
+                if (ImGui::Selectable("None (World)", isNone))
+                {
+                    baseConstraint->SetConnectedBody(nullptr);
+                }
+
+                if (isNone)
+                    ImGui::SetItemDefaultFocus();
+
+                // Get all GameObjects with RigidBody
+                std::vector<GameObject*> allObjects;
+                GetAllGameObjects(Application::GetInstance().scene->GetRoot(), allObjects);
+
+                for (GameObject* obj : allObjects)
+                {
+                    // Skip self
+                    if (obj == selectedObject)
+                        continue;
+
+                    // Only show objects with RigidBody
+                    if (obj->GetComponent(ComponentType::RIGIDBODY) == nullptr)
+                        continue;
+
+                    bool isSelected = (connectedBody == obj);
+                    if (ImGui::Selectable(obj->GetName().c_str(), isSelected))
+                    {
+                        baseConstraint->SetConnectedBody(obj);
+                    }
+
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Select the RigidBody to connect to.\nChoose 'None' to attach to world.");
+            }
+
+            ImGui::Separator();
+
+            // Anchor points
+            ImGui::Text("Anchor Points:");
+
+            glm::vec3 anchorA = baseConstraint->GetAnchorPointA();
+            if (ImGui::DragFloat3("Anchor A (Local)", &anchorA.x, 0.1f))
+            {
+                baseConstraint->SetAnchorPointA(anchorA);
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Anchor point in local space of this object");
+
+            if (connectedBody)
+            {
+                glm::vec3 anchorB = baseConstraint->GetAnchorPointB();
+                if (ImGui::DragFloat3("Anchor B (Local)", &anchorB.x, 0.1f))
+                {
+                    baseConstraint->SetAnchorPointB(anchorB);
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Anchor point in local space of connected body");
+            }
+
+            ImGui::Separator();
+
+            // Draw type-specific settings
+            switch (type)
+            {
+            case ConstraintType::HINGE:
+                DrawHingeConstraintSettings(static_cast<ComponentHingeConstraint*>(baseConstraint), isPlaying);
+                break;
+            case ConstraintType::SLIDER:
+                DrawSliderConstraintSettings(static_cast<ComponentSliderConstraint*>(baseConstraint), isPlaying);
+                break;
+            case ConstraintType::DISTANCE:
+                DrawDistanceConstraintSettings(static_cast<ComponentDistanceConstraint*>(baseConstraint), isPlaying);
+                break;
+            case ConstraintType::CONE:
+                DrawConeConstraintSettings(static_cast<ComponentConeConstraint*>(baseConstraint), isPlaying);
+                break;
+            }
+
+            ImGui::Separator();
+
+            // Common settings
+            ImGui::Text("Common Settings:");
+
+            bool constraintEnabled = baseConstraint->IsConstraintEnabled();
+            if (ImGui::Checkbox("Constraint Enabled", &constraintEnabled))
+            {
+                baseConstraint->SetConstraintEnabled(constraintEnabled);
+            }
+
+            float breakingThreshold = baseConstraint->GetBreakingThreshold();
+            if (ImGui::DragFloat("Breaking Threshold", &breakingThreshold, 0.1f, 0.0f, 10000.0f))
+            {
+                baseConstraint->SetBreakingThreshold(breakingThreshold);
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Force required to break the constraint");
+                ImGui::Text("0 = Unbreakable");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::Separator();
+
+            // Remove button
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+            if (ImGui::Button("Remove Constraint", ImVec2(-1, 0)))
+            {
+                selectedObject->RemoveComponent(baseConstraint);
+                ImGui::PopStyleColor(3);
+                ImGui::PopID();
+                return;
+            }
+
+            ImGui::PopStyleColor(3);
+        }
+
+        ImGui::Separator();
+        ImGui::PopID();
+    }
+}
+
+void InspectorWindow::DrawHingeConstraintSettings(ComponentHingeConstraint* hinge, bool isPlaying)
+{
+    ImGui::Text("Hinge Settings:");
+    ImGui::Spacing();
+
+    // Axis
+    glm::vec3 axisA = hinge->GetAxisA();
+    if (ImGui::DragFloat3("Axis A", &axisA.x, 0.01f, -1.0f, 1.0f))
+    {
+        hinge->SetAxisA(axisA);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Rotation axis in local space of object A");
+
+    if (hinge->GetConnectedBody())
+    {
+        glm::vec3 axisB = hinge->GetAxisB();
+        if (ImGui::DragFloat3("Axis B", &axisB.x, 0.01f, -1.0f, 1.0f))
+        {
+            hinge->SetAxisB(axisB);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Rotation axis in local space of object B");
+    }
+
+    ImGui::Separator();
+
+    // Angle limits
+    bool useLimits = hinge->GetUseLimits();
+    if (ImGui::Checkbox("Use Angle Limits", &useLimits))
+    {
+        hinge->SetUseLimits(useLimits);
+    }
+
+    if (useLimits)
+    {
+        ImGui::Indent();
+
+        float lowLimit = glm::degrees(hinge->GetLowLimit());
+        float highLimit = glm::degrees(hinge->GetHighLimit());
+
+        if (ImGui::SliderFloat("Low Limit (deg)", &lowLimit, -180.0f, 180.0f))
+        {
+            hinge->SetLimits(glm::radians(lowLimit), glm::radians(highLimit));
+        }
+
+        if (ImGui::SliderFloat("High Limit (deg)", &highLimit, -180.0f, 180.0f))
+        {
+            hinge->SetLimits(glm::radians(lowLimit), glm::radians(highLimit));
+        }
+
+        ImGui::Unindent();
+
+        // Show current angle if playing
+        if (isPlaying)
+        {
+            float currentAngle = glm::degrees(hinge->GetCurrentAngle());
+            ImGui::Text("Current Angle: %.2f°", currentAngle);
+
+            // Visual indicator
+            float normalizedAngle = (currentAngle - lowLimit) / (highLimit - lowLimit);
+            ImGui::ProgressBar(normalizedAngle, ImVec2(-1, 0));
+        }
+    }
+
+    ImGui::Separator();
+
+    // Motor
+    bool useMotor = hinge->GetUseMotor();
+    if (ImGui::Checkbox("Use Motor", &useMotor))
+    {
+        hinge->SetUseMotor(useMotor);
+    }
+
+    if (useMotor)
+    {
+        ImGui::Indent();
+
+        float motorVelocity = hinge->GetMotorVelocity();
+        if (ImGui::DragFloat("Motor Velocity", &motorVelocity, 0.1f, -100.0f, 100.0f))
+        {
+            hinge->SetMotorVelocity(motorVelocity);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Target angular velocity (rad/s)");
+
+        float motorMaxImpulse = hinge->GetMotorMaxImpulse();
+        if (ImGui::DragFloat("Max Motor Force", &motorMaxImpulse, 0.1f, 0.0f, 1000.0f))
+        {
+            hinge->SetMotorMaxImpulse(motorMaxImpulse);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Maximum force the motor can apply");
+
+        ImGui::Unindent();
+    }
+}
+
+void InspectorWindow::DrawSliderConstraintSettings(ComponentSliderConstraint* slider, bool isPlaying)
+{
+    ImGui::Text("Slider Settings:");
+    ImGui::Spacing();
+
+    // Axis
+    glm::vec3 axisA = slider->GetAxisA();
+    if (ImGui::DragFloat3("Slide Axis A", &axisA.x, 0.01f, -1.0f, 1.0f))
+    {
+        slider->SetAxisA(axisA);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Sliding axis in local space of object A");
+
+    if (slider->GetConnectedBody())
+    {
+        glm::vec3 axisB = slider->GetAxisB();
+        if (ImGui::DragFloat3("Slide Axis B", &axisB.x, 0.01f, -1.0f, 1.0f))
+        {
+            slider->SetAxisB(axisB);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Sliding axis in local space of object B");
+    }
+
+    ImGui::Separator();
+
+    // Linear limits
+    bool useLinearLimits = slider->GetUseLinearLimits();
+    if (ImGui::Checkbox("Use Linear Limits", &useLinearLimits))
+    {
+        slider->SetUseLinearLimits(useLinearLimits);
+    }
+
+    if (useLinearLimits)
+    {
+        ImGui::Indent();
+
+        float lowerLimit = slider->GetLowerLinearLimit();
+        float upperLimit = slider->GetUpperLinearLimit();
+
+        if (ImGui::DragFloat("Lower Limit", &lowerLimit, 0.1f, -100.0f, 100.0f))
+        {
+            slider->SetLinearLimits(lowerLimit, upperLimit);
+        }
+
+        if (ImGui::DragFloat("Upper Limit", &upperLimit, 0.1f, -100.0f, 100.0f))
+        {
+            slider->SetLinearLimits(lowerLimit, upperLimit);
+        }
+
+        ImGui::Unindent();
+
+        // Show current position if playing
+        if (isPlaying)
+        {
+            float currentPos = slider->GetCurrentLinearPosition();
+            ImGui::Text("Current Position: %.2f", currentPos);
+
+            // Visual indicator
+            float normalizedPos = (currentPos - lowerLimit) / (upperLimit - lowerLimit);
+            ImGui::ProgressBar(normalizedPos, ImVec2(-1, 0));
+        }
+    }
+
+    ImGui::Separator();
+
+    // Angular limits
+    bool useAngularLimits = slider->GetUseAngularLimits();
+    if (ImGui::Checkbox("Use Angular Limits", &useAngularLimits))
+    {
+        slider->SetUseAngularLimits(useAngularLimits);
+    }
+
+    if (useAngularLimits)
+    {
+        ImGui::Indent();
+
+        float lowerAngular = glm::degrees(slider->GetLowerAngularLimit());
+        float upperAngular = glm::degrees(slider->GetUpperAngularLimit());
+
+        if (ImGui::SliderFloat("Lower Angular (deg)", &lowerAngular, -180.0f, 180.0f))
+        {
+            slider->SetAngularLimits(glm::radians(lowerAngular), glm::radians(upperAngular));
+        }
+
+        if (ImGui::SliderFloat("Upper Angular (deg)", &upperAngular, -180.0f, 180.0f))
+        {
+            slider->SetAngularLimits(glm::radians(lowerAngular), glm::radians(upperAngular));
+        }
+
+        ImGui::Unindent();
+
+        // Show current angular position if playing
+        if (isPlaying)
+        {
+            float currentAngular = glm::degrees(slider->GetCurrentAngularPosition());
+            ImGui::Text("Current Angle: %.2f°", currentAngular);
+        }
+    }
+}
+
+void InspectorWindow::DrawDistanceConstraintSettings(ComponentDistanceConstraint* distance, bool isPlaying)
+{
+    ImGui::Text("Distance Settings:");
+    ImGui::Spacing();
+
+    // Distance
+    float dist = distance->GetDistance();
+    if (ImGui::DragFloat("Target Distance", &dist, 0.1f, 0.0f, 100.0f))
+    {
+        distance->SetDistance(dist);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Desired distance between anchor points");
+
+    // Show current distance if playing
+    if (isPlaying && distance->GetConnectedBody())
+    {
+        float currentDist = distance->GetCurrentDistance();
+        ImGui::Text("Current Distance: %.2f", currentDist);
+
+        // Color based on deviation from target
+        float deviation = glm::abs(currentDist - dist);
+        ImVec4 color = deviation < 0.1f ? ImVec4(0.3f, 1.0f, 0.3f, 1.0f) : ImVec4(1.0f, 0.7f, 0.3f, 1.0f);
+        ImGui::TextColored(color, "Deviation: %.2f", deviation);
+    }
+
+    ImGui::Separator();
+
+    // Stiffness
+    float stiffness = distance->GetStiffness();
+    if (ImGui::SliderFloat("Stiffness", &stiffness, 0.0f, 1.0f))
+    {
+        distance->SetStiffness(stiffness);
+    }
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("How rigid the distance constraint is");
+        ImGui::BulletText("0.0 = Loose spring");
+        ImGui::BulletText("1.0 = Rigid connection");
+        ImGui::EndTooltip();
+    }
+
+    // Damping
+    float damping = distance->GetDamping();
+    if (ImGui::SliderFloat("Damping", &damping, 0.0f, 1.0f))
+    {
+        distance->SetDamping(damping);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Resistance to oscillation (0 = bouncy, 1 = damped)");
+
+    ImGui::Separator();
+
+    // Min/Max distance limits
+    bool useMinDist = distance->GetUseMinDistance();
+    if (ImGui::Checkbox("Use Min Distance", &useMinDist))
+    {
+        distance->SetUseMinDistance(useMinDist);
+    }
+
+    if (useMinDist)
+    {
+        ImGui::Indent();
+        float minDist = distance->GetMinDistance();
+        if (ImGui::DragFloat("Min Distance", &minDist, 0.1f, 0.0f, 100.0f))
+        {
+            distance->SetMinDistance(minDist);
+        }
+        ImGui::Unindent();
+    }
+
+    bool useMaxDist = distance->GetUseMaxDistance();
+    if (ImGui::Checkbox("Use Max Distance", &useMaxDist))
+    {
+        distance->SetUseMaxDistance(useMaxDist);
+    }
+
+    if (useMaxDist)
+    {
+        ImGui::Indent();
+        float maxDist = distance->GetMaxDistance();
+        if (ImGui::DragFloat("Max Distance", &maxDist, 0.1f, 0.0f, 100.0f))
+        {
+            distance->SetMaxDistance(maxDist);
+        }
+        ImGui::Unindent();
+    }
+}
+
+void InspectorWindow::DrawConeConstraintSettings(ComponentConeConstraint* cone, bool isPlaying)
+{
+    ImGui::Text("Cone Constraint Settings:");
+    ImGui::Spacing();
+
+    // Axis
+    glm::vec3 axisA = cone->GetAxisA();
+    if (ImGui::DragFloat3("Cone Axis A", &axisA.x, 0.01f, -1.0f, 1.0f))
+    {
+        cone->SetAxisA(axisA);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Cone axis in local space of object A");
+
+    if (cone->GetConnectedBody())
+    {
+        glm::vec3 axisB = cone->GetAxisB();
+        if (ImGui::DragFloat3("Cone Axis B", &axisB.x, 0.01f, -1.0f, 1.0f))
+        {
+            cone->SetAxisB(axisB);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Cone axis in local space of object B");
+    }
+
+    ImGui::Separator();
+
+    // Swing limits
+    bool useSwingLimits = cone->GetUseSwingLimits();
+    if (ImGui::Checkbox("Use Swing Limits", &useSwingLimits))
+    {
+        cone->SetUseSwingLimits(useSwingLimits);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Limit the cone angle (ball-and-socket movement)");
+
+    if (useSwingLimits)
+    {
+        ImGui::Indent();
+
+        float swingSpan1 = glm::degrees(cone->GetSwingSpan1());
+        if (ImGui::SliderFloat("Swing Span Y (deg)", &swingSpan1, 0.0f, 180.0f))
+        {
+            cone->SetSwingSpan1(glm::radians(swingSpan1));
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Maximum swing angle around Y axis");
+
+        float swingSpan2 = glm::degrees(cone->GetSwingSpan2());
+        if (ImGui::SliderFloat("Swing Span Z (deg)", &swingSpan2, 0.0f, 180.0f))
+        {
+            cone->SetSwingSpan2(glm::radians(swingSpan2));
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Maximum swing angle around Z axis");
+
+        ImGui::Unindent();
+    }
+
+    ImGui::Separator();
+
+    // Twist limits
+    bool useTwistLimits = cone->GetUseTwistLimits();
+    if (ImGui::Checkbox("Use Twist Limits", &useTwistLimits))
+    {
+        cone->SetUseTwistLimits(useTwistLimits);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Limit rotation around the cone axis");
+
+    if (useTwistLimits)
+    {
+        ImGui::Indent();
+
+        float twistSpan = glm::degrees(cone->GetTwistSpan());
+        if (ImGui::SliderFloat("Twist Span (deg)", &twistSpan, 0.0f, 180.0f))
+        {
+            cone->SetTwistSpan(glm::radians(twistSpan));
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Maximum twist angle around cone axis");
+
+        ImGui::Unindent();
+    }
+
+    ImGui::Separator();
+
+    // Advanced settings
+    if (ImGui::CollapsingHeader("Advanced Settings"))
+    {
+        ImGui::Indent();
+
+        float softness = cone->GetLimitSoftness();
+        if (ImGui::SliderFloat("Limit Softness", &softness, 0.0f, 1.0f))
+        {
+            cone->SetLimitSoftness(softness);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How soft the limits are (0 = hard, 1 = soft)");
+
+        float bias = cone->GetLimitBias();
+        if (ImGui::SliderFloat("Limit Bias", &bias, 0.0f, 1.0f))
+        {
+            cone->SetLimitBias(bias);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Error correction factor for limits");
+
+        float relaxation = cone->GetLimitRelaxation();
+        if (ImGui::SliderFloat("Limit Relaxation", &relaxation, 0.0f, 1.0f))
+        {
+            cone->SetLimitRelaxation(relaxation);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How much the limit can be violated");
+
+        ImGui::Unindent();
     }
 }

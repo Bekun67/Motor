@@ -4,6 +4,10 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "ComponentCollider.h"
+#include "ComponentHingeConstraint.h"
+#include "ComponentSliderConstraint.h"
+#include "ComponentDistanceConstraint.h"
+#include "ComponentConeConstraint.h"
 
 class Component;
 enum class ComponentType;
@@ -45,6 +49,11 @@ public:
     static GameObject* Deserialize(const nlohmann::json& gameObjectObj, GameObject* parent = nullptr);
 
     void RemoveComponent(Component* component);
+
+    ComponentHingeConstraint* CreateHingeConstraint();
+    ComponentSliderConstraint* CreateSliderConstraint();
+    ComponentDistanceConstraint* CreateDistanceConstraint();
+    ComponentConeConstraint* CreateConeConstraint();
 
 public:
     std::string name;

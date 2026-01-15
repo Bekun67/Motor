@@ -1,6 +1,10 @@
 #pragma once
 
 #include "EditorWindow.h"
+#include "ComponentHingeConstraint.h"
+#include "ComponentSliderConstraint.h"
+#include "ComponentDistanceConstraint.h"
+#include "ComponentConeConstraint.h"
 #include <imgui.h>  
 #include <ImGuizmo.h>
 #include <vector>
@@ -35,6 +39,11 @@ private:
     void DrawRotateComponent(GameObject* selectedObject);
     void DrawRigidBodyComponent(GameObject* selectedObject);
     void DrawColliderComponent(GameObject* selectedObject);
+    void DrawConstraintComponents(GameObject* selectedObject);
+    void DrawHingeConstraintSettings(ComponentHingeConstraint* hinge, bool isPlaying);
+    void DrawSliderConstraintSettings(ComponentSliderConstraint* slider, bool isPlaying);
+    void DrawDistanceConstraintSettings(ComponentDistanceConstraint* distance, bool isPlaying);
+    void DrawConeConstraintSettings(ComponentConeConstraint* cone, bool isPlaying);
 
     // Helper methods
     void GetAllGameObjects(GameObject* root, std::vector<GameObject*>& outObjects);
@@ -47,5 +56,4 @@ private:
     // Normals visualization
     bool showVertexNormals = false;
     bool showFaceNormals = false;
-
 };

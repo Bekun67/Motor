@@ -29,6 +29,11 @@
 #include "AssetsWindow.h"
 #include "MetaFile.h"
 
+#include "ComponentHingeConstraint.h"    
+#include "ComponentSliderConstraint.h"    
+#include "ComponentDistanceConstraint.h"  
+#include "ComponentConeConstraint.h"      
+
 ModuleEditor::ModuleEditor() : Module()
 {
     name = "ModuleEditor";
@@ -476,6 +481,143 @@ void ModuleEditor::ShowMenuBar()
                         selected->CreateCollider(ColliderType::MESH);
                         LOG_CONSOLE("Mesh Collider (Convex Hull) added to %s", selected->GetName().c_str());
                     }
+                }
+
+                ImGui::EndMenu();
+            }
+
+			ImGui::Separator();
+
+            if (ImGui::BeginMenu("Add Constraint"))
+            {
+                GameObject* selected = Application::GetInstance().selectionManager->GetSelectedObject();
+
+                if (selected == nullptr)
+                {
+                    ImGui::TextDisabled("(No GameObject selected)");
+                }
+                else
+                {
+                    // Check if selected object has a RigidBody
+                    bool hasRigidBody = (selected->GetComponent(ComponentType::RIGIDBODY) != nullptr);
+
+                    if (!hasRigidBody)
+                    {
+                        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f),
+                            "! RigidBody Required");
+                        ImGui::Separator();
+                    }
+
+                    // Hinge Constraint
+                    if (!hasRigidBody) ImGui::BeginDisabled();
+
+                    if (ImGui::MenuItem("Hinge Constraint"))
+                    {
+                        selected->CreateHingeConstraint();
+                        LOG_CONSOLE("Hinge Constraint added to %s", selected->GetName().c_str());
+                    }
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    {
+                        ImGui::BeginTooltip();
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Hinge Constraint");
+                        ImGui::Separator();
+                        ImGui::Text("Allows rotation around one axis");
+                        ImGui::BulletText("Perfect for doors");
+                        ImGui::BulletText("Perfect for wheels");
+                        ImGui::BulletText("Supports angle limits");
+                        ImGui::BulletText("Supports motor");
+                        if (!hasRigidBody)
+                        {
+                            ImGui::Spacing();
+                            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                                "Requires RigidBody component!");
+                        }
+                        ImGui::EndTooltip();
+                    }
+
+                    // Slider Constraint
+                    if (ImGui::MenuItem("Slider Constraint"))
+                    {
+                        selected->CreateSliderConstraint();
+                        LOG_CONSOLE("Slider Constraint added to %s", selected->GetName().c_str());
+                    }
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    {
+                        ImGui::BeginTooltip();
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Slider Constraint");
+                        ImGui::Separator();
+                        ImGui::Text("Allows linear movement along one axis");
+                        ImGui::BulletText("Perfect for pistons");
+                        ImGui::BulletText("Perfect for drawers");
+                        ImGui::BulletText("Supports linear limits");
+                        ImGui::BulletText("Supports angular limits");
+                        if (!hasRigidBody)
+                        {
+                            ImGui::Spacing();
+                            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                                "Requires RigidBody component!");
+                        }
+                        ImGui::EndTooltip();
+                    }
+
+                    // Distance Constraint
+                    if (ImGui::MenuItem("Distance Constraint"))
+                    {
+                        selected->CreateDistanceConstraint();
+                        LOG_CONSOLE("Distance Constraint added to %s", selected->GetName().c_str());
+                    }
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    {
+                        ImGui::BeginTooltip();
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Distance Constraint");
+                        ImGui::Separator();
+                        ImGui::Text("Maintains fixed distance between objects");
+                        ImGui::BulletText("Perfect for ropes");
+                        ImGui::BulletText("Perfect for chains");
+                        ImGui::BulletText("Configurable stiffness");
+                        ImGui::BulletText("Configurable damping");
+                        if (!hasRigidBody)
+                        {
+                            ImGui::Spacing();
+                            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                                "Requires RigidBody component!");
+                        }
+                        ImGui::EndTooltip();
+                    }
+
+                    // Cone Constraint
+                    if (ImGui::MenuItem("Cone Constraint"))
+                    {
+                        selected->CreateConeConstraint();
+                        LOG_CONSOLE("Cone Constraint added to %s", selected->GetName().c_str());
+                    }
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    {
+                        ImGui::BeginTooltip();
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Cone Constraint");
+                        ImGui::Separator();
+                        ImGui::Text("Ball-and-socket joint with limits");
+                        ImGui::BulletText("Perfect for ragdoll joints");
+                        ImGui::BulletText("Perfect for character limbs");
+                        ImGui::BulletText("Supports swing limits");
+                        ImGui::BulletText("Supports twist limits");
+                        if (!hasRigidBody)
+                        {
+                            ImGui::Spacing();
+                            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                                "Requires RigidBody component!");
+                        }
+                        ImGui::EndTooltip();
+                    }
+
+                    if (!hasRigidBody) ImGui::EndDisabled();
+
+                    ImGui::Separator();
+
+                    // Info text at bottom
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                    ImGui::TextWrapped("Constraints connect this object to another RigidBody or to the world");
+                    ImGui::PopStyleColor();
                 }
 
                 ImGui::EndMenu();

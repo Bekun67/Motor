@@ -12,6 +12,7 @@ enum class ComponentType {
     ROTATE,
     RIGIDBODY,
     COLLIDER,
+	CONSTRAINT,
     UNKNOWN
 };
 

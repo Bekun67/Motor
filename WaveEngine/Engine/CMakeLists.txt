@@ -75,6 +75,19 @@ set(PHYSICS_SRC
     src/ComponentCollider.h
 )
 
+set(CONSTRAINTS_SRC
+    src/ComponentConstraint.cpp
+    src/ComponentConstraint.h
+    src/ComponentConeConstraint.cpp
+    src/ComponentConeConstraint.h
+    src/ComponentDistanceConstraint.cpp
+    src/ComponentDistanceConstraint.h
+    src/ComponentHingeConstraint.cpp
+    src/ComponentHingeConstraint.h
+    src/ComponentSliderConstraint.cpp
+    src/ComponentSliderConstraint.h
+)
+
 set(COMPONENTS_SRC
     src/Component.h
     src/Component.cpp
@@ -143,10 +156,11 @@ source_group("Source\\Utils\\Editor" FILES ${EDITOR_SRC})
 source_group("Source\\Game Objects" FILES ${GAMEOBJECTS_SRC})
 source_group("Source\\Game Objects\\Components" FILES ${COMPONENTS_SRC})
 source_group("Source\\Physics" FILES ${PHYSICS_SRC})
+source_group("Source\\Physics\\Constraints" FILES ${CONSTRAINTS_SRC})
 source_group("Source\\Loaders" FILES ${LOADERS_SRC})
 source_group("Source\\Loaders\\Importers" FILES ${IMPORTERS_SRC})
 
-set(SRCS ${CORE_SRC} ${RENDERING_SRC} ${UTILS_SRC} ${EDITOR_SRC} ${GAMEOBJECTS_SRC} ${COMPONENTS_SRC} ${LOADERS_SRC} ${IMPORTERS_SRC} ${PHYSICS_SRC})
+set(SRCS ${CORE_SRC} ${RENDERING_SRC} ${UTILS_SRC} ${EDITOR_SRC} ${GAMEOBJECTS_SRC} ${COMPONENTS_SRC} ${LOADERS_SRC} ${IMPORTERS_SRC} ${PHYSICS_SRC} ${CONSTRAINTS_SRC})
 
 add_executable(Engine ${SRCS})
 

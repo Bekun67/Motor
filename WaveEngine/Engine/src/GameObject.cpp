@@ -76,6 +76,9 @@ Component* GameObject::CreateComponent(ComponentType type) {
     case ComponentType::COLLIDER:
         newComponent = new ComponentCollider(this, ColliderType::BOX);
         break;
+    case ComponentType::CONSTRAINT:
+        newComponent = new ComponentHingeConstraint(this);
+        break;
 
     default:
         LOG_DEBUG("ERROR: Unknown component type requested for GameObject '%s'", name.c_str());
@@ -89,6 +92,54 @@ Component* GameObject::CreateComponent(ComponentType type) {
     }
 
     return newComponent;
+}
+
+ComponentHingeConstraint* GameObject::CreateHingeConstraint()
+{
+    ComponentHingeConstraint* constraint = new ComponentHingeConstraint(this);
+
+    if (constraint) {
+        componentOwners.push_back(std::unique_ptr<Component>(constraint));
+        components.push_back(constraint);
+    }
+
+    return constraint;
+}
+
+ComponentSliderConstraint* GameObject::CreateSliderConstraint()
+{
+    ComponentSliderConstraint* constraint = new ComponentSliderConstraint(this);
+
+    if (constraint) {
+        componentOwners.push_back(std::unique_ptr<Component>(constraint));
+        components.push_back(constraint);
+    }
+
+    return constraint;
+}
+
+ComponentDistanceConstraint* GameObject::CreateDistanceConstraint()
+{
+    ComponentDistanceConstraint* constraint = new ComponentDistanceConstraint(this);
+
+    if (constraint) {
+        componentOwners.push_back(std::unique_ptr<Component>(constraint));
+        components.push_back(constraint);
+    }
+
+    return constraint;
+}
+
+ComponentConeConstraint* GameObject::CreateConeConstraint()
+{
+    ComponentConeConstraint* constraint = new ComponentConeConstraint(this);
+
+    if (constraint) {
+        componentOwners.push_back(std::unique_ptr<Component>(constraint));
+        components.push_back(constraint);
+    }
+
+    return constraint;
 }
 
 ComponentCollider* GameObject::CreateCollider(ColliderType colliderType)

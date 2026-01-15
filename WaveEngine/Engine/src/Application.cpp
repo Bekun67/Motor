@@ -317,7 +317,17 @@ void Application::CleanupPhysicsRecursive(GameObject* obj)
 {
     if (!obj) return;
 
-    // Disable RigidBody first (this removes it from physics world)
+    // Disable Constraints first
+    std::vector<Component*> constraints = obj->GetComponentsOfType(ComponentType::CONSTRAINT);
+    for (Component* comp : constraints)
+    {
+        if (comp && comp->IsActive())
+        {
+            comp->Disable();
+        }
+    }
+
+    // Disable RigidBody
     ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
         obj->GetComponent(ComponentType::RIGIDBODY)
         );
