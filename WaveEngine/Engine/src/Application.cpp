@@ -378,9 +378,38 @@ void Application::CleanupPhysicsRecursive(GameObject* obj)
 {
     if (!obj) return;
 
+    ValidateConstraintsRecursive(obj);
+
     DisableConstraintsRecursive(obj);
 
     DisableRigidBodiesRecursive(obj);
 
     DisableCollidersRecursive(obj);
+}
+
+void Application::ValidateConstraintsRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
+    std::vector<Component*> constraints = obj->GetComponentsOfType(ComponentType::CONSTRAINT);
+
+    std::vector<ComponentConstraint*> constraintsCopy;
+    for (Component* comp : constraints)
+    {
+        constraintsCopy.push_back(static_cast<ComponentConstraint*>(comp));
+    }
+
+    for (ComponentConstraint* constraint : constraintsCopy)
+    {
+        if (constraint && !constraint->IsConstraintValid())
+        {
+            LOG_DEBUG("[Application] Removing invalid constraint from '%s'", obj->GetName().c_str());
+            obj->RemoveComponent(constraint);
+        }
+    }
+
+    for (GameObject* child : obj->GetChildren())
+    {
+        ValidateConstraintsRecursive(child);
+    }
 }
