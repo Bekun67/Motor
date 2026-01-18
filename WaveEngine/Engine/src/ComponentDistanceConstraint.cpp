@@ -1,5 +1,6 @@
 ﻿#include "ComponentDistanceConstraint.h"
 #include "GameObject.h"
+#include "Transform.h"
 #include "ComponentRigidBody.h"
 #include "Application.h"
 #include "ModulePhysics.h"
@@ -24,6 +25,13 @@ void ComponentDistanceConstraint::CreateConstraint()
     if (constraint != nullptr)
     {
         DestroyConstraint();
+    }
+
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    if (playState == Application::PlayState::EDITING)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Skipping constraint creation in EDITING mode");
+        return;
     }
 
     ComponentRigidBody* rbA = GetRigidBody(owner);
@@ -69,6 +77,13 @@ void ComponentDistanceConstraint::CreateConstraint()
     if (!bodyB)
     {
         LOG_DEBUG("[ComponentDistanceConstraint] Connected body '%s' has no Bullet RigidBody", connectedBody->GetName().c_str());
+        return;
+    }
+
+    Transform* transformA = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
+    if (!transformA)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Owner has no Transform!");
         return;
     }
 

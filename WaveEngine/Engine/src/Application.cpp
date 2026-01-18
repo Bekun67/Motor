@@ -196,7 +196,11 @@ void Application::Play()
     GameObject* root = scene->GetRoot();
     if (root)
     {
+        DestroyConstraintsRecursive(root);
+
         SyncPhysicsRecursive(root);
+
+        RecreateConstraintsRecursive(root);
     }
 }
 
@@ -206,11 +210,13 @@ void Application::Stop()
     if (playState != PlayState::EDITING) {
         LOG_CONSOLE("Restoring initial scene state...");
 
-        // CRITICAL: Clean up ALL physics objects before loading the saved scene
+        // Clean up physics objects before loading the saved scene
         GameObject* root = scene->GetRoot();
         if (root)
         {
-            // First pass: disable all physics components to remove them from physics world
+            DestroyConstraintsRecursive(root);
+
+            // disable all physics components to remove them from physics world
             CleanupPhysicsRecursive(root);
         }
 
@@ -288,6 +294,54 @@ void Application::SyncPhysicsRecursive(GameObject* obj)
     for (GameObject* child : obj->GetChildren())
     {
         SyncPhysicsRecursive(child);
+    }
+}
+
+void Application::DestroyConstraintsRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
+	// Destroy all constraints of this GameObject
+    std::vector<Component*> constraints = obj->GetComponentsOfType(ComponentType::CONSTRAINT);
+    for (Component* comp : constraints)
+    {
+        ComponentConstraint* constraint = static_cast<ComponentConstraint*>(comp);
+        if (constraint)
+        {
+			// Just destroy the constraint, do not remove the component
+            constraint->DestroyConstraint();
+            LOG_DEBUG("[Application] Destroyed constraint on '%s' before play", obj->GetName().c_str());
+        }
+    }
+
+	// process children recursively
+    for (GameObject* child : obj->GetChildren())
+    {
+        DestroyConstraintsRecursive(child);
+    }
+}
+
+void Application::RecreateConstraintsRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
+	// Recreate all constraints of this GameObject
+    std::vector<Component*> constraints = obj->GetComponentsOfType(ComponentType::CONSTRAINT);
+    for (Component* comp : constraints)
+    {
+        ComponentConstraint* constraint = static_cast<ComponentConstraint*>(comp);
+        if (constraint && constraint->IsActive())
+        {
+			// Recreate the constraint in the physics world
+            constraint->CreateConstraint();
+            LOG_DEBUG("[Application] Recreated constraint on '%s' for play mode", obj->GetName().c_str());
+        }
+    }
+
+    // Recursivamente procesar hijos
+    for (GameObject* child : obj->GetChildren())
+    {
+        RecreateConstraintsRecursive(child);
     }
 }
 

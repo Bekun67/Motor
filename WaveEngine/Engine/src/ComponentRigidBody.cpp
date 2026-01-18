@@ -189,6 +189,8 @@ void ComponentRigidBody::DestroyRigidBody()
             {
                 world->removeConstraint(constraint);
                 LOG_DEBUG("[ComponentRigidBody] Removed constraint from physics world (references this RigidBody)");
+
+				delete constraint;
             }
         }
     }

@@ -26,7 +26,15 @@ ComponentConstraint::~ComponentConstraint()
 
 void ComponentConstraint::Enable()
 {
-    CreateConstraint();
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    if (playState != Application::PlayState::EDITING)
+    {
+        CreateConstraint();
+    }
+    else
+    {
+        LOG_DEBUG("[ComponentConstraint] Constraint enabled but not created (EDITING mode)");
+    }
 }
 
 void ComponentConstraint::Update()
@@ -87,9 +95,32 @@ void ComponentConstraint::DestroyConstraint()
         ModulePhysics* physics = Application::GetInstance().physics.get();
         if (physics && physics->GetDynamicsWorld())
         {
-            physics->GetDynamicsWorld()->removeConstraint(constraint);
-            LOG_DEBUG("[ComponentConstraint] Removed constraint from physics world");
+            btDynamicsWorld* world = physics->GetDynamicsWorld();
+
+			// verify that the constraint is actually in the world before removing
+            bool found = false;
+            for (int i = 0; i < world->getNumConstraints(); i++)
+            {
+                if (world->getConstraint(i) == constraint)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found)
+            {
+                world->removeConstraint(constraint);
+                LOG_DEBUG("[ComponentConstraint] Removed constraint from physics world");
+            }
+            else
+            {
+                LOG_DEBUG("[ComponentConstraint] Constraint not in world, skipping removal");
+            }
         }
+
+		// Ensure it's disabled
+        constraint->setEnabled(false);
 
         delete constraint;
         constraint = nullptr;

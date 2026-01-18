@@ -1,5 +1,6 @@
 ﻿#include "ComponentSliderConstraint.h"
 #include "GameObject.h"
+#include "Transform.h"
 #include "ComponentRigidBody.h"
 #include "Application.h"
 #include "ModulePhysics.h"
@@ -26,6 +27,13 @@ void ComponentSliderConstraint::CreateConstraint()
         DestroyConstraint();
     }
 
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    if (playState == Application::PlayState::EDITING)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Skipping constraint creation in EDITING mode");
+        return;
+    }
+
     ComponentRigidBody* rbA = GetRigidBody(owner);
     if (!rbA)
     {
@@ -45,6 +53,14 @@ void ComponentSliderConstraint::CreateConstraint()
         LOG_DEBUG("[ComponentSliderConstraint] Owner '%s' has no Bullet RigidBody", owner->GetName().c_str());
         return;
     }
+
+    Transform* transformA = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
+    if (!transformA)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Owner has no Transform!");
+        return;
+    }
+
 
     // Create frame transform for slider
     btTransform frameInA;

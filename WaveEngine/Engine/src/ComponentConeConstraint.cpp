@@ -1,4 +1,5 @@
 ﻿#include "ComponentConeConstraint.h"
+#include "Transform.h"
 #include "GameObject.h"
 #include "ComponentRigidBody.h"
 #include "Application.h"
@@ -28,6 +29,13 @@ void ComponentConeConstraint::CreateConstraint()
         DestroyConstraint();
     }
 
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    if (playState == Application::PlayState::EDITING)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Skipping constraint creation in EDITING mode");
+        return;
+    }
+
     ComponentRigidBody* rbA = GetRigidBody(owner);
     if (!rbA)
     {
@@ -45,6 +53,13 @@ void ComponentConeConstraint::CreateConstraint()
     if (!bodyA)
     {
         LOG_DEBUG("[ComponentConeConstraint] Owner '%s' has no Bullet RigidBody", owner->GetName().c_str());
+        return;
+    }
+
+    Transform* transformA = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
+    if (!transformA)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Owner has no Transform!");
         return;
     }
 

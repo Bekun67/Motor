@@ -111,6 +111,8 @@ public:
     };
 
     void SyncPhysicsRecursive(GameObject* obj);
+    void DestroyConstraintsRecursive(GameObject* obj);
+    void RecreateConstraintsRecursive(GameObject* obj);
     void MarkCollidersAsStandalone(GameObject* obj);
     void CleanupPhysicsRecursive(GameObject* obj);
 
