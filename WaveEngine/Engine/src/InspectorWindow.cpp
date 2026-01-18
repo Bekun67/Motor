@@ -1017,6 +1017,12 @@ void InspectorWindow::DrawRigidBodyComponent(GameObject* selectedObject)
 
         if (ImGui::Button("Remove Rigid Body", ImVec2(-1, 0)))
         {
+            std::vector<Component*> constraints = selectedObject->GetComponentsOfType(ComponentType::CONSTRAINT);
+            for (Component* comp : constraints)
+            {
+                selectedObject->RemoveComponent(comp);
+            }
+
             selectedObject->RemoveComponent(rigidBody);
             ImGui::PopStyleColor(3);
             ImGui::PopID();

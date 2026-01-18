@@ -313,7 +313,7 @@ void Application::MarkCollidersAsStandalone(GameObject* obj)
     }
 }
 
-void Application::CleanupPhysicsRecursive(GameObject* obj)
+void Application::DisableConstraintsRecursive(GameObject* obj)
 {
     if (!obj) return;
 
@@ -328,6 +328,16 @@ void Application::CleanupPhysicsRecursive(GameObject* obj)
     }
 
     // Disable RigidBody
+    for (GameObject* child : obj->GetChildren())
+    {
+        DisableConstraintsRecursive(child);
+    }
+}
+
+void Application::DisableRigidBodiesRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
     ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
         obj->GetComponent(ComponentType::RIGIDBODY)
         );
@@ -337,6 +347,16 @@ void Application::CleanupPhysicsRecursive(GameObject* obj)
     }
 
     // Then disable all colliders (this removes standalone colliders from physics world)
+    for (GameObject* child : obj->GetChildren())
+    {
+        DisableRigidBodiesRecursive(child);
+    }
+}
+
+void Application::DisableCollidersRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
     std::vector<Component*> colliders = obj->GetComponentsOfType(ComponentType::COLLIDER);
     for (Component* comp : colliders)
     {
@@ -350,6 +370,17 @@ void Application::CleanupPhysicsRecursive(GameObject* obj)
     // Recursively process children
     for (GameObject* child : obj->GetChildren())
     {
-        CleanupPhysicsRecursive(child);
+        DisableCollidersRecursive(child);
     }
+}
+
+void Application::CleanupPhysicsRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
+    DisableConstraintsRecursive(obj);
+
+    DisableRigidBodiesRecursive(obj);
+
+    DisableCollidersRecursive(obj);
 }

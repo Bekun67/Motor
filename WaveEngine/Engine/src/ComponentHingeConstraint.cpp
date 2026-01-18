@@ -29,13 +29,24 @@ void ComponentHingeConstraint::CreateConstraint()
     }
 
     ComponentRigidBody* rbA = GetRigidBody(owner);
-    if (!rbA || !rbA->GetBulletRigidBody())
+    if (!rbA)
     {
-        LOG_DEBUG("[ComponentHingeConstraint] Owner has no RigidBody");
+        LOG_DEBUG("[ComponentHingeConstraint] Owner '%s' has no RigidBody component", owner->GetName().c_str());
+        return;
+    }
+
+    if (!rbA->IsActive())
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Owner '%s' RigidBody is not active", owner->GetName().c_str());
         return;
     }
 
     btRigidBody* bodyA = rbA->GetBulletRigidBody();
+    if (!bodyA)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] Owner '%s' has no Bullet RigidBody", owner->GetName().c_str());
+        return;
+    }
 
     // Create transforms for the constraint frames
     btTransform frameInA;
@@ -66,41 +77,52 @@ void ComponentHingeConstraint::CreateConstraint()
     if (connectedBody)
     {
         ComponentRigidBody* rbB = GetRigidBody(connectedBody);
-        if (rbB && rbB->GetBulletRigidBody())
+        if (!rbB)
         {
-            btRigidBody* bodyB = rbB->GetBulletRigidBody();
-
-            btTransform frameInB;
-            frameInB.setIdentity();
-
-            // Set pivot point for body B
-            frameInB.setOrigin(btVector3(anchorPointB.x, anchorPointB.y, anchorPointB.z));
-
-            // Create rotation for body B
-            btVector3 hingeAxisB(axisB.x, axisB.y, axisB.z);
-            hingeAxisB.normalize();
-
-            btVector3 tangentB, binormalB;
-            btPlaneSpace1(hingeAxisB, tangentB, binormalB);
-
-            btMatrix3x3 rotationMatrixB(
-                tangentB.x(), binormalB.x(), hingeAxisB.x(),
-                tangentB.y(), binormalB.y(), hingeAxisB.y(),
-                tangentB.z(), binormalB.z(), hingeAxisB.z()
-            );
-
-            frameInB.setBasis(rotationMatrixB);
-
-            // Create hinge between two bodies
-            hingeConstraint = new btHingeConstraint(
-                *bodyA, *bodyB,
-                frameInA, frameInB
-            );
-
-            LOG_DEBUG("[ComponentHingeConstraint] Created hinge between '%s' and '%s'",
-                owner->GetName().c_str(),
-                connectedBody->GetName().c_str());
+            LOG_DEBUG("[ComponentHingeConstraint] Connected body '%s' has no RigidBody component", connectedBody->GetName().c_str());
+            return;
         }
+
+        if (!rbB->IsActive())
+        {
+            LOG_DEBUG("[ComponentHingeConstraint] Connected body '%s' RigidBody is not active", connectedBody->GetName().c_str());
+            return;
+        }
+
+        btRigidBody* bodyB = rbB->GetBulletRigidBody();
+        if (!bodyB)
+        {
+            LOG_DEBUG("[ComponentHingeConstraint] Connected body '%s' has no Bullet RigidBody", connectedBody->GetName().c_str());
+            return;
+        }
+
+        btTransform frameInB;
+        frameInB.setIdentity();
+
+        frameInB.setOrigin(btVector3(anchorPointB.x, anchorPointB.y, anchorPointB.z));
+
+        btVector3 hingeAxisB(axisB.x, axisB.y, axisB.z);
+        hingeAxisB.normalize();
+
+        btVector3 tangentB, binormalB;
+        btPlaneSpace1(hingeAxisB, tangentB, binormalB);
+
+        btMatrix3x3 rotationMatrixB(
+            tangentB.x(), binormalB.x(), hingeAxisB.x(),
+            tangentB.y(), binormalB.y(), hingeAxisB.y(),
+            tangentB.z(), binormalB.z(), hingeAxisB.z()
+        );
+
+        frameInB.setBasis(rotationMatrixB);
+
+        hingeConstraint = new btHingeConstraint(
+            *bodyA, *bodyB,
+            frameInA, frameInB
+        );
+
+        LOG_DEBUG("[ComponentHingeConstraint] Created hinge between '%s' and '%s'",
+            owner->GetName().c_str(),
+            connectedBody->GetName().c_str());
     }
     else
     {

@@ -29,13 +29,24 @@ void ComponentConeConstraint::CreateConstraint()
     }
 
     ComponentRigidBody* rbA = GetRigidBody(owner);
-    if (!rbA || !rbA->GetBulletRigidBody())
+    if (!rbA)
     {
-        LOG_DEBUG("[ComponentConeConstraint] Owner has no RigidBody");
+        LOG_DEBUG("[ComponentConeConstraint] Owner '%s' has no RigidBody component", owner->GetName().c_str());
+        return;
+    }
+
+    if (!rbA->IsActive())
+    {
+        LOG_DEBUG("[ComponentConeConstraint] Owner '%s' RigidBody is not active", owner->GetName().c_str());
         return;
     }
 
     btRigidBody* bodyA = rbA->GetBulletRigidBody();
+    if (!bodyA)
+    {
+        LOG_DEBUG("[ComponentConeConstraint] Owner '%s' has no Bullet RigidBody", owner->GetName().c_str());
+        return;
+    }
 
     // Create frame transforms
     btTransform frameInA;
@@ -63,37 +74,51 @@ void ComponentConeConstraint::CreateConstraint()
     if (connectedBody)
     {
         ComponentRigidBody* rbB = GetRigidBody(connectedBody);
-        if (rbB && rbB->GetBulletRigidBody())
+        if (!rbB)
         {
-            btRigidBody* bodyB = rbB->GetBulletRigidBody();
-
-            btTransform frameInB;
-            frameInB.setIdentity();
-            frameInB.setOrigin(btVector3(anchorPointB.x, anchorPointB.y, anchorPointB.z));
-
-            btVector3 twistAxisB(axisB.x, axisB.y, axisB.z);
-            twistAxisB.normalize();
-
-            btVector3 xAxisB, zAxisB;
-            btPlaneSpace1(twistAxisB, xAxisB, zAxisB);
-
-            btMatrix3x3 rotationMatrixB(
-                xAxisB.x(), twistAxisB.x(), zAxisB.x(),
-                xAxisB.y(), twistAxisB.y(), zAxisB.y(),
-                xAxisB.z(), twistAxisB.z(), zAxisB.z()
-            );
-
-            frameInB.setBasis(rotationMatrixB);
-
-            coneConstraint = new btConeTwistConstraint(
-                *bodyA, *bodyB,
-                frameInA, frameInB
-            );
-
-            LOG_DEBUG("[ComponentConeConstraint] Created cone constraint between '%s' and '%s'",
-                owner->GetName().c_str(),
-                connectedBody->GetName().c_str());
+            LOG_DEBUG("[ComponentConeConstraint] Connected body '%s' has no RigidBody component", connectedBody->GetName().c_str());
+            return;
         }
+
+        if (!rbB->IsActive())
+        {
+            LOG_DEBUG("[ComponentConeConstraint] Connected body '%s' RigidBody is not active", connectedBody->GetName().c_str());
+            return;
+        }
+
+        btRigidBody* bodyB = rbB->GetBulletRigidBody();
+        if (!bodyB)
+        {
+            LOG_DEBUG("[ComponentConeConstraint] Connected body '%s' has no Bullet RigidBody", connectedBody->GetName().c_str());
+            return;
+        }
+
+        btTransform frameInB;
+        frameInB.setIdentity();
+        frameInB.setOrigin(btVector3(anchorPointB.x, anchorPointB.y, anchorPointB.z));
+
+        btVector3 twistAxisB(axisB.x, axisB.y, axisB.z);
+        twistAxisB.normalize();
+
+        btVector3 xAxisB, zAxisB;
+        btPlaneSpace1(twistAxisB, xAxisB, zAxisB);
+
+        btMatrix3x3 rotationMatrixB(
+            xAxisB.x(), twistAxisB.x(), zAxisB.x(),
+            xAxisB.y(), twistAxisB.y(), zAxisB.y(),
+            xAxisB.z(), twistAxisB.z(), zAxisB.z()
+        );
+
+        frameInB.setBasis(rotationMatrixB);
+
+        coneConstraint = new btConeTwistConstraint(
+            *bodyA, *bodyB,
+            frameInA, frameInB
+        );
+
+        LOG_DEBUG("[ComponentConeConstraint] Created cone constraint between '%s' and '%s'",
+            owner->GetName().c_str(),
+            connectedBody->GetName().c_str());
     }
     else
     {

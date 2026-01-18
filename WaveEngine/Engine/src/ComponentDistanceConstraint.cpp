@@ -27,9 +27,22 @@ void ComponentDistanceConstraint::CreateConstraint()
     }
 
     ComponentRigidBody* rbA = GetRigidBody(owner);
-    if (!rbA || !rbA->GetBulletRigidBody())
+    if (!rbA)
     {
-        LOG_DEBUG("[ComponentDistanceConstraint] Owner has no RigidBody");
+        LOG_DEBUG("[ComponentDistanceConstraint] Owner '%s' has no RigidBody component", owner->GetName().c_str());
+        return;
+    }
+
+    if (!rbA->IsActive())
+    {
+        LOG_DEBUG("[ComponentDistanceConstraint] Owner '%s' RigidBody is not active", owner->GetName().c_str());
+        return;
+    }
+
+    btRigidBody* bodyA = rbA->GetBulletRigidBody();
+    if (!bodyA)
+    {
+        LOG_DEBUG("[ComponentDistanceConstraint] Owner '%s' has no Bullet RigidBody", owner->GetName().c_str());
         return;
     }
 
@@ -40,14 +53,24 @@ void ComponentDistanceConstraint::CreateConstraint()
     }
 
     ComponentRigidBody* rbB = GetRigidBody(connectedBody);
-    if (!rbB || !rbB->GetBulletRigidBody())
+    if (!rbB)
     {
-        LOG_DEBUG("[ComponentDistanceConstraint] Connected body has no RigidBody");
+        LOG_DEBUG("[ComponentDistanceConstraint] Connected body '%s' has no RigidBody component", connectedBody->GetName().c_str());
         return;
     }
 
-    btRigidBody* bodyA = rbA->GetBulletRigidBody();
+    if (!rbB->IsActive())
+    {
+        LOG_DEBUG("[ComponentDistanceConstraint] Connected body '%s' RigidBody is not active", connectedBody->GetName().c_str());
+        return;
+    }
+
     btRigidBody* bodyB = rbB->GetBulletRigidBody();
+    if (!bodyB)
+    {
+        LOG_DEBUG("[ComponentDistanceConstraint] Connected body '%s' has no Bullet RigidBody", connectedBody->GetName().c_str());
+        return;
+    }
 
     // Create point-to-point constraint with anchor points
     btVector3 pivotA(anchorPointA.x, anchorPointA.y, anchorPointA.z);
