@@ -1340,6 +1340,15 @@ void InspectorWindow::DrawConstraintComponents(GameObject* selectedObject)
 
         ImGui::PushID(static_cast<int>(constraintIndex) + 1000); // Offset to avoid ID conflicts
 
+        if (!baseConstraint->IsConstraintValid())
+        {
+            if (baseConstraint->GetConnectedBody() != nullptr)
+            {
+                baseConstraint->OnConnectedBodyInvalidated();
+                LOG_DEBUG("[InspectorWindow] Forced constraint to world on '%s'", selectedObject->GetName().c_str());
+            }
+        }
+
         ConstraintType type = baseConstraint->GetConstraintType();
         std::string headerName;
 

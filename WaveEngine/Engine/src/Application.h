@@ -117,4 +117,6 @@ public:
     void DisableConstraintsRecursive(GameObject* obj);
     void DisableRigidBodiesRecursive(GameObject* obj);
     void DisableCollidersRecursive(GameObject* obj);
+
+    void ValidateConstraintsRecursive(GameObject* obj);
 };

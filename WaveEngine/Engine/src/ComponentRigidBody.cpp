@@ -25,6 +25,8 @@ ComponentRigidBody::ComponentRigidBody(GameObject* owner)
 
 ComponentRigidBody::~ComponentRigidBody()
 {
+    NotifyConstraintsAboutDisable();
+
     DestroyRigidBody();
 }
 
@@ -35,17 +37,7 @@ void ComponentRigidBody::Enable()
 
 void ComponentRigidBody::Disable()
 {
-    // notify all attached colliders that they're being detached
-    std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
-    for (Component* comp : colliders)
-    {
-        ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
-        if (collider && collider->IsActive())
-        {
-            // Mark as not attached so they don't try to remove from compound
-            collider->ForceStandaloneMode();
-        }
-    }
+    NotifyConstraintsAboutDisable();
 
     DestroyRigidBody();
 }
@@ -181,7 +173,27 @@ void ComponentRigidBody::CreateRigidBody()
 
 void ComponentRigidBody::DestroyRigidBody()
 {
-	// notify all attached colliders that they're being detached
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (physics && physics->GetDynamicsWorld())
+    {
+        btDynamicsWorld* world = physics->GetDynamicsWorld();
+
+        int numConstraints = world->getNumConstraints();
+
+        for (int i = numConstraints - 1; i >= 0; i--)
+        {
+            btTypedConstraint* constraint = world->getConstraint(i);
+
+            if (&constraint->getRigidBodyA() == rigidBody ||
+                &constraint->getRigidBodyB() == rigidBody)
+            {
+                world->removeConstraint(constraint);
+                LOG_DEBUG("[ComponentRigidBody] Removed constraint from physics world (references this RigidBody)");
+            }
+        }
+    }
+
+    // notify all attached colliders that they're being detached
     std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
     for (Component* comp : colliders)
     {
@@ -194,7 +206,6 @@ void ComponentRigidBody::DestroyRigidBody()
     }
 
 	// Remove from physics world
-    ModulePhysics* physics = Application::GetInstance().physics.get();
     if (physics && physics->GetDynamicsWorld() && rigidBody)
     {
         physics->GetDynamicsWorld()->removeRigidBody(rigidBody);
@@ -497,5 +508,58 @@ void ComponentRigidBody::SetManipulating(bool manipulating)
 
             SyncTransformToPhysics();
         }
+    }
+}
+
+void ComponentRigidBody::NotifyConstraintsAboutDisable()
+{
+    GameObject* root = owner;
+    while (root->GetParent() != nullptr)
+    {
+        root = root->GetParent();
+    }
+
+    NotifyConstraintsRecursiveAboutRB(root, owner);
+}
+
+void ComponentRigidBody::NotifyConstraintsRecursiveAboutRB(GameObject* current, GameObject* rbOwner)
+{
+    if (!current) return;
+
+    std::vector<Component*> constraints = current->GetComponentsOfType(ComponentType::CONSTRAINT);
+    for (Component* comp : constraints)
+    {
+        ComponentConstraint* constraint = static_cast<ComponentConstraint*>(comp);
+
+        if (constraint)
+        {
+            bool needsNotification = false;
+
+            if (constraint->GetConnectedBody() == rbOwner)
+            {
+                needsNotification = true;
+            }
+
+            if (constraint->owner == rbOwner)
+            {
+                needsNotification = true;
+            }
+
+            if (needsNotification)
+            {
+                LOG_DEBUG("[ComponentRigidBody] Constraint on '%s' references RigidBody being disabled on '%s'",
+                    current->GetName().c_str(), rbOwner->GetName().c_str());
+
+                if (constraint->GetConnectedBody() == rbOwner)
+                {
+                    constraint->OnConnectedBodyInvalidated();
+                }
+            }
+        }
+    }
+
+    for (GameObject* child : current->GetChildren())
+    {
+        NotifyConstraintsRecursiveAboutRB(child, rbOwner);
     }
 }

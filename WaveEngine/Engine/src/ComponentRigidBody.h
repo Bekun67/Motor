@@ -55,4 +55,7 @@ private:
     glm::vec3 scale;
 
     bool isBeingManipulated = false;
+
+    void NotifyConstraintsAboutDisable();
+    static void NotifyConstraintsRecursiveAboutRB(GameObject* current, GameObject* rbOwner);
 };

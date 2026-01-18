@@ -20,20 +20,6 @@ GameObject::~GameObject() {
             comp->Disable();
         }
     }
-
-    for (auto* comp : components) {
-        if (comp->GetType() == ComponentType::COLLIDER) {
-            comp->Disable();
-        }
-    }
-
-    components.clear();
-    componentOwners.clear();
-
-    for (auto* child : children) {
-        delete child;
-    }
-    children.clear();
 }
 
 Component* GameObject::CreateComponent(ComponentType type) {
@@ -363,5 +349,41 @@ void GameObject::RemoveComponent(Component* component)
     if (ownerIt != componentOwners.end())
     {
         componentOwners.erase(ownerIt);
+    }
+}
+
+void GameObject::NotifyConstraintsBeforeDestruction()
+{
+    //get root to search all go
+    GameObject* root = this;
+    while (root->parent != nullptr)
+    {
+        root = root->parent;
+    }
+
+    //notify all constraints
+    NotifyConstraintsRecursive(root, this);
+}
+
+void GameObject::NotifyConstraintsRecursive(GameObject* current, GameObject* deletedObject)
+{
+    if (!current) return;
+
+    //check all go constraints
+    std::vector<Component*> constraints = current->GetComponentsOfType(ComponentType::CONSTRAINT);
+    for (Component* comp : constraints)
+    {
+        ComponentConstraint* constraint = static_cast<ComponentConstraint*>(comp);
+        if (constraint && constraint->GetConnectedBody() == deletedObject)
+        {
+            constraint->OnConnectedBodyInvalidated();
+            LOG_DEBUG("[GameObject] Notified constraint on '%s' that connected body '%s' is being deleted",
+                current->GetName().c_str(), deletedObject->GetName().c_str());
+        }
+    }
+
+    for (GameObject* child : current->GetChildren())
+    {
+        NotifyConstraintsRecursive(child, deletedObject);
     }
 }

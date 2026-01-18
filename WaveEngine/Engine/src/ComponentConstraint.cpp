@@ -33,6 +33,29 @@ void ComponentConstraint::Update()
 {
     if (!IsActive()) return;
 
+    if (!IsConstraintValid())
+    {
+        LOG_DEBUG("[ComponentConstraint] Constraint no longer valid on '%s', attempting to fix",
+            owner->GetName().c_str());
+
+        if (connectedBody)
+        {
+            ComponentRigidBody* rb = GetRigidBody(connectedBody);
+            if (!rb || !rb->IsActive())
+            {
+                OnConnectedBodyInvalidated();
+            }
+        }
+
+        ComponentRigidBody* ownRb = GetRigidBody(owner);
+        if (!ownRb || !ownRb->IsActive())
+        {
+            LOG_DEBUG("[ComponentConstraint] Own RigidBody invalid, disabling constraint");
+            SetActive(false);
+            return;
+        }
+    }
+
     if (needsRebuild)
     {
         DestroyConstraint();
@@ -109,6 +132,46 @@ ComponentRigidBody* ComponentConstraint::GetRigidBody(GameObject* obj)
     return static_cast<ComponentRigidBody*>(
         obj->GetComponent(ComponentType::RIGIDBODY)
         );
+}
+
+const ComponentRigidBody* ComponentConstraint::GetRigidBody(GameObject* obj) const
+{
+    if (!obj) return nullptr;
+
+    return static_cast<const ComponentRigidBody*>(
+        obj->GetComponent(ComponentType::RIGIDBODY)
+        );
+}
+
+void ComponentConstraint::OnConnectedBodyInvalidated()
+{
+    LOG_DEBUG("[ComponentConstraint] Connected body invalidated for constraint on '%s'",
+        owner->GetName().c_str());
+
+    connectedBody = nullptr;
+
+    DestroyConstraint();
+    CreateConstraint();
+}
+
+bool ComponentConstraint::IsConstraintValid() const
+{
+    if (connectedBody)
+    {
+        const ComponentRigidBody* rb = GetRigidBody(connectedBody);
+        if (!rb || !rb->IsActive())
+        {
+            return false;
+        }
+    }
+
+    const ComponentRigidBody* ownRb = GetRigidBody(owner);
+    if (!ownRb || !ownRb->IsActive())
+    {
+        return false;
+    }
+
+    return true;
 }
 
 void ComponentConstraint::Serialize(nlohmann::json& componentObj) const

@@ -55,9 +55,13 @@ public:
     void SetAnchorPointB(const glm::vec3& anchor) { anchorPointB = anchor; needsRebuild = true; }
     glm::vec3 GetAnchorPointB() const { return anchorPointB; }
 
+    void OnConnectedBodyInvalidated();
+    bool IsConstraintValid() const;
+
 protected:
     // Helper to get RigidBody from GameObject
     ComponentRigidBody* GetRigidBody(GameObject* obj);
+    const ComponentRigidBody* GetRigidBody(GameObject* obj) const;
 
     btTypedConstraint* constraint;
     ConstraintType constraintType;

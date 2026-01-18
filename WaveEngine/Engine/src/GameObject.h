@@ -60,6 +60,8 @@ public:
     bool active = true;
     bool isPrimitive = false;
 
+    void NotifyConstraintsBeforeDestruction();
+
 private:
     GameObject* parent = nullptr;
     std::vector<GameObject*> children;
@@ -68,4 +70,6 @@ private:
     std::vector<std::unique_ptr<Component>> componentOwners;
 
     bool markedForDeletion = false;
+
+    static void NotifyConstraintsRecursive(GameObject* current, GameObject* deletedObject);
 };
