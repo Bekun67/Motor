@@ -37,7 +37,7 @@ void ComponentConstraint::Enable()
     }
     else
     {
-        LOG_DEBUG("[ComponentConstraint] Constraint enabled but not created (EDITING mode)");
+        LOG_CONSOLE("[Constraint] -> Not creating (EDITING mode)");
     }
 }
 
@@ -99,33 +99,36 @@ void ComponentConstraint::DestroyConstraint()
     }
 
     ModulePhysics* physics = Application::GetInstance().physics.get();
+    bool wasInWorld = false;
+
     if (physics && physics->GetDynamicsWorld())
     {
         btDynamicsWorld* world = physics->GetDynamicsWorld();
 
-        bool found = false;
         for (int i = 0; i < world->getNumConstraints(); i++)
         {
             if (world->getConstraint(i) == constraint)
             {
-                found = true;
+                wasInWorld = true;
                 world->removeConstraint(constraint);
                 LOG_CONSOLE("[Constraint] -> Removed from world (index %d)", i);
                 break;
             }
         }
 
-        if (!found)
+        if (!wasInWorld)
         {
             LOG_CONSOLE("[Constraint] -> Not in world, already removed");
         }
     }
 
-    constraint->setEnabled(false);
+    if (wasInWorld)
+    {
+        delete constraint;
+        LOG_CONSOLE("[Constraint] -> Deleted");
+    }
 
-    delete constraint;
     constraint = nullptr;
-    LOG_CONSOLE("[Constraint] -> Deleted");
 }
 
 void ComponentConstraint::SetConnectedBody(GameObject* otherBody)

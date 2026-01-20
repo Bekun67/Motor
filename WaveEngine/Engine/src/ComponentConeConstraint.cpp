@@ -32,7 +32,7 @@ void ComponentConeConstraint::CreateConstraint()
     Application::PlayState playState = Application::GetInstance().GetPlayState();
     if (playState == Application::PlayState::EDITING)
     {
-        LOG_DEBUG("[ComponentHingeConstraint] Skipping constraint creation in EDITING mode");
+        LOG_DEBUG("[ComponentConeConstraint] Skipping constraint creation in EDITING mode");
         return;
     }
 
@@ -56,10 +56,18 @@ void ComponentConeConstraint::CreateConstraint()
         return;
     }
 
+    btVector3 inertiaA = bodyA->getInvInertiaDiagLocal();
+
+    if (inertiaA.length2() < 0.0001f && bodyA->getMass() > 0.0f)
+    {
+        LOG_DEBUG("[ComponentConeConstraint] BodyA has invalid inertia, cannot create constraint");
+        return;
+    }
+
     Transform* transformA = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transformA)
     {
-        LOG_DEBUG("[ComponentHingeConstraint] Owner has no Transform!");
+        LOG_DEBUG("[ComponentConeConstraint] Owner has no Transform!");
         return;
     }
 
@@ -105,6 +113,14 @@ void ComponentConeConstraint::CreateConstraint()
         if (!bodyB)
         {
             LOG_DEBUG("[ComponentConeConstraint] Connected body '%s' has no Bullet RigidBody", connectedBody->GetName().c_str());
+            return;
+        }
+
+        btVector3 inertiaB = bodyB->getInvInertiaDiagLocal();
+
+        if (inertiaB.length2() < 0.0001f && bodyB->getMass() > 0.0f)
+        {
+            LOG_DEBUG("[ComponentConeConstraint] BodyB has invalid inertia, cannot create constraint");
             return;
         }
 

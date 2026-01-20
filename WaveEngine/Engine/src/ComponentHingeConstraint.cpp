@@ -55,6 +55,14 @@ void ComponentHingeConstraint::CreateConstraint()
         return;
     }
 
+    btVector3 inertiaA = bodyA->getInvInertiaDiagLocal();
+
+    if (inertiaA.length2() < 0.0001f && bodyA->getMass() > 0.0f)
+    {
+        LOG_DEBUG("[ComponentHingeConstraint] BodyA has invalid inertia, cannot create constraint");
+        return;
+    }
+
     Transform* transformA = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transformA)
     {
@@ -108,6 +116,14 @@ void ComponentHingeConstraint::CreateConstraint()
         if (!bodyB)
         {
             LOG_DEBUG("[ComponentHingeConstraint] Connected body '%s' has no Bullet RigidBody", connectedBody->GetName().c_str());
+            return;
+        }
+
+        btVector3 inertiaB = bodyB->getInvInertiaDiagLocal();
+
+        if (inertiaB.length2() < 0.0001f && bodyB->getMass() > 0.0f)
+        {
+            LOG_DEBUG("[ComponentHingeConstraint] BodyB has invalid inertia, cannot create constraint");
             return;
         }
 

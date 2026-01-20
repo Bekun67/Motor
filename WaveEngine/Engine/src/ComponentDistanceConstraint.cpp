@@ -30,7 +30,7 @@ void ComponentDistanceConstraint::CreateConstraint()
     Application::PlayState playState = Application::GetInstance().GetPlayState();
     if (playState == Application::PlayState::EDITING)
     {
-        LOG_DEBUG("[ComponentHingeConstraint] Skipping constraint creation in EDITING mode");
+        LOG_DEBUG("[ComponentDistanceConstraint] Skipping constraint creation in EDITING mode");
         return;
     }
 
@@ -80,10 +80,25 @@ void ComponentDistanceConstraint::CreateConstraint()
         return;
     }
 
+    btVector3 inertiaA = bodyA->getInvInertiaDiagLocal();
+    btVector3 inertiaB = bodyB->getInvInertiaDiagLocal();
+
+    if (inertiaA.length2() < 0.0001f && bodyA->getMass() > 0.0f)
+    {
+        LOG_DEBUG("[ComponentDistanceConstraint] BodyA has invalid inertia, cannot create constraint");
+        return;
+    }
+
+    if (inertiaB.length2() < 0.0001f && bodyB->getMass() > 0.0f)
+    {
+        LOG_DEBUG("[ComponentDistanceConstraint] BodyB has invalid inertia, cannot create constraint");
+        return;
+    }
+
     Transform* transformA = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
     if (!transformA)
     {
-        LOG_DEBUG("[ComponentHingeConstraint] Owner has no Transform!");
+        LOG_DEBUG("[ComponentDistanceConstraint] Owner has no Transform!");
         return;
     }
 

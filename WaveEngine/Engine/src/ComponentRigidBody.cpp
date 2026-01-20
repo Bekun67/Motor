@@ -129,6 +129,15 @@ void ComponentRigidBody::CreateRigidBody()
     }
 
     // Create motion state
+    if (compoundShape->getNumChildShapes() == 0)
+    {
+        btBoxShape* dummyShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
+        btTransform localTransform;
+        localTransform.setIdentity();
+        compoundShape->addChildShape(localTransform, dummyShape);
+        LOG_DEBUG("[ComponentRigidBody] Added dummy box shape (no colliders present)");
+    }
+
     btTransform startTransform;
     startTransform.setIdentity();
     startTransform.setOrigin(btVector3(worldPosition.x, worldPosition.y, worldPosition.z));
@@ -138,13 +147,24 @@ void ComponentRigidBody::CreateRigidBody()
 
     // Calculate inertia
     btVector3 localInertia(0, 0, 0);
-    if (mass > 0.0f && !isKinematic)
+    float actualMass = mass;
+
+    if (actualMass <= 0.0f || isKinematic)
     {
-        compoundShape->calculateLocalInertia(mass, localInertia);
+        actualMass = 0.0f;
     }
+    else
+    {
+        compoundShape->calculateLocalInertia(actualMass, localInertia);
 
     // Create rigid body
-    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, compoundShape, localInertia);
+        if (localInertia.length2() < 0.0001f)
+        {
+            localInertia.setValue(1.0f, 1.0f, 1.0f);
+        }
+    }
+
+    btRigidBody::btRigidBodyConstructionInfo rbInfo(actualMass, motionState, compoundShape, localInertia);
     rigidBody = new btRigidBody(rbInfo);
 
     // Set kinematic flag
@@ -176,32 +196,30 @@ void ComponentRigidBody::DestroyRigidBody()
 
     ModulePhysics* physics = Application::GetInstance().physics.get();
 
-    if (!owner->IsBeingDestroyed())
+    if (physics && physics->GetDynamicsWorld() && rigidBody)
     {
-        if (physics && physics->GetDynamicsWorld() && rigidBody)
+        btDynamicsWorld* world = physics->GetDynamicsWorld();
+
+        int numConstraints = world->getNumConstraints();
+
+        for (int i = numConstraints - 1; i >= 0; i--)
         {
-            btDynamicsWorld* world = physics->GetDynamicsWorld();
+            btTypedConstraint* constraint = world->getConstraint(i);
 
-            int numConstraints = world->getNumConstraints();
-
-            for (int i = numConstraints - 1; i >= 0; i--)
+            if (&constraint->getRigidBodyA() == rigidBody ||
+                &constraint->getRigidBodyB() == rigidBody)
             {
-                btTypedConstraint* constraint = world->getConstraint(i);
+                world->removeConstraint(constraint);
+                LOG_CONSOLE("[RigidBody] -> Removed constraint %d", i);
 
-                if (&constraint->getRigidBodyA() == rigidBody ||
-                    &constraint->getRigidBodyB() == rigidBody)
-                {
-                    world->removeConstraint(constraint);
-                    LOG_CONSOLE("[RigidBody] -> Removed constraint %d", i);
-
-                    delete constraint;
-                }
+                delete constraint;
             }
         }
     }
 
     // notify all attached colliders that they're being detached
     std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
+
     for (Component* comp : colliders)
     {
         ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
@@ -223,9 +241,27 @@ void ComponentRigidBody::DestroyRigidBody()
     if (compoundShape)
     {
         int numShapes = compoundShape->getNumChildShapes();
+
         for (int i = numShapes - 1; i >= 0; i--)
         {
+            btCollisionShape* childShape = compoundShape->getChildShape(i);
             compoundShape->removeChildShapeByIndex(i);
+
+            bool isOwnedByCollider = false;
+            for (Component* comp : colliders)
+            {
+                ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+                if (collider && collider->GetCollisionShape() == childShape)
+                {
+                    isOwnedByCollider = true;
+                    break;
+                }
+            }
+
+            if (!isOwnedByCollider)
+            {
+                delete childShape;
+            }
         }
     }
 
@@ -256,12 +292,23 @@ void ComponentRigidBody::RecalculateInertia()
     btVector3 localInertia(0, 0, 0);
 
     // Only calculate inertia if there are shapes attached and mass > 0
-    if (compoundShape->getNumChildShapes() > 0 && mass > 0.0f && !isKinematic)
+    float actualMass = mass;
+
+    if (compoundShape->getNumChildShapes() > 0 && actualMass > 0.0f && !isKinematic)
     {
-        compoundShape->calculateLocalInertia(mass, localInertia);
+        compoundShape->calculateLocalInertia(actualMass, localInertia);
+
+        if (localInertia.length2() < 0.0001f)
+        {
+            localInertia.setValue(1.0f, 1.0f, 1.0f);
+        }
+    }
+    else
+    {
+        actualMass = 0.0f;
     }
 
-    rigidBody->setMassProps(mass, localInertia);
+    rigidBody->setMassProps(actualMass, localInertia);
     rigidBody->updateInertiaTensor();
 
     LOG_DEBUG("[RigidBody] Recalculated inertia for '%s' (shapes: %d)",
@@ -389,12 +436,23 @@ void ComponentRigidBody::SetMass(float newMass)
         btVector3 localInertia(0, 0, 0);
 
         // Only calculate inertia if mass > 0 and not kinematic
-        if (mass > 0.0f && !isKinematic)
+        float actualMass = mass;
+
+        if (actualMass > 0.0f && !isKinematic)
         {
-            compoundShape->calculateLocalInertia(mass, localInertia);
+            compoundShape->calculateLocalInertia(actualMass, localInertia);
+
+            if (localInertia.length2() < 0.0001f)
+            {
+                localInertia.setValue(1.0f, 1.0f, 1.0f);
+            }
+        }
+        else
+        {
+            actualMass = 0.0f;
         }
 
-        rigidBody->setMassProps(mass, localInertia);
+        rigidBody->setMassProps(actualMass, localInertia);
         rigidBody->updateInertiaTensor();
 
         // Wake up the body so changes take effect immediately

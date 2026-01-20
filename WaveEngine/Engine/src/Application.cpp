@@ -245,23 +245,38 @@ void Application::Stop()
             DestroyConstraintsRecursive(root);
         }
 
-            // disable all physics components to remove them from physics world
-        LOG_CONSOLE("Step 3: Disabling RigidBodies...");
+        LOG_CONSOLE("Step 3: Clearing physics world...");
+        ModulePhysics* physicsModule = physics.get();
+        if (physicsModule && physicsModule->GetDynamicsWorld())
+        {
+            btDynamicsWorld* world = physicsModule->GetDynamicsWorld();
+
+            int numConstraints = world->getNumConstraints();
+            for (int i = numConstraints - 1; i >= 0; i--)
+            {
+                btTypedConstraint* constraint = world->getConstraint(i);
+                world->removeConstraint(constraint);
+                delete constraint;
+            }
+            LOG_CONSOLE("  -> Removed %d residual constraints", numConstraints);
+        }
+
+        LOG_CONSOLE("Step 4: Disabling RigidBodies...");
         if (root)
         {
             DisableRigidBodiesRecursive(root);
         }
 
-        LOG_CONSOLE("Step 4: Disabling Colliders...");
+        LOG_CONSOLE("Step 5: Disabling Colliders...");
         if (root)
         {
             DisableCollidersRecursive(root);
         }
 
-        LOG_CONSOLE("Step 5: Loading saved scene...");
+        LOG_CONSOLE("Step 6: Loading saved scene...");
         scene->LoadScene("../Library/TempScene/__temp_scene_state__.json");
 
-        LOG_CONSOLE("Step 6: Resolving references...");
+        LOG_CONSOLE("Step 7: Resolving references...");
         root = scene->GetRoot();
         if (root)
         {
