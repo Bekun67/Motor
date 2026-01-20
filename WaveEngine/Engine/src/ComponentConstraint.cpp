@@ -218,10 +218,13 @@ void ComponentConstraint::Serialize(nlohmann::json& componentObj) const
         anchorPointB.x, anchorPointB.y, anchorPointB.z
     };
 
-    // Save connected body reference (by name for now)
     if (connectedBody)
     {
-        componentObj["connectedBodyName"] = connectedBody->GetName();
+        int bodyIndex = connectedBody->GetSerializationIndex();
+        if (bodyIndex >= 0)
+        {
+            componentObj["connectedBodyIndex"] = bodyIndex;
+        }
     }
 }
 
@@ -249,5 +252,30 @@ void ComponentConstraint::Deserialize(const nlohmann::json& componentObj)
         anchorPointB = glm::vec3(anchor[0], anchor[1], anchor[2]);
     }
 
-    // TODO: Resolve connected body reference after scene load
+    if (componentObj.contains("connectedBodyIndex"))
+    {
+        pendingConnectedBodyIndex = componentObj["connectedBodyIndex"].get<int>();
+    }
+}
+
+void ComponentConstraint::ResolveConnectedBodyReference(const std::vector<GameObject*>& allGameObjects)
+{
+    if (pendingConnectedBodyIndex < 0)
+    {
+        return;
+    }
+
+    if (pendingConnectedBodyIndex >= 0 && pendingConnectedBodyIndex < static_cast<int>(allGameObjects.size()))
+    {
+        connectedBody = allGameObjects[pendingConnectedBodyIndex];
+        LOG_DEBUG("[ComponentConstraint] Resolved connected body at index %d for constraint on '%s'",
+            pendingConnectedBodyIndex, owner->GetName().c_str());
+    }
+    else
+    {
+        LOG_DEBUG("[ComponentConstraint] WARNING: Invalid connected body index %d for constraint on '%s'",
+            pendingConnectedBodyIndex, owner->GetName().c_str());
+    }
+
+    pendingConnectedBodyIndex = -1;
 }

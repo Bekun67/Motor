@@ -48,6 +48,13 @@ public:
     void Serialize(nlohmann::json& gameObjectArray) const;
     static GameObject* Deserialize(const nlohmann::json& gameObjectObj, GameObject* parent = nullptr);
 
+    static void AssignSerializationIndices(GameObject* root, int& currentIndex);
+    static void CollectAllGameObjects(GameObject* root, std::vector<GameObject*>& outList);
+    static void ResolveConstraintReferences(const std::vector<GameObject*>& allGameObjects);
+
+    int GetSerializationIndex() const { return serializationIndex; }
+    void SetSerializationIndex(int index) { serializationIndex = index; }
+
     void RemoveComponent(Component* component);
 
     ComponentHingeConstraint* CreateHingeConstraint();
@@ -70,6 +77,7 @@ private:
     std::vector<std::unique_ptr<Component>> componentOwners;
 
     bool markedForDeletion = false;
+    int serializationIndex = -1;
 
     static void NotifyConstraintsRecursive(GameObject* current, GameObject* deletedObject);
 };

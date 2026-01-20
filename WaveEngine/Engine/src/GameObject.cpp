@@ -352,6 +352,48 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
     return newObject;
 }
 
+void GameObject::AssignSerializationIndices(GameObject* root, int& currentIndex)
+{
+    if (!root) return;
+
+    root->serializationIndex = currentIndex++;
+
+    for (GameObject* child : root->GetChildren())
+    {
+        AssignSerializationIndices(child, currentIndex);
+    }
+}
+
+void GameObject::CollectAllGameObjects(GameObject* root, std::vector<GameObject*>& outList)
+{
+    if (!root) return;
+
+    outList.push_back(root);
+
+    for (GameObject* child : root->GetChildren())
+    {
+        CollectAllGameObjects(child, outList);
+    }
+}
+
+void GameObject::ResolveConstraintReferences(const std::vector<GameObject*>& allGameObjects)
+{
+    for (GameObject* obj : allGameObjects)
+    {
+        if (!obj) continue;
+
+        std::vector<Component*> constraints = obj->GetComponentsOfType(ComponentType::CONSTRAINT);
+        for (Component* comp : constraints)
+        {
+            ComponentConstraint* constraint = static_cast<ComponentConstraint*>(comp);
+            if (constraint)
+            {
+                constraint->ResolveConnectedBodyReference(allGameObjects);
+            }
+        }
+    }
+}
+
 void GameObject::RemoveComponent(Component* component)
 {
     if (!component) return;

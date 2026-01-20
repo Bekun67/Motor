@@ -58,6 +58,8 @@ public:
     void OnConnectedBodyInvalidated();
     bool IsConstraintValid() const;
 
+    void ResolveConnectedBodyReference(const std::vector<GameObject*>& allGameObjects);
+
 protected:
     // Helper to get RigidBody from GameObject
     ComponentRigidBody* GetRigidBody(GameObject* obj);
@@ -75,4 +77,7 @@ protected:
     glm::vec3 anchorPointB;
 
     bool needsRebuild;
+
+private:
+    int pendingConnectedBodyIndex = -1;
 };

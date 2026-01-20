@@ -186,6 +186,15 @@ void Application::Play()
     // Save
     if (playState == PlayState::EDITING) {
         LOG_CONSOLE("Saving initial scene state...");
+
+        GameObject* root = scene->GetRoot();
+        if (root)
+        {
+            int index = 0;
+            GameObject::AssignSerializationIndices(root, index);
+            LOG_DEBUG("[Application] Assigned serialization indices to %d GameObjects", index);
+        }
+
         scene->SaveScene("../Library/TempScene/__temp_scene_state__.json");
     }
 
@@ -221,6 +230,17 @@ void Application::Stop()
         }
 
         scene->LoadScene("../Library/TempScene/__temp_scene_state__.json");
+
+        root = scene->GetRoot();
+        if (root)
+        {
+            std::vector<GameObject*> allGameObjects;
+            GameObject::CollectAllGameObjects(root, allGameObjects);
+            LOG_DEBUG("[Application] Collected %zu GameObjects for constraint reference resolution", allGameObjects.size());
+
+            GameObject::ResolveConstraintReferences(allGameObjects);
+            LOG_DEBUG("[Application] Resolved constraint references after loading scene");
+        }
     }
 
     playState = PlayState::EDITING;
