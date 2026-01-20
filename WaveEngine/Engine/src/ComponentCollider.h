@@ -84,6 +84,7 @@ private:
     void SyncTransformToPhysics();
     void RemoveFromRigidBody();
 	void RemoveStandaloneFromWorld();
+    void UpdateShapeInCompound();
 
     // Collision object
     btCollisionObject* collisionObject;

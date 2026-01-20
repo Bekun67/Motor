@@ -184,9 +184,6 @@ bool Application::PostUpdate()
 void Application::Play()
 {
     // Save
-    LOG_CONSOLE("========================================");
-    LOG_CONSOLE("=== PLAY MODE ===");
-    LOG_CONSOLE("========================================");
 
     if (playState == PlayState::EDITING) {
         LOG_CONSOLE("Saving initial scene state...");
@@ -215,22 +212,13 @@ void Application::Play()
 
         RecreateConstraintsRecursive(root);
     }
-
-    LOG_CONSOLE("========================================");
-    LOG_CONSOLE("=== PLAY MODE READY ===");
-    LOG_CONSOLE("========================================");
 }
 
 void Application::Stop()
 {
     // Restore
-    LOG_CONSOLE("========================================");
-    LOG_CONSOLE("=== STOP - RESTORING SCENE ===");
-    LOG_CONSOLE("========================================");
-
     if (playState != PlayState::EDITING) {
         LOG_CONSOLE("Restoring initial scene state...");
-        LOG_CONSOLE("Step 1: Validating constraints...");
 
         // Clean up physics objects before loading the saved scene
         GameObject* root = scene->GetRoot();
@@ -239,13 +227,11 @@ void Application::Stop()
             ValidateConstraintsRecursive(root);
         }
 
-        LOG_CONSOLE("Step 2: Destroying constraints...");
         if (root)
         {
             DestroyConstraintsRecursive(root);
         }
 
-        LOG_CONSOLE("Step 3: Clearing physics world...");
         ModulePhysics* physicsModule = physics.get();
         if (physicsModule && physicsModule->GetDynamicsWorld())
         {
@@ -261,22 +247,18 @@ void Application::Stop()
             LOG_CONSOLE("  -> Removed %d residual constraints", numConstraints);
         }
 
-        LOG_CONSOLE("Step 4: Disabling RigidBodies...");
         if (root)
         {
             DisableRigidBodiesRecursive(root);
         }
 
-        LOG_CONSOLE("Step 5: Disabling Colliders...");
         if (root)
         {
             DisableCollidersRecursive(root);
         }
 
-        LOG_CONSOLE("Step 6: Loading saved scene...");
         scene->LoadScene("../Library/TempScene/__temp_scene_state__.json");
 
-        LOG_CONSOLE("Step 7: Resolving references...");
         root = scene->GetRoot();
         if (root)
         {
@@ -293,9 +275,6 @@ void Application::Stop()
     time->Reset();
     time->Pause();
 
-    LOG_CONSOLE("========================================");
-    LOG_CONSOLE("=== STOP COMPLETE ===");
-    LOG_CONSOLE("========================================");
 }
 
 void Application::Pause()

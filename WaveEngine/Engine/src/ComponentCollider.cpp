@@ -503,8 +503,226 @@ void ComponentCollider::DestroyCollisionShape()
 
 void ComponentCollider::UpdateCollisionShape()
 {
+    // If attached to RigidBody, update only our shape in the compound
+    if (isAttachedToRigidBody)
+    {
+        ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+            owner->GetComponent(ComponentType::RIGIDBODY)
+            );
+
+        if (rigidBody && rigidBody->IsActive())
+        {
+            LOG_CONSOLE("[Collider] Updating shape in compound (attached to RigidBody)");
+            UpdateShapeInCompound();
+            return;
+        }
+    }
+
+    // For standalone colliders, normal update
     DestroyCollisionShape();
     CreateCollisionShape();
+}
+
+void ComponentCollider::UpdateShapeInCompound()
+{
+    if (!isAttachedToRigidBody)
+    {
+        return;
+    }
+
+    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+        owner->GetComponent(ComponentType::RIGIDBODY)
+        );
+
+    if (!rigidBody || !rigidBody->IsActive())
+    {
+        return;
+    }
+
+    btCompoundShape* compoundShape = rigidBody->GetCompoundShape();
+    if (!compoundShape)
+    {
+        return;
+    }
+
+    // Find our current shape in the compound and remove it
+    int shapeIndex = -1;
+    for (int i = 0; i < compoundShape->getNumChildShapes(); i++)
+    {
+        if (compoundShape->getChildShape(i) == collisionShape)
+        {
+            shapeIndex = i;
+            break;
+        }
+    }
+
+    if (shapeIndex != -1)
+    {
+        // Remove the old shape from compound (but don't delete it yet)
+        compoundShape->removeChildShapeByIndex(shapeIndex);
+        LOG_DEBUG("[ComponentCollider] Removed old shape from compound at index %d", shapeIndex);
+
+        // Delete the old shape
+        delete collisionShape;
+        collisionShape = nullptr;
+    }
+
+    // Now create the new shape with updated parameters
+    Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
+    if (!transform) return;
+
+    glm::mat4 globalMatrix = transform->GetGlobalMatrix();
+    glm::vec3 worldPosition, worldScale, skew;
+    glm::quat worldRotation;
+    glm::vec4 perspective;
+    glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
+
+    // Create new collision shape based on type (same logic as CreateCollisionShape)
+    switch (colliderType)
+    {
+    case ColliderType::BOX:
+        collisionShape = new btBoxShape(btVector3(
+            boxSize.x * 0.5f * worldScale.x,
+            boxSize.y * 0.5f * worldScale.y,
+            boxSize.z * 0.5f * worldScale.z
+        ));
+        break;
+
+    case ColliderType::SPHERE:
+    {
+        float uniformScale = glm::max(glm::max(worldScale.x, worldScale.y), worldScale.z);
+        collisionShape = new btSphereShape(sphereRadius * uniformScale);
+        break;
+    }
+
+    case ColliderType::CYLINDER:
+    {
+        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+        bool usePrimitiveOrientation = meshComp && meshComp->HasMesh() && meshComp->owner->isPrimitive;
+
+        if (usePrimitiveOrientation)
+        {
+            btVector3 halfExtents(
+                cylinderRadius * worldScale.x,
+                cylinderHeight * 0.5f * worldScale.y,
+                cylinderRadius * worldScale.z
+            );
+            collisionShape = new btCylinderShape(halfExtents);
+        }
+        else
+        {
+            btVector3 halfExtents(
+                cylinderRadius * worldScale.x,
+                cylinderRadius * worldScale.y,
+                cylinderHeight * 0.5f * worldScale.z
+            );
+            collisionShape = new btCylinderShapeZ(halfExtents);
+        }
+        break;
+    }
+
+    case ColliderType::CAPSULE:
+    {
+        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+        bool usePrimitiveOrientation = meshComp && meshComp->HasMesh() && meshComp->owner->isPrimitive;
+
+        if (usePrimitiveOrientation)
+        {
+            float radialScale = glm::max(worldScale.x, worldScale.z);
+            float scaledRadius = capsuleRadius * radialScale;
+            float halfHeight = capsuleHeight * 0.5f * worldScale.y;
+            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
+            collisionShape = new btCapsuleShape(scaledRadius, cylinderHalfHeight * 2.0f * 1.2f);
+        }
+        else
+        {
+            float radialScale = glm::max(worldScale.x, worldScale.y);
+            float scaledRadius = capsuleRadius * radialScale;
+            float halfHeight = capsuleHeight * 0.5f * worldScale.z;
+            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
+            collisionShape = new btCapsuleShapeZ(scaledRadius, cylinderHalfHeight * 2.0f * 1.2f);
+        }
+        break;
+    }
+
+    case ColliderType::PLANE:
+    {
+        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+        bool usePrimitiveOrientation = meshComp && meshComp->HasMesh() && meshComp->owner->isPrimitive;
+        float planeThickness = 0.1f;
+
+        if (usePrimitiveOrientation)
+        {
+            collisionShape = new btBoxShape(btVector3(
+                boxSize.x * 0.5f * worldScale.x,
+                planeThickness * 0.5f * worldScale.y,
+                boxSize.z * 0.5f * worldScale.z
+            ));
+        }
+        else
+        {
+            collisionShape = new btBoxShape(btVector3(
+                boxSize.x * 0.5f * worldScale.x,
+                boxSize.y * 0.5f * worldScale.y,
+                planeThickness * 0.5f * worldScale.z
+            ));
+        }
+        break;
+    }
+
+    case ColliderType::MESH:
+    {
+        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+        if (meshComp && meshComp->HasMesh())
+        {
+            const Mesh& mesh = meshComp->GetMesh();
+            btConvexHullShape* convexHull = new btConvexHullShape();
+
+            for (const auto& vertex : mesh.vertices)
+            {
+                convexHull->addPoint(btVector3(vertex.position.x, vertex.position.y, vertex.position.z), false);
+            }
+
+            convexHull->recalcLocalAabb();
+            convexHull->setLocalScaling(btVector3(worldScale.x, worldScale.y, worldScale.z));
+            convexHull->setMargin(0.04f);
+            collisionShape = convexHull;
+        }
+        else
+        {
+            collisionShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
+        }
+        break;
+    }
+    }
+
+    if (!collisionShape)
+    {
+        LOG_DEBUG("[ComponentCollider] Failed to create new collision shape");
+        return;
+    }
+
+    // Add the new shape to the compound with the correct offset
+    offsetPosition = internalOffset + userOffset;
+
+    btTransform localTransform;
+    localTransform.setIdentity();
+    glm::vec3 scaledOffset = offsetPosition * worldScale;
+    localTransform.setOrigin(btVector3(scaledOffset.x, scaledOffset.y, scaledOffset.z));
+
+    compoundShape->addChildShape(localTransform, collisionShape);
+
+    LOG_DEBUG("[ComponentCollider] Added new %s shape to compound", GetColliderTypeName().c_str());
+
+    // Recalculate inertia for the rigid body
+    rigidBody->RecalculateInertia();
+
+    // Wake up the rigid body
+    btRigidBody* btBody = rigidBody->GetBulletRigidBody();
+    if (btBody)
+    {
+        btBody->activate(true);
+    }
 }
 
 void ComponentCollider::Update()
