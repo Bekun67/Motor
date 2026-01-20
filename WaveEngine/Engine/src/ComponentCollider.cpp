@@ -741,6 +741,7 @@ void ComponentCollider::Serialize(nlohmann::json& componentObj) const
     componentObj["friction"] = friction;
     componentObj["restitution"] = restitution;
     componentObj["showDebug"] = showDebug;
+    componentObj["manuallyEdited"] = manuallyEdited;
 }
 
 void ComponentCollider::Deserialize(const nlohmann::json& componentObj)
@@ -830,6 +831,11 @@ void ComponentCollider::Deserialize(const nlohmann::json& componentObj)
     if (componentObj.contains("showDebug"))
     {
         showDebug = componentObj["showDebug"].get<bool>();
+    }
+
+    if (componentObj.contains("manuallyEdited"))
+    {
+        manuallyEdited = componentObj["manuallyEdited"].get<bool>();
     }
 
     UpdateCollisionShape();

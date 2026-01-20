@@ -290,7 +290,45 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
             Component* component = nullptr;
             if (type == ComponentType::TRANSFORM) {
                 component = newObject->GetComponent(ComponentType::TRANSFORM);
-            } else {
+            }
+            else if (type == ComponentType::CONSTRAINT) {
+                if (componentObj.contains("constraintType")) {
+                    int constraintTypeInt = componentObj["constraintType"].get<int>();
+                    ConstraintType constraintType = static_cast<ConstraintType>(constraintTypeInt);
+
+                    switch (constraintType) {
+                    case ConstraintType::HINGE:
+                        component = newObject->CreateHingeConstraint();
+                        break;
+                    case ConstraintType::SLIDER:
+                        component = newObject->CreateSliderConstraint();
+                        break;
+                    case ConstraintType::DISTANCE:
+                        component = newObject->CreateDistanceConstraint();
+                        break;
+                    case ConstraintType::CONE:
+                        component = newObject->CreateConeConstraint();
+                        break;
+                    default:
+                        component = newObject->CreateHingeConstraint();
+                        break;
+                    }
+                }
+                else {
+                    component = newObject->CreateHingeConstraint();
+                }
+            }
+            else if (type == ComponentType::COLLIDER) {
+                if (componentObj.contains("colliderType")) {
+                    int colliderTypeInt = componentObj["colliderType"].get<int>();
+                    ColliderType colliderType = static_cast<ColliderType>(colliderTypeInt);
+                    component = newObject->CreateCollider(colliderType);
+                }
+                else {
+                    component = newObject->CreateComponent(type);
+                }
+            }
+            else {
                 component = newObject->CreateComponent(type);
             }
 
