@@ -270,7 +270,7 @@ void ComponentCollider::CreateCollisionShape()
             ));
         }
 
-        LOG_DEBUG("[ComponentCollider] Created thin box (plane simulation) with thickness %.2f", planeThickness);
+        LOG_DEBUG("[ComponentCollider] Created Plane Collider");
         break;
     }
 
