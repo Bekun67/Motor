@@ -44,6 +44,8 @@ public:
     void MarkForDeletion() { markedForDeletion = true; }
     bool IsMarkedForDeletion() const { return markedForDeletion; }
 
+    bool IsBeingDestroyed() const { return isBeingDestroyed; }
+
     // Serialization
     void Serialize(nlohmann::json& gameObjectArray) const;
     static GameObject* Deserialize(const nlohmann::json& gameObjectObj, GameObject* parent = nullptr);
@@ -77,6 +79,7 @@ private:
     std::vector<std::unique_ptr<Component>> componentOwners;
 
     bool markedForDeletion = false;
+    bool isBeingDestroyed = false;
     int serializationIndex = -1;
 
     static void NotifyConstraintsRecursive(GameObject* current, GameObject* deletedObject);

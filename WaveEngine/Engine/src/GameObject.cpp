@@ -15,6 +15,16 @@ GameObject::GameObject(const std::string& name) : name(name), active(true), pare
 
 GameObject::~GameObject() {
 
+    isBeingDestroyed = true;
+
+    NotifyConstraintsBeforeDestruction();
+
+    for (auto* comp : components) {
+        if (comp->GetType() == ComponentType::CONSTRAINT) {
+            comp->Disable();
+        }
+    }
+
     for (auto* comp : components) {
         if (comp->GetType() == ComponentType::RIGIDBODY) {
             comp->Disable();

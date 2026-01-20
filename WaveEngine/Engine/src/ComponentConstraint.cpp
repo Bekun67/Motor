@@ -180,9 +180,7 @@ void ComponentConstraint::OnConnectedBodyInvalidated()
         owner->GetName().c_str());
 
     connectedBody = nullptr;
-
     DestroyConstraint();
-    CreateConstraint();
 }
 
 bool ComponentConstraint::IsConstraintValid() const

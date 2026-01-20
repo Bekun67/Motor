@@ -174,23 +174,27 @@ void ComponentRigidBody::CreateRigidBody()
 void ComponentRigidBody::DestroyRigidBody()
 {
     ModulePhysics* physics = Application::GetInstance().physics.get();
-    if (physics && physics->GetDynamicsWorld())
+
+    if (!owner->IsBeingDestroyed())
     {
-        btDynamicsWorld* world = physics->GetDynamicsWorld();
-
-        int numConstraints = world->getNumConstraints();
-
-        for (int i = numConstraints - 1; i >= 0; i--)
+        if (physics && physics->GetDynamicsWorld())
         {
-            btTypedConstraint* constraint = world->getConstraint(i);
+            btDynamicsWorld* world = physics->GetDynamicsWorld();
 
-            if (&constraint->getRigidBodyA() == rigidBody ||
-                &constraint->getRigidBodyB() == rigidBody)
+            int numConstraints = world->getNumConstraints();
+
+            for (int i = numConstraints - 1; i >= 0; i--)
             {
-                world->removeConstraint(constraint);
-                LOG_DEBUG("[ComponentRigidBody] Removed constraint from physics world (references this RigidBody)");
+                btTypedConstraint* constraint = world->getConstraint(i);
 
-				delete constraint;
+                if (&constraint->getRigidBodyA() == rigidBody ||
+                    &constraint->getRigidBodyB() == rigidBody)
+                {
+                    world->removeConstraint(constraint);
+                    LOG_DEBUG("[ComponentRigidBody] Removed constraint from physics world (references this RigidBody)");
+
+                    delete constraint;
+                }
             }
         }
     }
@@ -515,6 +519,13 @@ void ComponentRigidBody::SetManipulating(bool manipulating)
 
 void ComponentRigidBody::NotifyConstraintsAboutDisable()
 {
+    if (owner->IsBeingDestroyed())
+    {
+        LOG_DEBUG("[ComponentRigidBody] Skipping constraint notification - GameObject '%s' is being destroyed",
+            owner->GetName().c_str());
+        return;
+    }
+
     GameObject* root = owner;
     while (root->GetParent() != nullptr)
     {
