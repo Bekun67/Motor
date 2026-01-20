@@ -33,16 +33,19 @@ ComponentCollider::ComponentCollider(GameObject* owner, ColliderType type)
     isAttachedToRigidBody(false)
 {
     name = "Collider";
+    LOG_CONSOLE("[Collider] Created on '%s'", owner->GetName().c_str());
     CreateCollisionShape();
 }
 
 ComponentCollider::~ComponentCollider()
 {
+    LOG_CONSOLE("[Collider] Destroying on '%s' (attached=%d)", owner->GetName().c_str(), isAttachedToRigidBody);
     DestroyCollisionShape();
 }
 
 void ComponentCollider::Enable()
 {
+    LOG_CONSOLE("[Collider] Enable on '%s'", owner->GetName().c_str());
     CreateCollisionShape();
 
     // If there's already a RigidBody, make sure we're properly attached
@@ -60,12 +63,15 @@ void ComponentCollider::Enable()
 void ComponentCollider::Disable()
 {
     // If attached to RigidBody, just mark as not attached
+    LOG_CONSOLE("[Collider] Disable on '%s' (attached=%d)", owner->GetName().c_str(), isAttachedToRigidBody);
+
     if (isAttachedToRigidBody)
     {
         isAttachedToRigidBody = false;
         collisionShape = nullptr;
         collisionObject = nullptr;
 
+        LOG_CONSOLE("[Collider] -> Just nullified pointers (attached mode)");
         return;
     }
 
@@ -75,6 +81,7 @@ void ComponentCollider::Disable()
     {
         physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
         LOG_DEBUG("[ComponentCollider] Removed standalone collider from physics world");
+        LOG_CONSOLE("[Collider] -> Removed from physics world");
     }
 
     // Clean up
@@ -309,13 +316,14 @@ void ComponentCollider::CreateCollisionShape()
     if (rigidBody && rigidBody->IsActive())
     {
 		// If we already had a standalone collider, remove it
+        LOG_CONSOLE("[Collider] Found RigidBody, attaching to it");
+
         if (collisionObject)
         {
             ModulePhysics* physics = Application::GetInstance().physics.get();
             if (physics && physics->GetDynamicsWorld())
             {
                 physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
-                LOG_DEBUG("[ComponentCollider] Removed old standalone collider before attaching to RigidBody");
             }
 
             delete collisionObject;
@@ -344,6 +352,8 @@ void ComponentCollider::CreateCollisionShape()
     }
 
     // If there's NO RigidBody, create a standalone collision object
+    LOG_CONSOLE("[Collider] No RigidBody found, creating standalone");
+
     isAttachedToRigidBody = false;
 
     glm::mat4 rotationMatrix = glm::mat4_cast(worldRotation);
@@ -436,22 +446,16 @@ void ComponentCollider::RemoveStandaloneFromWorld()
 void ComponentCollider::DestroyCollisionShape()
 {
 	// Verify if attached to RigidBody
+    LOG_CONSOLE("[Collider] DestroyShape on '%s' (attached=%d, shape=%p, obj=%p)",
+        owner->GetName().c_str(), isAttachedToRigidBody, collisionShape, collisionObject);
+
     if (isAttachedToRigidBody)
     {
 		// do not remove from rigid body here, as the rigid body handles it
+        LOG_CONSOLE("[Collider] -> Attached mode: nullifying pointers only");
         isAttachedToRigidBody = false;
-
-		// Only delete the collision shape
-        if (collisionShape)
-        {
-            delete collisionShape;
-            collisionShape = nullptr;
-        }
-
-		// there is no collision object in this case
+        collisionShape = nullptr;
         collisionObject = nullptr;
-
-        LOG_DEBUG("[ComponentCollider] Destroyed attached collision shape");
         return;
     }
 
@@ -474,11 +478,11 @@ void ComponentCollider::DestroyCollisionShape()
         if (found)
         {
             physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
-            LOG_DEBUG("[ComponentCollider] Removed standalone collider from physics world");
+            LOG_CONSOLE("[Collider] -> Removed from world");
         }
         else
         {
-            LOG_DEBUG("[ComponentCollider] WARNING: Collision object not found in world, skipping removal");
+            LOG_CONSOLE("[Collider] -> WARNING: Not in world!");
         }
     }
 
@@ -495,8 +499,6 @@ void ComponentCollider::DestroyCollisionShape()
         delete collisionShape;
         collisionShape = nullptr;
     }
-
-    LOG_DEBUG("[ComponentCollider] Destroyed standalone collision shape");
 }
 
 void ComponentCollider::UpdateCollisionShape()

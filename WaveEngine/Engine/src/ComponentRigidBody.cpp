@@ -3,6 +3,7 @@
 #include "Transform.h"
 #include "ComponentMesh.h"
 #include "ComponentCollider.h"
+#include "ComponentConstraint.h"
 #include "Application.h"
 #include "ModulePhysics.h"
 #include "Log.h"
@@ -19,12 +20,14 @@ ComponentRigidBody::ComponentRigidBody(GameObject* owner)
     isKinematic(false),
     scale(1.0f)
 {
+    LOG_CONSOLE("[RigidBody] Created on '%s'", owner->GetName().c_str());
     CreateRigidBody();
     name = "RigidBody";
 }
 
 ComponentRigidBody::~ComponentRigidBody()
 {
+    LOG_CONSOLE("[RigidBody] Destroying on '%s'", owner->GetName().c_str());
     NotifyConstraintsAboutDisable();
 
     DestroyRigidBody();
@@ -32,11 +35,13 @@ ComponentRigidBody::~ComponentRigidBody()
 
 void ComponentRigidBody::Enable()
 {
+    LOG_CONSOLE("[RigidBody] Enable on '%s'", owner->GetName().c_str());
     CreateRigidBody();
 }
 
 void ComponentRigidBody::Disable()
 {
+    LOG_CONSOLE("[RigidBody] Disable on '%s'", owner->GetName().c_str());
     NotifyConstraintsAboutDisable();
 
     DestroyRigidBody();
@@ -96,14 +101,8 @@ void ComponentRigidBody::CreateRigidBody()
                             {
                                 found = true;
                                 physics->GetDynamicsWorld()->removeCollisionObject(standaloneCO);
-                                LOG_DEBUG("[ComponentRigidBody] Removed standalone collision object from world");
                                 break;
                             }
-                        }
-
-                        if (!found)
-                        {
-                            LOG_DEBUG("[ComponentRigidBody] WARNING: Standalone collision object not in world");
                         }
                     }
 
@@ -173,11 +172,13 @@ void ComponentRigidBody::CreateRigidBody()
 
 void ComponentRigidBody::DestroyRigidBody()
 {
+    LOG_CONSOLE("[RigidBody] DestroyRigidBody on '%s'", owner->GetName().c_str());
+
     ModulePhysics* physics = Application::GetInstance().physics.get();
 
     if (!owner->IsBeingDestroyed())
     {
-        if (physics && physics->GetDynamicsWorld())
+        if (physics && physics->GetDynamicsWorld() && rigidBody)
         {
             btDynamicsWorld* world = physics->GetDynamicsWorld();
 
@@ -191,7 +192,7 @@ void ComponentRigidBody::DestroyRigidBody()
                     &constraint->getRigidBodyB() == rigidBody)
                 {
                     world->removeConstraint(constraint);
-                    LOG_DEBUG("[ComponentRigidBody] Removed constraint from physics world (references this RigidBody)");
+                    LOG_CONSOLE("[RigidBody] -> Removed constraint %d", i);
 
                     delete constraint;
                 }
@@ -215,7 +216,7 @@ void ComponentRigidBody::DestroyRigidBody()
     if (physics && physics->GetDynamicsWorld() && rigidBody)
     {
         physics->GetDynamicsWorld()->removeRigidBody(rigidBody);
-        LOG_DEBUG("[ComponentRigidBody] Removed from physics world");
+        LOG_CONSOLE("[RigidBody] -> Removed from world");
     }
 
 	// Clear compound shapes
@@ -226,7 +227,6 @@ void ComponentRigidBody::DestroyRigidBody()
         {
             compoundShape->removeChildShapeByIndex(i);
         }
-        LOG_DEBUG("[ComponentRigidBody] Removed %d child shapes from compound", numShapes);
     }
 
 	// Delete Bullet objects
@@ -247,8 +247,6 @@ void ComponentRigidBody::DestroyRigidBody()
         delete compoundShape;
         compoundShape = nullptr;
     }
-
-    LOG_DEBUG("[ComponentRigidBody] Destroyed RigidBody completely");
 }
 
 void ComponentRigidBody::RecalculateInertia()
@@ -521,8 +519,6 @@ void ComponentRigidBody::NotifyConstraintsAboutDisable()
 {
     if (owner->IsBeingDestroyed())
     {
-        LOG_DEBUG("[ComponentRigidBody] Skipping constraint notification - GameObject '%s' is being destroyed",
-            owner->GetName().c_str());
         return;
     }
 
@@ -560,9 +556,6 @@ void ComponentRigidBody::NotifyConstraintsRecursiveAboutRB(GameObject* current, 
 
             if (needsNotification)
             {
-                LOG_DEBUG("[ComponentRigidBody] Constraint on '%s' references RigidBody being disabled on '%s'",
-                    current->GetName().c_str(), rbOwner->GetName().c_str());
-
                 if (constraint->GetConnectedBody() == rbOwner)
                 {
                     constraint->OnConnectedBodyInvalidated();

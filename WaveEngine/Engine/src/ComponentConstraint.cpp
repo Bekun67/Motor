@@ -17,15 +17,19 @@ ComponentConstraint::ComponentConstraint(GameObject* owner, ConstraintType type)
     needsRebuild(false)
 {
     name = "Constraint";
+    LOG_CONSOLE("[Constraint] Created on '%s'", owner->GetName().c_str());
 }
 
 ComponentConstraint::~ComponentConstraint()
 {
+    LOG_CONSOLE("[Constraint] Destroying on '%s'", owner->GetName().c_str());
     DestroyConstraint();
 }
 
 void ComponentConstraint::Enable()
 {
+    LOG_CONSOLE("[Constraint] Enable on '%s'", owner->GetName().c_str());
+
     Application::PlayState playState = Application::GetInstance().GetPlayState();
     if (playState != Application::PlayState::EDITING)
     {
@@ -43,9 +47,6 @@ void ComponentConstraint::Update()
 
     if (!IsConstraintValid())
     {
-        LOG_DEBUG("[ComponentConstraint] Constraint no longer valid on '%s', attempting to fix",
-            owner->GetName().c_str());
-
         if (connectedBody)
         {
             ComponentRigidBody* rb = GetRigidBody(connectedBody);
@@ -58,7 +59,6 @@ void ComponentConstraint::Update()
         ComponentRigidBody* ownRb = GetRigidBody(owner);
         if (!ownRb || !ownRb->IsActive())
         {
-            LOG_DEBUG("[ComponentConstraint] Own RigidBody invalid, disabling constraint");
             SetActive(false);
             return;
         }
@@ -76,8 +76,6 @@ void ComponentConstraint::Update()
     {
         if (constraint->isEnabled() == false)
         {
-            LOG_DEBUG("[ComponentConstraint] Constraint broken for '%s'",
-                owner->GetName().c_str());
             SetActive(false);
         }
     }
@@ -85,46 +83,49 @@ void ComponentConstraint::Update()
 
 void ComponentConstraint::Disable()
 {
+    LOG_CONSOLE("[Constraint] Disable on '%s'", owner->GetName().c_str());
     DestroyConstraint();
 }
 
 void ComponentConstraint::DestroyConstraint()
 {
-    if (constraint)
+    LOG_CONSOLE("[Constraint] DestroyConstraint on '%s' (constraint=%p)",
+        owner->GetName().c_str(), constraint);
+
+    if (!constraint)
     {
-        ModulePhysics* physics = Application::GetInstance().physics.get();
-        if (physics && physics->GetDynamicsWorld())
+        LOG_CONSOLE("[Constraint] -> No constraint to destroy");
+        return;
+    }
+
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (physics && physics->GetDynamicsWorld())
+    {
+        btDynamicsWorld* world = physics->GetDynamicsWorld();
+
+        bool found = false;
+        for (int i = 0; i < world->getNumConstraints(); i++)
         {
-            btDynamicsWorld* world = physics->GetDynamicsWorld();
-
-			// verify that the constraint is actually in the world before removing
-            bool found = false;
-            for (int i = 0; i < world->getNumConstraints(); i++)
+            if (world->getConstraint(i) == constraint)
             {
-                if (world->getConstraint(i) == constraint)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (found)
-            {
+                found = true;
                 world->removeConstraint(constraint);
-                LOG_DEBUG("[ComponentConstraint] Removed constraint from physics world");
-            }
-            else
-            {
-                LOG_DEBUG("[ComponentConstraint] Constraint not in world, skipping removal");
+                LOG_CONSOLE("[Constraint] -> Removed from world (index %d)", i);
+                break;
             }
         }
 
-		// Ensure it's disabled
-        constraint->setEnabled(false);
-
-        delete constraint;
-        constraint = nullptr;
+        if (!found)
+        {
+            LOG_CONSOLE("[Constraint] -> Not in world, already removed");
+        }
     }
+
+    constraint->setEnabled(false);
+
+    delete constraint;
+    constraint = nullptr;
+    LOG_CONSOLE("[Constraint] -> Deleted");
 }
 
 void ComponentConstraint::SetConnectedBody(GameObject* otherBody)
@@ -176,9 +177,7 @@ const ComponentRigidBody* ComponentConstraint::GetRigidBody(GameObject* obj) con
 
 void ComponentConstraint::OnConnectedBodyInvalidated()
 {
-    LOG_DEBUG("[ComponentConstraint] Connected body invalidated for constraint on '%s'",
-        owner->GetName().c_str());
-
+    LOG_CONSOLE("[Constraint] ConnectedBody invalidated on '%s'", owner->GetName().c_str());
     connectedBody = nullptr;
     DestroyConstraint();
 }
