@@ -131,11 +131,12 @@ void ComponentRigidBody::CreateRigidBody()
     // Create motion state
     if (compoundShape->getNumChildShapes() == 0)
     {
-        btBoxShape* dummyShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
+        // Create a tiny ghost shape that will always be a trigger
+        btBoxShape* ghostShape = new btBoxShape(btVector3(0.01f, 0.01f, 0.01f));
         btTransform localTransform;
         localTransform.setIdentity();
-        compoundShape->addChildShape(localTransform, dummyShape);
-        LOG_DEBUG("[ComponentRigidBody] Added dummy box shape (no colliders present)");
+        compoundShape->addChildShape(localTransform, ghostShape);
+        LOG_DEBUG("[ComponentRigidBody] Added ghost trigger shape (no explicit colliders present)");
     }
 
     btTransform startTransform;
@@ -166,6 +167,29 @@ void ComponentRigidBody::CreateRigidBody()
 
     btRigidBody::btRigidBodyConstructionInfo rbInfo(actualMass, motionState, compoundShape, localInertia);
     rigidBody = new btRigidBody(rbInfo);
+
+    // Check if we only have the ghost shape (no explicit colliders)
+    bool hasExplicitColliders = false;
+    std::vector<Component*> colliders = owner->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : colliders)
+    {
+        if (comp && comp->IsActive())
+        {
+            hasExplicitColliders = true;
+            break;
+        }
+    }
+
+    // If no explicit colliders, make the entire RigidBody a trigger (ghost mode)
+    if (!hasExplicitColliders)
+    {
+        rigidBody->setCollisionFlags(
+            rigidBody->getCollisionFlags() |
+            btCollisionObject::CF_NO_CONTACT_RESPONSE
+        );
+        LOG_DEBUG("[ComponentRigidBody] Set to ghost mode (trigger only, no physical collisions)");
+    }
+
 
     // Set kinematic flag
     if (isKinematic)

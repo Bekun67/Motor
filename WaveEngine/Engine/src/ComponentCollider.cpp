@@ -315,7 +315,6 @@ void ComponentCollider::CreateCollisionShape()
 
     if (rigidBody && rigidBody->IsActive())
     {
-		// If we already had a standalone collider, remove it
         LOG_CONSOLE("[Collider] Found RigidBody, attaching to it");
 
         if (collisionObject)
@@ -335,18 +334,24 @@ void ComponentCollider::CreateCollisionShape()
         // Force RigidBody to rebuild and include this collider
         rigidBody->CreateRigidBody();
 
-        LOG_DEBUG("[ComponentCollider] Created %s shape, triggering RigidBody rebuild",
-            GetColliderTypeName().c_str());
-
+        // Remove ghost mode now that there's an explicit collider
         btRigidBody* btBody = rigidBody->GetBulletRigidBody();
         if (btBody)
         {
+			// enable contact response
+            btBody->setCollisionFlags(
+                btBody->getCollisionFlags() &
+                ~btCollisionObject::CF_NO_CONTACT_RESPONSE
+            );
+
             btBody->setFriction(friction);
             btBody->setRestitution(restitution);
 
-            LOG_DEBUG("[ComponentCollider] Applied friction %.2f and restitution %.2f to RigidBody",
-                friction, restitution);
+            LOG_DEBUG("[ComponentCollider] Enabled physical collisions, removed ghost mode");
         }
+
+        LOG_DEBUG("[ComponentCollider] Created %s shape, triggering RigidBody rebuild",
+            GetColliderTypeName().c_str());
 
         return;
     }
