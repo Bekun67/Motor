@@ -6,10 +6,11 @@ Component::Component(GameObject* owner, ComponentType type) : owner(owner), type
     case ComponentType::TRANSFORM: name = "Transform"; break;
     case ComponentType::MESH: name = "Mesh"; break;
     case ComponentType::MATERIAL: name = "Material"; break;
-	case ComponentType::CAMERA: name = "Camera"; break;
+    case ComponentType::CAMERA: name = "Camera"; break;
     case ComponentType::RIGIDBODY: name = "RigidBody"; break;
-    case ComponentType::COLLIDER: name = "Collider"; break; 
-	case ComponentType::CONSTRAINT: name = "Constraint"; break;
+    case ComponentType::COLLIDER: name = "Collider"; break;
+    case ComponentType::CONSTRAINT: name = "Constraint"; break;
+    case ComponentType::FIRSTPERSON: name = "FirstPersonController"; break;
     default: name = "Unknown Component";
     }
 }

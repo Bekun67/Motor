@@ -8,6 +8,7 @@
 #include "ComponentSliderConstraint.h"
 #include "ComponentDistanceConstraint.h"
 #include "ComponentConeConstraint.h"
+#include "ComponentFirstPersonController.h"
 
 class Component;
 enum class ComponentType;
@@ -63,6 +64,7 @@ public:
     ComponentSliderConstraint* CreateSliderConstraint();
     ComponentDistanceConstraint* CreateDistanceConstraint();
     ComponentConeConstraint* CreateConeConstraint();
+	ComponentFirstPersonController* CreateFirstPersonController();
 
 public:
     std::string name;

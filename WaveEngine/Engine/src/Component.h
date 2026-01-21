@@ -13,6 +13,7 @@ enum class ComponentType {
     RIGIDBODY,
     COLLIDER,
 	CONSTRAINT,
+    FIRSTPERSON,
     UNKNOWN
 };
 

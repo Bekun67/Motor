@@ -623,6 +623,36 @@ void ModuleEditor::ShowMenuBar()
                 ImGui::EndMenu();
             }
 
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("First Person Controller"))
+            {
+                GameObject* selected = Application::GetInstance().selectionManager->GetSelectedObject();
+                if (selected)
+                {
+					// Verify it has a Camera component
+                    if (selected->GetComponent(ComponentType::CAMERA))
+                    {
+                        selected->CreateFirstPersonController();
+                        LOG_CONSOLE("Added First Person Controller to '%s'", selected->GetName().c_str());
+                    }
+                    else
+                    {
+                        LOG_CONSOLE("First Person Controller requires a Camera component!");
+                    }
+                }
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "First Person Controller");
+                ImGui::Separator();
+                ImGui::Text("Allows camera movement with WASD and shooting spheres");
+                ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "Requires: Camera component");
+                ImGui::EndTooltip();
+            }
+
             ImGui::EndMenu();
         }
 

@@ -7,6 +7,7 @@
 #include "ComponentRotate.h"
 #include "ComponentRigidBody.h"
 #include "ComponentCollider.h"
+#include "ComponentHingeConstraint.h"
 #include <nlohmann/json.hpp>
 
 GameObject::GameObject(const std::string& name) : name(name), active(true), parent(nullptr) {
@@ -74,6 +75,12 @@ Component* GameObject::CreateComponent(ComponentType type) {
         break;
     case ComponentType::CONSTRAINT:
         newComponent = new ComponentHingeConstraint(this);
+        break;
+    case ComponentType::FIRSTPERSON:
+        if (GetComponent(ComponentType::FIRSTPERSON) != nullptr) {
+            return GetComponent(ComponentType::FIRSTPERSON);
+        }
+        newComponent = new ComponentFirstPersonController(this);
         break;
 
     default:
@@ -150,6 +157,18 @@ ComponentCollider* GameObject::CreateCollider(ColliderType colliderType)
     return collider;
 }
 
+ComponentFirstPersonController* GameObject::CreateFirstPersonController()
+{
+    ComponentFirstPersonController* controller = new ComponentFirstPersonController(this);
+
+    if (controller) {
+        componentOwners.push_back(std::unique_ptr<Component>(controller));
+        components.push_back(controller);
+    }
+
+    return controller;
+}
+
 Component* GameObject::GetComponent(ComponentType type) const {
     for (auto* comp : components) {
         if (comp->GetType() == type) {
@@ -221,17 +240,27 @@ int GameObject::GetChildIndex(GameObject* child) const {
     return -1;
 }
 
-void GameObject::Update() {
-    if (!active) return;
+void GameObject::Update()
+{
+    if (!active || isBeingDestroyed || markedForDeletion) return;
 
-    for (auto* component : components) {
-        if (component->IsActive()) {
+    for (auto* component : components)
+    {
+        if (component && component->IsActive())
+        {
             component->Update();
         }
     }
 
-    for (auto* child : children) {
-        child->Update();
+    // Create a copy to avoid iterator invalidation
+    std::vector<GameObject*> childrenCopy = children;
+
+    for (auto* child : childrenCopy)
+    {
+        if (child && !child->IsMarkedForDeletion())
+        {
+            child->Update();
+        }
     }
 }
 
@@ -300,6 +329,9 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
             Component* component = nullptr;
             if (type == ComponentType::TRANSFORM) {
                 component = newObject->GetComponent(ComponentType::TRANSFORM);
+            }
+            else if (type == ComponentType::FIRSTPERSON) {
+                component = newObject->CreateFirstPersonController();
             }
             else if (type == ComponentType::CONSTRAINT) {
                 if (componentObj.contains("constraintType")) {

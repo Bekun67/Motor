@@ -44,6 +44,7 @@ private:
     void DrawSliderConstraintSettings(ComponentSliderConstraint* slider, bool isPlaying);
     void DrawDistanceConstraintSettings(ComponentDistanceConstraint* distance, bool isPlaying);
     void DrawConeConstraintSettings(ComponentConeConstraint* cone, bool isPlaying);
+    void DrawFirstPersonControllerComponent(GameObject* selectedObject);
 
     // Helper methods
     void GetAllGameObjects(GameObject* root, std::vector<GameObject*>& outObjects);

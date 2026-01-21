@@ -11,6 +11,7 @@
 #include "ComponentRigidBody.h"
 #include "ResourceTexture.h"
 #include "ComponentCollider.h"
+#include "ComponentFirstPersonController.h"
 #include "Log.h"
 
 InspectorWindow::InspectorWindow()
@@ -85,6 +86,7 @@ void InspectorWindow::Draw()
     DrawRigidBodyComponent(selectedObject);
     DrawColliderComponent(selectedObject);
     DrawConstraintComponents(selectedObject);
+    DrawFirstPersonControllerComponent(selectedObject);
 
     ImGui::End();
 }
@@ -1930,5 +1932,129 @@ void InspectorWindow::DrawConeConstraintSettings(ComponentConeConstraint* cone, 
             ImGui::SetTooltip("How much the limit can be violated");
 
         ImGui::Unindent();
+    }
+}
+
+void InspectorWindow::DrawFirstPersonControllerComponent(GameObject* selectedObject)
+{
+    ComponentFirstPersonController* fpc = static_cast<ComponentFirstPersonController*>(
+        selectedObject->GetComponent(ComponentType::FIRSTPERSON)
+        );
+
+    if (fpc == nullptr)
+        return;
+
+    // Verify if in play mode
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    bool isPlaying = (playState == Application::PlayState::PLAYING);
+
+    if (ImGui::CollapsingHeader("First Person Controller", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::PushID("FirstPersonController");
+
+        // Active checkbox
+        bool isActive = fpc->IsActive();
+        if (ImGui::Checkbox("Active##FPC", &isActive))
+        {
+            fpc->SetActive(isActive);
+            LOG_DEBUG("FirstPersonController active state changed to: %s", isActive ? "true" : "false");
+        }
+
+        ImGui::Separator();
+
+        // Movement Settings
+        ImGui::Text("Movement Settings:");
+        ImGui::Spacing();
+
+        float movementSpeed = fpc->GetMovementSpeed();
+        if (ImGui::DragFloat("Movement Speed", &movementSpeed, 0.1f, 0.1f, 50.0f))
+        {
+            fpc->SetMovementSpeed(movementSpeed);
+            LOG_DEBUG("Movement speed changed to: %.2f", movementSpeed);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Speed of camera movement (WASD)");
+        }
+
+        float mouseSensitivity = fpc->GetMouseSensitivity();
+        if (ImGui::DragFloat("Mouse Sensitivity", &mouseSensitivity, 0.01f, 0.01f, 2.0f))
+        {
+            fpc->SetMouseSensitivity(mouseSensitivity);
+            LOG_DEBUG("Mouse sensitivity changed to: %.2f", mouseSensitivity);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Sensitivity for mouse look (hold right mouse button)");
+        }
+
+        ImGui::Separator();
+
+        // Projectile Settings
+        ImGui::Text("Projectile Settings:");
+        ImGui::Spacing();
+
+        float shootForce = fpc->GetShootForce();
+        if (ImGui::DragFloat("Shoot Force", &shootForce, 0.5f, 1.0f, 200.0f))
+        {
+            fpc->SetShootForce(shootForce);
+            LOG_DEBUG("Shoot force changed to: %.2f", shootForce);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Force applied to fired spheres (left click to shoot)");
+        }
+
+        float sphereSize = fpc->GetSphereSize();
+        if (ImGui::DragFloat("Sphere Size", &sphereSize, 0.05f, 0.1f, 5.0f))
+        {
+            fpc->SetSphereSize(sphereSize);
+            LOG_DEBUG("Sphere size changed to: %.2f", sphereSize);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Size of fired spheres");
+        }
+
+        ImGui::Separator();
+
+        // Controls info
+        if (isPlaying)
+        {
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "✓ Controls Active");
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "⚠ Controls (Play Mode Only)");
+        }
+
+        ImGui::Spacing();
+        ImGui::Indent();
+        ImGui::BulletText("WASD - Move camera");
+        ImGui::BulletText("Space/Ctrl - Move up/down");
+        ImGui::BulletText("Right Mouse - Look around");
+        ImGui::BulletText("Left Click - Shoot sphere");
+        ImGui::Unindent();
+
+        ImGui::Separator();
+
+        // Remove button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+        if (ImGui::Button("Remove First Person Controller", ImVec2(-1, 0)))
+        {
+            selectedObject->RemoveComponent(fpc);
+            LOG_CONSOLE("Removed First Person Controller from '%s'", selectedObject->GetName().c_str());
+            ImGui::PopStyleColor(3);
+            ImGui::PopID();
+            return;
+        }
+
+        ImGui::PopStyleColor(3);
+        ImGui::Separator();
+
+        ImGui::PopID();
     }
 }
