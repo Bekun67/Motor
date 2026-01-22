@@ -67,6 +67,10 @@ Component* GameObject::CreateComponent(ComponentType type) {
         break;
 
     case ComponentType::RIGIDBODY:
+        if (GetComponent(ComponentType::RIGIDBODY) != nullptr) {
+            LOG_CONSOLE("GameObject '%s' already has a RigidBody component!", name.c_str());
+            return GetComponent(ComponentType::RIGIDBODY);
+        }
         newComponent = new ComponentRigidBody(this);
         break;
 
@@ -78,6 +82,7 @@ Component* GameObject::CreateComponent(ComponentType type) {
         break;
     case ComponentType::FIRSTPERSON:
         if (GetComponent(ComponentType::FIRSTPERSON) != nullptr) {
+            LOG_CONSOLE("GameObject '%s' already has a FirstPersonController component!", name.c_str());
             return GetComponent(ComponentType::FIRSTPERSON);
         }
         newComponent = new ComponentFirstPersonController(this);
