@@ -5497,7 +5497,7 @@
                 },
                 {
                     "active": true,
-                    "aspectRatio": 0.8673946857452393,
+                    "aspectRatio": 0.9937888383865356,
                     "farPlane": 500.0,
                     "fov": 45.0,
                     "frustumCullingEnabled": false,
@@ -5506,11 +5506,88 @@
                 },
                 {
                     "active": true,
+                    "isKinematic": true,
+                    "mass": 1.0,
+                    "type": 5
+                },
+                {
+                    "active": true,
+                    "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "capsuleHeight": 1.0,
+                    "capsuleRadius": 0.5,
+                    "colliderType": 1,
+                    "cylinderHeight": 1.0,
+                    "cylinderRadius": 0.5,
+                    "friction": 0.30000001192092896,
+                    "internalOffset": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "isTrigger": false,
+                    "manuallyEdited": true,
+                    "planeNormal": [
+                        0.0,
+                        1.0,
+                        0.0
+                    ],
+                    "restitution": 0.0,
+                    "showDebug": false,
+                    "sphereRadius": 0.5,
+                    "type": 6,
+                    "userOffset": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "active": true,
+                    "colliderRadius": 0.5,
                     "mouseSensitivity": 0.20000000298023224,
                     "movementSpeed": 5.0,
                     "shootForce": 20.0,
                     "sphereSize": 0.5,
                     "type": 8
+                },
+                {
+                    "active": true,
+                    "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "capsuleHeight": 1.0,
+                    "capsuleRadius": 0.5,
+                    "colliderType": 0,
+                    "cylinderHeight": 1.0,
+                    "cylinderRadius": 0.5,
+                    "friction": 0.5,
+                    "internalOffset": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "isTrigger": false,
+                    "manuallyEdited": false,
+                    "planeNormal": [
+                        0.0,
+                        1.0,
+                        0.0
+                    ],
+                    "restitution": 0.0,
+                    "showDebug": false,
+                    "sphereRadius": 0.5,
+                    "type": 6,
+                    "userOffset": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
                 }
             ],
             "isprimitive": false,
@@ -5594,14 +5671,14 @@
                 {
                     "active": true,
                     "anchorPointA": [
-                        1.5,
+                        0.699999988079071,
                         0.0,
-                        1.7000000476837158
+                        1.2999999523162842
                     ],
                     "anchorPointB": [
                         0.0,
                         0.0,
-                        1.2999999523162842
+                        1.7999999523162842
                     ],
                     "breakingThreshold": 0.0,
                     "constraintEnabled": true,
@@ -5627,8 +5704,8 @@
                     "active": true,
                     "position": [
                         1.578536868095398,
-                        0.23912787437438965,
-                        -0.05071999132633209
+                        0.23667564988136292,
+                        -0.06425511837005615
                     ],
                     "rotation": [
                         0.0,
