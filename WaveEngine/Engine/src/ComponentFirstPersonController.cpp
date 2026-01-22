@@ -79,29 +79,103 @@ void ComponentFirstPersonController::HandleMovement()
     ComponentCamera* camera = static_cast<ComponentCamera*>(owner->GetComponent(ComponentType::CAMERA));
     if (!camera) return;
 
-    float velocity = movementSpeed * time->GetDeltaTime();
+    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+        owner->GetComponent(ComponentType::RIGIDBODY)
+        );
 
-    glm::vec3 position = transform->GetPosition();
+    float deltaTime = time->GetDeltaTime();
+    if (deltaTime <= 0.0f) return;
+
+    // Calculate directions based on camera orientation
     glm::vec3 forward = camera->GetFront();
     glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 
-    // WASD movement
-    if (keys[SDL_SCANCODE_W])
-        position += forward * velocity;
-    if (keys[SDL_SCANCODE_S])
-        position -= forward * velocity;
-    if (keys[SDL_SCANCODE_A])
-        position -= right * velocity;
-    if (keys[SDL_SCANCODE_D])
-        position += right * velocity;
+    // Forward direction projected onto the horizontal plane (for WASD)
+    glm::vec3 horizontalForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
+    glm::vec3 horizontalRight = glm::normalize(glm::vec3(right.x, 0.0f, right.z));
 
-    // Space/Ctrl for vertical movement
-    if (keys[SDL_SCANCODE_SPACE])
-        position.y += velocity;
-    if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL])
-        position.y -= velocity;
+    if (rigidBody && rigidBody->IsActive())
+    {
+		// with rigidbody
 
-    transform->SetPosition(position);
+        // Make the RigidBody kinematic so it doesn't fall due to gravity
+        if (!rigidBody->IsKinematic())
+        {
+            rigidBody->SetKinematic(true);
+            LOG_DEBUG("[FirstPersonController] Set RigidBody to kinematic mode");
+        }
+
+        glm::vec3 moveDirection(0.0f);
+
+        // WASD movement on the horizontal plane
+        if (keys[SDL_SCANCODE_W])
+            moveDirection += horizontalForward;
+        if (keys[SDL_SCANCODE_S])
+            moveDirection -= horizontalForward;
+        if (keys[SDL_SCANCODE_A])
+            moveDirection -= horizontalRight;
+        if (keys[SDL_SCANCODE_D])
+            moveDirection += horizontalRight;
+
+        // Normalize if moving diagonally
+        if (glm::length(moveDirection) > 0.01f)
+        {
+            moveDirection = glm::normalize(moveDirection);
+        }
+
+        // Vertical movement (up/down)
+        if (keys[SDL_SCANCODE_SPACE])
+            moveDirection.y += 1.0f;
+        if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL])
+            moveDirection.y -= 1.0f;
+
+        // Apply movement directly to position (kinematic mode)
+        if (glm::length(moveDirection) > 0.01f)
+        {
+            glm::vec3 position = transform->GetPosition();
+            glm::vec3 movement = moveDirection * movementSpeed * deltaTime;
+            position += movement;
+            transform->SetPosition(position);
+
+            // Sync with physics
+            rigidBody->SyncTransformToPhysics();
+        }
+
+        // Cancel any residual linear velocity
+        rigidBody->SetVelocity(glm::vec3(0.0f));
+
+        // Cancel angular velocity
+        btRigidBody* btBody = rigidBody->GetBulletRigidBody();
+        if (btBody)
+        {
+            btBody->setAngularVelocity(btVector3(0.0f, 0.0f, 0.0f));
+        }
+    }
+    else
+    {
+		// without rigidbody
+
+        float velocity = movementSpeed * deltaTime;
+        glm::vec3 position = transform->GetPosition();
+
+        // WASD movement on the horizontal plane
+        if (keys[SDL_SCANCODE_W])
+            position += horizontalForward * velocity;
+        if (keys[SDL_SCANCODE_S])
+            position -= horizontalForward * velocity;
+        if (keys[SDL_SCANCODE_A])
+            position -= horizontalRight * velocity;
+        if (keys[SDL_SCANCODE_D])
+            position += horizontalRight * velocity;
+
+        // Space/Ctrl for vertical movement
+        if (keys[SDL_SCANCODE_SPACE])
+            position.y += velocity;
+        if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL])
+            position.y -= velocity;
+
+        transform->SetPosition(position);
+    }
 }
 
 void ComponentFirstPersonController::HandleMouseLook()
@@ -171,6 +245,15 @@ void ComponentFirstPersonController::HandleMouseLook()
     if (transform)
     {
         transform->SetRotationQuat(rotation);
+
+        // Sync with physics if it has a RigidBody
+        ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+            owner->GetComponent(ComponentType::RIGIDBODY)
+            );
+        if (rigidBody && rigidBody->IsActive())
+        {
+            rigidBody->SyncTransformToPhysics();
+        }
     }
 }
 
@@ -193,8 +276,21 @@ void ComponentFirstPersonController::ShootSphere()
         root->AddChild(sphere);
     }
 
-    // Set position slightly in front of camera
-    glm::vec3 spawnPos = camera->GetPosition() + camera->GetFront() * (sphereSize * 2.0f);
+    // Spawn farther away to avoid collision with the camera
+    float spawnDistance = sphereSize * 3.0f;
+
+    // Add an extra offset if the camera has a collider
+    ComponentCollider* cameraCollider = static_cast<ComponentCollider*>(
+        owner->GetComponent(ComponentType::COLLIDER)
+        );
+    if (cameraCollider && cameraCollider->IsActive())
+    {
+        // If the camera has a collider, spawn even farther away
+        spawnDistance += 1.5f;
+    }
+
+    glm::vec3 spawnPos = camera->GetPosition() + camera->GetFront() * spawnDistance;
+
     Transform* sphereTransform = static_cast<Transform*>(sphere->GetComponent(ComponentType::TRANSFORM));
     if (sphereTransform)
     {
@@ -236,13 +332,19 @@ void ComponentFirstPersonController::ShootSphere()
         // Apply impulse in camera direction
         glm::vec3 shootDirection = camera->GetFront();
         rb->ApplyImpulse(shootDirection * shootForce);
+
+        LOG_DEBUG("[FirstPersonController] Fired sphere at (%.2f, %.2f, %.2f) with impulse (%.2f, %.2f, %.2f)",
+            spawnPos.x, spawnPos.y, spawnPos.z,
+            shootDirection.x * shootForce,
+            shootDirection.y * shootForce,
+            shootDirection.z * shootForce);
     }
 
     // Mark octree for rebuild
     Application::GetInstance().scene->MarkOctreeForRebuild();
 
-    LOG_DEBUG("[FirstPersonController] Fired sphere '%s' with force %.2f",
-        sphere->GetName().c_str(), shootForce);
+    LOG_DEBUG("[FirstPersonController] Fired sphere '%s' with force %.2f at distance %.2f",
+        sphere->GetName().c_str(), shootForce, spawnDistance);
 }
 
 void ComponentFirstPersonController::OnEditor()

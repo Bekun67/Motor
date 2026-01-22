@@ -679,7 +679,7 @@ void ModuleEditor::ShowMenuBar()
                 ImGui::Text("Control a vehicle with arrow keys");
                 ImGui::BulletText("Works with or without RigidBody");
                 ImGui::BulletText("Arrow Keys - Move and turn");
-                ImGui::BulletText("Space - Brake");
+                ImGui::BulletText("Left shift - Brake");
                 ImGui::Spacing();
                 ImGui::TextColored(ImVec4(0.7f, 1.0f, 0.7f, 1.0f), "Tip:");
                 ImGui::Text("Add RigidBody + Collider for realistic physics!");

@@ -2243,7 +2243,7 @@ void InspectorWindow::DrawVehicleControllerComponent(GameObject* selectedObject)
         ImGui::BulletText("Arrow Up - Accelerate forward");
         ImGui::BulletText("Arrow Down - Reverse");
         ImGui::BulletText("Arrow Left/Right - Turn");
-        ImGui::BulletText("Space - Brake");
+        ImGui::BulletText("Left shift - Brake");
         ImGui::Unindent();
 
         ImGui::Separator();
