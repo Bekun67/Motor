@@ -5681,6 +5681,7 @@
                         1.7999999523162842
                     ],
                     "breakingThreshold": 0.0,
+                    "connectedBodyIndex": 115,
                     "constraintEnabled": true,
                     "constraintType": 1,
                     "damping": 0.10000000149011612,
@@ -5774,6 +5775,99 @@
             ],
             "isprimitive": true,
             "name": "Sphere"
+        },
+        {
+            "active": true,
+            "children": [],
+            "components": [
+                {
+                    "active": true,
+                    "position": [
+                        0.0,
+                        0.08237099647521973,
+                        -1.6480611562728882
+                    ],
+                    "rotation": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "scale": [
+                        0.19826415181159973,
+                        0.12648707628250122,
+                        0.5956167578697205
+                    ],
+                    "type": 0
+                },
+                {
+                    "active": true,
+                    "primitiveType": "Cube",
+                    "type": 1
+                },
+                {
+                    "active": true,
+                    "hasMaterialProperties": false,
+                    "type": 2,
+                    "useCheckerboard": true
+                },
+                {
+                    "active": true,
+                    "isKinematic": false,
+                    "mass": 1.0,
+                    "type": 5
+                },
+                {
+                    "active": true,
+                    "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "capsuleHeight": 1.0,
+                    "capsuleRadius": 0.5,
+                    "colliderType": 0,
+                    "cylinderHeight": 1.0,
+                    "cylinderRadius": 0.5,
+                    "friction": 0.5,
+                    "internalOffset": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "isTrigger": false,
+                    "manuallyEdited": false,
+                    "planeNormal": [
+                        0.0,
+                        1.0,
+                        0.0
+                    ],
+                    "restitution": 0.0,
+                    "showDebug": false,
+                    "sphereRadius": 0.5,
+                    "type": 6,
+                    "userOffset": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "acceleration": 10.0,
+                    "active": true,
+                    "brakeForce": 20.0,
+                    "drag": 0.9800000190734863,
+                    "forwardAxis": [
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "maxSpeed": 15.0,
+                    "turnSpeed": 288.0,
+                    "type": 9
+                }
+            ],
+            "isprimitive": true,
+            "name": "Cube"
         }
     ],
     "version": 1
