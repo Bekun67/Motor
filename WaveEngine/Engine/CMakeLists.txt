@@ -75,6 +75,8 @@ set(PHYSICS_SRC
     src/ComponentCollider.h
     src/ComponentFirstPersonController.cpp
     src/ComponentFirstPersonController.h
+    src/ComponentVehicleController.cpp
+    src/ComponentVehicleController.h
 )
 
 set(CONSTRAINTS_SRC

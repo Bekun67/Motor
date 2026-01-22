@@ -653,6 +653,39 @@ void ModuleEditor::ShowMenuBar()
                 ImGui::EndTooltip();
             }
 
+            if (ImGui::MenuItem("Vehicle Controller"))
+            {
+                GameObject* selected = Application::GetInstance().selectionManager->GetSelectedObject();
+                if (selected)
+                {
+                    // Verify it doesn't already have one
+                    if (!selected->GetComponent(ComponentType::VEHICLE))
+                    {
+                        selected->CreateVehicleController();
+                        LOG_CONSOLE("Added Vehicle Controller to '%s'", selected->GetName().c_str());
+                    }
+                    else
+                    {
+                        LOG_CONSOLE("GameObject '%s' already has a Vehicle Controller!", selected->GetName().c_str());
+                    }
+                }
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Vehicle Controller");
+                ImGui::Separator();
+                ImGui::Text("Control a vehicle with arrow keys");
+                ImGui::BulletText("Works with or without RigidBody");
+                ImGui::BulletText("Arrow Keys - Move and turn");
+                ImGui::BulletText("Space - Brake");
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.7f, 1.0f, 0.7f, 1.0f), "Tip:");
+                ImGui::Text("Add RigidBody + Collider for realistic physics!");
+                ImGui::EndTooltip();
+            }
+
             ImGui::EndMenu();
         }
 

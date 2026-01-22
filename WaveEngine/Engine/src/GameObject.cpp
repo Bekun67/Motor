@@ -8,6 +8,7 @@
 #include "ComponentRigidBody.h"
 #include "ComponentCollider.h"
 #include "ComponentHingeConstraint.h"
+#include "ComponentVehicleController.h"
 #include <nlohmann/json.hpp>
 
 GameObject::GameObject(const std::string& name) : name(name), active(true), parent(nullptr) {
@@ -87,6 +88,13 @@ Component* GameObject::CreateComponent(ComponentType type) {
         }
         newComponent = new ComponentFirstPersonController(this);
         break;
+    case ComponentType::VEHICLE:
+        if (GetComponent(ComponentType::VEHICLE) != nullptr) {
+            LOG_CONSOLE("GameObject '%s' already has a VehicleController component!", name.c_str());
+            return GetComponent(ComponentType::VEHICLE);
+        }
+        newComponent = new ComponentVehicleController(this);
+        break;
 
     default:
         LOG_DEBUG("ERROR: Unknown component type requested for GameObject '%s'", name.c_str());
@@ -165,6 +173,18 @@ ComponentCollider* GameObject::CreateCollider(ColliderType colliderType)
 ComponentFirstPersonController* GameObject::CreateFirstPersonController()
 {
     ComponentFirstPersonController* controller = new ComponentFirstPersonController(this);
+
+    if (controller) {
+        componentOwners.push_back(std::unique_ptr<Component>(controller));
+        components.push_back(controller);
+    }
+
+    return controller;
+}
+
+ComponentVehicleController* GameObject::CreateVehicleController()
+{
+    ComponentVehicleController* controller = new ComponentVehicleController(this);
 
     if (controller) {
         componentOwners.push_back(std::unique_ptr<Component>(controller));
@@ -337,6 +357,9 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
             }
             else if (type == ComponentType::FIRSTPERSON) {
                 component = newObject->CreateFirstPersonController();
+            }
+            else if (type == ComponentType::VEHICLE) {
+                component = newObject->CreateVehicleController();
             }
             else if (type == ComponentType::CONSTRAINT) {
                 if (componentObj.contains("constraintType")) {

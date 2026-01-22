@@ -14,6 +14,7 @@ enum class ComponentType {
     COLLIDER,
 	CONSTRAINT,
     FIRSTPERSON,
+    VEHICLE,
     UNKNOWN
 };
 

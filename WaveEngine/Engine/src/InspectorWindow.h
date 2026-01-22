@@ -45,6 +45,7 @@ private:
     void DrawDistanceConstraintSettings(ComponentDistanceConstraint* distance, bool isPlaying);
     void DrawConeConstraintSettings(ComponentConeConstraint* cone, bool isPlaying);
     void DrawFirstPersonControllerComponent(GameObject* selectedObject);
+    void DrawVehicleControllerComponent(GameObject* selectedObject);
 
     // Helper methods
     void GetAllGameObjects(GameObject* root, std::vector<GameObject*>& outObjects);

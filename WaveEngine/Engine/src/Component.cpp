@@ -11,6 +11,7 @@ Component::Component(GameObject* owner, ComponentType type) : owner(owner), type
     case ComponentType::COLLIDER: name = "Collider"; break;
     case ComponentType::CONSTRAINT: name = "Constraint"; break;
     case ComponentType::FIRSTPERSON: name = "FirstPersonController"; break;
+    case ComponentType::VEHICLE: name = "VehicleController"; break;
     default: name = "Unknown Component";
     }
 }

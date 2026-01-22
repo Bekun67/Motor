@@ -9,6 +9,7 @@
 #include "ComponentDistanceConstraint.h"
 #include "ComponentConeConstraint.h"
 #include "ComponentFirstPersonController.h"
+#include "ComponentVehicleController.h"
 
 class Component;
 enum class ComponentType;
@@ -65,6 +66,7 @@ public:
     ComponentDistanceConstraint* CreateDistanceConstraint();
     ComponentConeConstraint* CreateConeConstraint();
 	ComponentFirstPersonController* CreateFirstPersonController();
+    ComponentVehicleController* CreateVehicleController();
 
 public:
     std::string name;

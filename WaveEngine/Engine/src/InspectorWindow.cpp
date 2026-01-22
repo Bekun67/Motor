@@ -12,6 +12,7 @@
 #include "ResourceTexture.h"
 #include "ComponentCollider.h"
 #include "ComponentFirstPersonController.h"
+#include "ComponentVehicleController.h"
 #include "Log.h"
 
 InspectorWindow::InspectorWindow()
@@ -87,6 +88,7 @@ void InspectorWindow::Draw()
     DrawColliderComponent(selectedObject);
     DrawConstraintComponents(selectedObject);
     DrawFirstPersonControllerComponent(selectedObject);
+    DrawVehicleControllerComponent(selectedObject);
 
     ImGui::End();
 }
@@ -2047,6 +2049,231 @@ void InspectorWindow::DrawFirstPersonControllerComponent(GameObject* selectedObj
         {
             selectedObject->RemoveComponent(fpc);
             LOG_CONSOLE("Removed First Person Controller from '%s'", selectedObject->GetName().c_str());
+            ImGui::PopStyleColor(3);
+            ImGui::PopID();
+            return;
+        }
+
+        ImGui::PopStyleColor(3);
+        ImGui::Separator();
+
+        ImGui::PopID();
+    }
+}
+
+void InspectorWindow::DrawVehicleControllerComponent(GameObject* selectedObject)
+{
+    ComponentVehicleController* vehicle = static_cast<ComponentVehicleController*>(
+        selectedObject->GetComponent(ComponentType::VEHICLE)
+        );
+
+    if (vehicle == nullptr)
+        return;
+
+    Application::PlayState playState = Application::GetInstance().GetPlayState();
+    bool isPlaying = (playState == Application::PlayState::PLAYING);
+
+    if (ImGui::CollapsingHeader("Vehicle Controller", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::PushID("VehicleController");
+
+        // Active checkbox
+        bool isActive = vehicle->IsActive();
+        if (ImGui::Checkbox("Active##Vehicle", &isActive))
+        {
+            vehicle->SetActive(isActive);
+        }
+
+        ImGui::Separator();
+
+        // Forward Axis Configuration
+        ImGui::Text("Axis Configuration:");
+        ImGui::Spacing();
+
+        glm::vec3 forwardAxis = vehicle->GetForwardAxis();
+
+        // Preset buttons
+        ImGui::Text("Forward Direction Presets:");
+
+        if (ImGui::Button("+Z (Forward)", ImVec2(100, 0)))
+        {
+            vehicle->SetForwardAxis(glm::vec3(0.0f, 0.0f, 1.0f));
+            LOG_DEBUG("Forward axis set to +Z");
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Forward = +Z axis (default)");
+
+        ImGui::SameLine();
+        if (ImGui::Button("-Z (Back)", ImVec2(100, 0)))
+        {
+            vehicle->SetForwardAxis(glm::vec3(0.0f, 0.0f, -1.0f));
+            LOG_DEBUG("Forward axis set to -Z");
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Forward = -Z axis");
+
+        ImGui::SameLine();
+        if (ImGui::Button("+X (Right)", ImVec2(100, 0)))
+        {
+            vehicle->SetForwardAxis(glm::vec3(1.0f, 0.0f, 0.0f));
+            LOG_DEBUG("Forward axis set to +X");
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Forward = +X axis");
+
+        if (ImGui::Button("-X (Left)", ImVec2(100, 0)))
+        {
+            vehicle->SetForwardAxis(glm::vec3(-1.0f, 0.0f, 0.0f));
+            LOG_DEBUG("Forward axis set to -X");
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Forward = -X axis");
+
+        ImGui::SameLine();
+        if (ImGui::Button("+Y (Up)", ImVec2(100, 0)))
+        {
+            vehicle->SetForwardAxis(glm::vec3(0.0f, 1.0f, 0.0f));
+            LOG_DEBUG("Forward axis set to +Y");
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Forward = +Y axis");
+
+        ImGui::SameLine();
+        if (ImGui::Button("-Y (Down)", ImVec2(100, 0)))
+        {
+            vehicle->SetForwardAxis(glm::vec3(0.0f, -1.0f, 0.0f));
+            LOG_DEBUG("Forward axis set to -Y");
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Forward = -Y axis");
+
+        ImGui::Spacing();
+
+        // Manual axis input
+        ImGui::Text("Custom Forward Axis:");
+        if (ImGui::DragFloat3("##ForwardAxis", &forwardAxis.x, 0.01f, -1.0f, 1.0f))
+        {
+            vehicle->SetForwardAxis(forwardAxis);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Custom forward direction (will be normalized)");
+        }
+
+        // Show current normalized axis
+        glm::vec3 normalizedAxis = vehicle->GetForwardAxis();
+        ImGui::Text("Current: (%.2f, %.2f, %.2f)", normalizedAxis.x, normalizedAxis.y, normalizedAxis.z);
+
+        ImGui::Separator();
+
+        // Movement Settings
+        ImGui::Text("Movement Settings:");
+        ImGui::Spacing();
+
+        float acceleration = vehicle->GetAcceleration();
+        if (ImGui::DragFloat("Acceleration", &acceleration, 0.5f, 0.1f, 100.0f))
+        {
+            vehicle->SetAcceleration(acceleration);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Forward/backward acceleration force");
+        }
+
+        float maxSpeed = vehicle->GetMaxSpeed();
+        if (ImGui::DragFloat("Max Speed", &maxSpeed, 0.5f, 1.0f, 100.0f))
+        {
+            vehicle->SetMaxSpeed(maxSpeed);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Maximum forward speed");
+        }
+
+        float turnSpeed = vehicle->GetTurnSpeed();
+        if (ImGui::DragFloat("Turn Speed", &turnSpeed, 1.0f, 10.0f, 360.0f))
+        {
+            vehicle->SetTurnSpeed(turnSpeed);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Rotation speed in degrees per second");
+        }
+
+        ImGui::Separator();
+
+        // Physics Settings
+        ImGui::Text("Physics Settings:");
+        ImGui::Spacing();
+
+        float brakeForce = vehicle->GetBrakeForce();
+        if (ImGui::DragFloat("Brake Force", &brakeForce, 0.5f, 1.0f, 100.0f))
+        {
+            vehicle->SetBrakeForce(brakeForce);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Braking deceleration force (Space key)");
+        }
+
+        float drag = vehicle->GetDrag();
+        if (ImGui::SliderFloat("Drag", &drag, 0.9f, 0.999f, "%.3f"))
+        {
+            vehicle->SetDrag(drag);
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Air resistance (higher = less friction)");
+        }
+
+        ImGui::Separator();
+
+        // Controls info
+        if (isPlaying)
+        {
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "✓ Controls Active");
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "⚠ Controls (Play Mode Only)");
+        }
+
+        ImGui::Spacing();
+        ImGui::Indent();
+        ImGui::BulletText("Arrow Up - Accelerate forward");
+        ImGui::BulletText("Arrow Down - Reverse");
+        ImGui::BulletText("Arrow Left/Right - Turn");
+        ImGui::BulletText("Space - Brake");
+        ImGui::Unindent();
+
+        ImGui::Separator();
+
+        // Info about RigidBody
+        ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+            selectedObject->GetComponent(ComponentType::RIGIDBODY)
+            );
+
+        if (rb)
+        {
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "✓ Using Physics Mode");
+            ImGui::Text("  (RigidBody detected)");
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "ⓘ Using Kinematic Mode");
+            ImGui::Text("  (Add RigidBody for physics)");
+        }
+
+        ImGui::Separator();
+
+        // Remove button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+        if (ImGui::Button("Remove Vehicle Controller", ImVec2(-1, 0)))
+        {
+            selectedObject->RemoveComponent(vehicle);
             ImGui::PopStyleColor(3);
             ImGui::PopID();
             return;
