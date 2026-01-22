@@ -73,6 +73,8 @@ set(PHYSICS_SRC
     src/ComponentRigidBody.h
     src/ComponentCollider.cpp
     src/ComponentCollider.h
+    src/ComponentFirstPersonController.cpp
+    src/ComponentFirstPersonController.h
 )
 
 set(CONSTRAINTS_SRC
