@@ -98,306 +98,6 @@ void ComponentCollider::Disable()
     }
 }
 
-void ComponentCollider::CreateCollisionShape()
-{
-    if (collisionShape != nullptr)
-    {
-        DestroyCollisionShape();
-    }
-
-    Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
-    if (!transform) return;
-
-    glm::mat4 globalMatrix = transform->GetGlobalMatrix();
-
-    glm::vec3 worldPosition;
-    glm::quat worldRotation;
-    glm::vec3 worldScale;
-    glm::vec3 skew;
-    glm::vec4 perspective;
-
-    glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
-
-    ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
-    if (meshComp && meshComp->HasMesh() && !manuallyEdited)
-    {
-        glm::vec3 minBounds = meshComp->GetAABBMin();
-        glm::vec3 maxBounds = meshComp->GetAABBMax();
-        glm::vec3 meshSize = (maxBounds - minBounds);
-        glm::vec3 meshCenter = (minBounds + maxBounds) * 0.5f;
-
-        switch (colliderType)
-        {
-        case ColliderType::BOX:
-            boxSize = meshSize;
-            internalOffset = meshCenter;
-            break;
-        case ColliderType::SPHERE:
-            sphereRadius = glm::max(glm::max(meshSize.x, meshSize.y), meshSize.z) * 0.5f;
-            internalOffset = meshCenter;
-            break;
-        case ColliderType::CYLINDER:
-            cylinderRadius = glm::max(meshSize.x, meshSize.y) * 0.5f;
-            cylinderHeight = meshSize.z;
-            internalOffset = meshCenter;
-            break;
-        case ColliderType::CAPSULE:
-            capsuleRadius = glm::max(meshSize.x, meshSize.y) * 0.5f;
-            capsuleHeight = meshSize.z;
-            internalOffset = meshCenter;
-            break;
-        case ColliderType::PLANE:
-            boxSize = meshSize;
-            internalOffset = meshCenter;
-            planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
-            break;
-        default:
-            break;
-        }
-    }
-
-    // Create the collision shape based on type
-    switch (colliderType)
-    {
-    case ColliderType::BOX:
-        collisionShape = new btBoxShape(btVector3(
-            boxSize.x * 0.5f * worldScale.x,
-            boxSize.y * 0.5f * worldScale.y,
-            boxSize.z * 0.5f * worldScale.z
-        ));
-        break;
-
-    case ColliderType::SPHERE:
-    {
-        float uniformScale = glm::max(glm::max(worldScale.x, worldScale.y), worldScale.z);
-        collisionShape = new btSphereShape(sphereRadius * uniformScale);
-        break;
-    }
-
-    case ColliderType::CYLINDER:
-    {
-        bool usePrimitiveOrientation = false;
-        if (meshComp && meshComp->HasMesh())
-        {
-            usePrimitiveOrientation = meshComp->owner->isPrimitive;
-        }
-
-        if (usePrimitiveOrientation)
-        {
-            btVector3 halfExtents(
-                cylinderRadius * worldScale.x,
-                cylinderHeight * 0.5f * worldScale.y,
-                cylinderRadius * worldScale.z
-            );
-            collisionShape = new btCylinderShape(halfExtents);
-        }
-        else
-        {
-            btVector3 halfExtents(
-                cylinderRadius * worldScale.x,
-                cylinderRadius * worldScale.y,
-                cylinderHeight * 0.5f * worldScale.z
-            );
-            collisionShape = new btCylinderShapeZ(halfExtents);
-        }
-        break;
-    }
-
-    case ColliderType::CAPSULE:
-    {
-        bool usePrimitiveOrientation = false;
-        if (meshComp && meshComp->HasMesh())
-        {
-            usePrimitiveOrientation = meshComp->owner->isPrimitive;
-        }
-
-        if (usePrimitiveOrientation)
-        {
-            float radialScale = glm::max(worldScale.x, worldScale.z);
-            float scaledRadius = capsuleRadius * radialScale;
-
-            float halfHeight = capsuleHeight * 0.5f * worldScale.y;
-
-            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
-
-            collisionShape = new btCapsuleShape(
-                scaledRadius,
-                cylinderHalfHeight * 2.0f * 1.2f
-            );
-        }
-        else
-        {
-            float radialScale = glm::max(worldScale.x, worldScale.y);
-            float scaledRadius = capsuleRadius * radialScale;
-
-            float halfHeight = capsuleHeight * 0.5f * worldScale.z;
-
-            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
-
-            collisionShape = new btCapsuleShapeZ(
-                scaledRadius,
-                cylinderHalfHeight * 2.0f * 1.2f
-            );
-        }
-        break;
-    }
-
-    case ColliderType::PLANE:
-    {
-        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
-        bool usePrimitiveOrientation = false;
-        if (meshComp && meshComp->HasMesh())
-        {
-            usePrimitiveOrientation = meshComp->owner->isPrimitive;
-        }
-
-        float planeThickness = 0.1f;
-
-        if (usePrimitiveOrientation)
-        {
-            collisionShape = new btBoxShape(btVector3(
-                boxSize.x * 0.5f * worldScale.x,
-                planeThickness * 0.5f * worldScale.y, 
-                boxSize.z * 0.5f * worldScale.z
-            ));
-        }
-        else
-        {
-            collisionShape = new btBoxShape(btVector3(
-                boxSize.x * 0.5f * worldScale.x,
-                boxSize.y * 0.5f * worldScale.y,
-                planeThickness * 0.5f * worldScale.z 
-            ));
-        }
-
-        LOG_DEBUG("[ComponentCollider] Created Plane Collider");
-        break;
-    }
-
-    case ColliderType::MESH:
-        if (meshComp && meshComp->HasMesh())
-        {
-            const Mesh& mesh = meshComp->GetMesh();
-            btConvexHullShape* convexHull = new btConvexHullShape();
-
-            for (const auto& vertex : mesh.vertices)
-            {
-                convexHull->addPoint(btVector3(vertex.position.x, vertex.position.y, vertex.position.z), false);
-            }
-
-            convexHull->recalcLocalAabb();
-            convexHull->setLocalScaling(btVector3(worldScale.x, worldScale.y, worldScale.z));
-            convexHull->setMargin(0.04f);
-
-            collisionShape = convexHull;
-
-            LOG_DEBUG("[ComponentCollider] Created convex hull with %d vertices", mesh.vertices.size());
-        }
-        else
-        {
-            collisionShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
-        }
-        break;
-    }
-
-    if (!collisionShape)
-    {
-        LOG_DEBUG("[ComponentCollider] Failed to create collision shape");
-        return;
-    }
-
-    offsetPosition = internalOffset + userOffset;
-
-    // Check if there's a rigidbody component
-    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
-        owner->GetComponent(ComponentType::RIGIDBODY)
-        );
-
-    if (rigidBody && rigidBody->IsActive())
-    {
-        LOG_CONSOLE("[Collider] Found RigidBody, attaching to it");
-
-        if (collisionObject)
-        {
-            ModulePhysics* physics = Application::GetInstance().physics.get();
-            if (physics && physics->GetDynamicsWorld())
-            {
-                physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
-            }
-
-            delete collisionObject;
-            collisionObject = nullptr;
-        }
-
-        isAttachedToRigidBody = true;
-
-        // Force RigidBody to rebuild and include this collider
-        rigidBody->CreateRigidBody();
-
-        // Remove ghost mode now that there's an explicit collider
-        btRigidBody* btBody = rigidBody->GetBulletRigidBody();
-        if (btBody)
-        {
-			// enable contact response
-            btBody->setCollisionFlags(
-                btBody->getCollisionFlags() &
-                ~btCollisionObject::CF_NO_CONTACT_RESPONSE
-            );
-
-            btBody->setFriction(friction);
-            btBody->setRestitution(restitution);
-
-            LOG_DEBUG("[ComponentCollider] Enabled physical collisions, removed ghost mode");
-        }
-
-        LOG_DEBUG("[ComponentCollider] Created %s shape, triggering RigidBody rebuild",
-            GetColliderTypeName().c_str());
-
-        return;
-    }
-
-    // If there's NO RigidBody, create a standalone collision object
-    LOG_CONSOLE("[Collider] No RigidBody found, creating standalone");
-
-    isAttachedToRigidBody = false;
-
-    glm::mat4 rotationMatrix = glm::mat4_cast(worldRotation);
-    glm::vec3 scaledOffset = offsetPosition * worldScale;
-    glm::vec3 rotatedOffset = glm::vec3(rotationMatrix * glm::vec4(scaledOffset, 0.0f));
-    glm::vec3 finalPosition = worldPosition + rotatedOffset;
-
-    btTransform startTransform;
-    startTransform.setIdentity();
-    startTransform.setOrigin(btVector3(finalPosition.x, finalPosition.y, finalPosition.z));
-    startTransform.setRotation(btQuaternion(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w));
-
-    collisionObject = new btCollisionObject();
-    collisionObject->setCollisionShape(collisionShape);
-    collisionObject->setWorldTransform(startTransform);
-    collisionObject->setFriction(friction);
-    collisionObject->setRestitution(restitution);
-
-    if (isTrigger)
-    {
-        collisionObject->setCollisionFlags(
-            collisionObject->getCollisionFlags() |
-            btCollisionObject::CF_NO_CONTACT_RESPONSE
-        );
-    }
-
-    collisionObject->setUserPointer(owner);
-
-    ModulePhysics* physics = Application::GetInstance().physics.get();
-    if (physics && physics->GetDynamicsWorld())
-    {
-        physics->GetDynamicsWorld()->addCollisionObject(collisionObject);
-    }
-
-    LOG_DEBUG("[ComponentCollider] Created standalone %s collider for '%s'",
-        GetColliderTypeName().c_str(),
-        owner->GetName().c_str());
-}
-
 void ComponentCollider::RemoveFromRigidBody()
 {
     if (!isAttachedToRigidBody || !collisionShape) return;
@@ -528,6 +228,348 @@ void ComponentCollider::UpdateCollisionShape()
     CreateCollisionShape();
 }
 
+void ComponentCollider::CreateCollisionShape()
+{
+    if (collisionShape != nullptr)
+    {
+        DestroyCollisionShape();
+    }
+
+    Transform* transform = static_cast<Transform*>(owner->GetComponent(ComponentType::TRANSFORM));
+    if (!transform) return;
+
+    glm::mat4 globalMatrix = transform->GetGlobalMatrix();
+
+    glm::vec3 worldPosition;
+    glm::quat worldRotation;
+    glm::vec3 worldScale;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+
+    glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
+
+    ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+    if (meshComp && meshComp->HasMesh() && !manuallyEdited)
+    {
+        glm::vec3 minBounds = meshComp->GetAABBMin();
+        glm::vec3 maxBounds = meshComp->GetAABBMax();
+        glm::vec3 meshSize = (maxBounds - minBounds);
+        glm::vec3 meshCenter = (minBounds + maxBounds) * 0.5f;
+
+        switch (colliderType)
+        {
+        case ColliderType::BOX:
+            boxSize = meshSize;
+            internalOffset = meshCenter;
+            break;
+        case ColliderType::SPHERE:
+            sphereRadius = glm::max(glm::max(meshSize.x, meshSize.y), meshSize.z) * 0.5f;
+            internalOffset = meshCenter;
+            break;
+        case ColliderType::CYLINDER:
+            cylinderRadius = glm::max(meshSize.x, meshSize.y) * 0.5f;
+            cylinderHeight = meshSize.z;
+            internalOffset = meshCenter;
+            break;
+        case ColliderType::CAPSULE:
+            capsuleRadius = glm::max(meshSize.x, meshSize.y) * 0.5f;
+            capsuleHeight = meshSize.z;
+            internalOffset = meshCenter;
+            break;
+        case ColliderType::PLANE:
+            boxSize = meshSize;
+            internalOffset = meshCenter;
+            planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+            break;
+        default:
+            break;
+        }
+    }
+    else if (!manuallyEdited)
+    {
+        switch (colliderType)
+        {
+        case ColliderType::BOX:
+            boxSize = glm::vec3(1.0f, 1.0f, 1.0f);
+            internalOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+            break;
+        case ColliderType::SPHERE:
+            if (sphereRadius <= 0.0f) {
+                sphereRadius = 0.5f;
+            }
+            internalOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+            break;
+        case ColliderType::CYLINDER:
+            cylinderRadius = 0.5f;
+            cylinderHeight = 1.0f;
+            internalOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+            break;
+        case ColliderType::CAPSULE:
+            capsuleRadius = 0.5f;
+            capsuleHeight = 1.0f;
+            internalOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+            break;
+        case ColliderType::PLANE:
+            boxSize = glm::vec3(5.0f, 5.0f, 0.1f);
+            internalOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+            planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+            break;
+        default:
+            break;
+        }
+    }
+
+    // Create the collision shape based on type
+    switch (colliderType)
+    {
+    case ColliderType::BOX:
+        collisionShape = new btBoxShape(btVector3(
+            boxSize.x * 0.5f * worldScale.x,
+            boxSize.y * 0.5f * worldScale.y,
+            boxSize.z * 0.5f * worldScale.z
+        ));
+        break;
+
+    case ColliderType::SPHERE:
+    {
+        if (sphereRadius <= 0.0f) {
+            sphereRadius = 0.5f;
+            LOG_DEBUG("[ComponentCollider] Warning: sphereRadius was 0, set to default 0.5f");
+        }
+
+        float uniformScale = glm::max(glm::max(worldScale.x, worldScale.y), worldScale.z);
+        collisionShape = new btSphereShape(sphereRadius * uniformScale);
+
+        LOG_DEBUG("[ComponentCollider] Created Sphere Collider - radius: %.2f, scale: %.2f, final: %.2f",
+            sphereRadius, uniformScale, sphereRadius * uniformScale);
+        break;
+    }
+
+    case ColliderType::CYLINDER:
+    {
+        bool usePrimitiveOrientation = false;
+        if (meshComp && meshComp->HasMesh())
+        {
+            usePrimitiveOrientation = meshComp->owner->isPrimitive;
+        }
+
+        if (usePrimitiveOrientation)
+        {
+            btVector3 halfExtents(
+                cylinderRadius * worldScale.x,
+                cylinderHeight * 0.5f * worldScale.y,
+                cylinderRadius * worldScale.z
+            );
+            collisionShape = new btCylinderShape(halfExtents);
+        }
+        else
+        {
+            btVector3 halfExtents(
+                cylinderRadius * worldScale.x,
+                cylinderRadius * worldScale.y,
+                cylinderHeight * 0.5f * worldScale.z
+            );
+            collisionShape = new btCylinderShapeZ(halfExtents);
+        }
+        break;
+    }
+
+    case ColliderType::CAPSULE:
+    {
+        bool usePrimitiveOrientation = false;
+        if (meshComp && meshComp->HasMesh())
+        {
+            usePrimitiveOrientation = meshComp->owner->isPrimitive;
+        }
+
+        if (usePrimitiveOrientation)
+        {
+            float radialScale = glm::max(worldScale.x, worldScale.z);
+            float scaledRadius = capsuleRadius * radialScale;
+
+            float halfHeight = capsuleHeight * 0.5f * worldScale.y;
+
+            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
+
+            collisionShape = new btCapsuleShape(
+                scaledRadius,
+                cylinderHalfHeight * 2.0f * 1.2f
+            );
+        }
+        else
+        {
+            float radialScale = glm::max(worldScale.x, worldScale.y);
+            float scaledRadius = capsuleRadius * radialScale;
+
+            float halfHeight = capsuleHeight * 0.5f * worldScale.z;
+
+            float cylinderHalfHeight = glm::max(0.01f, halfHeight - scaledRadius);
+
+            collisionShape = new btCapsuleShapeZ(
+                scaledRadius,
+                cylinderHalfHeight * 2.0f * 1.2f
+            );
+        }
+        break;
+    }
+
+    case ColliderType::PLANE:
+    {
+        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+        bool usePrimitiveOrientation = false;
+        if (meshComp && meshComp->HasMesh())
+        {
+            usePrimitiveOrientation = meshComp->owner->isPrimitive;
+        }
+
+        float planeThickness = 0.1f;
+
+        if (usePrimitiveOrientation)
+        {
+            collisionShape = new btBoxShape(btVector3(
+                boxSize.x * 0.5f * worldScale.x,
+                planeThickness * 0.5f * worldScale.y, 
+                boxSize.z * 0.5f * worldScale.z
+            ));
+        }
+        else
+        {
+            collisionShape = new btBoxShape(btVector3(
+                boxSize.x * 0.5f * worldScale.x,
+                boxSize.y * 0.5f * worldScale.y,
+                planeThickness * 0.5f * worldScale.z 
+            ));
+        }
+
+        LOG_DEBUG("[ComponentCollider] Created Plane Collider");
+        break;
+    }
+
+    case ColliderType::MESH:
+        if (meshComp && meshComp->HasMesh())
+        {
+            const Mesh& mesh = meshComp->GetMesh();
+            btConvexHullShape* convexHull = new btConvexHullShape();
+
+            for (const auto& vertex : mesh.vertices)
+            {
+                convexHull->addPoint(btVector3(vertex.position.x, vertex.position.y, vertex.position.z), false);
+            }
+
+            convexHull->recalcLocalAabb();
+            convexHull->setLocalScaling(btVector3(worldScale.x, worldScale.y, worldScale.z));
+            convexHull->setMargin(0.04f);
+
+            collisionShape = convexHull;
+
+            LOG_DEBUG("[ComponentCollider] Created convex hull with %d vertices", mesh.vertices.size());
+        }
+        else
+        {
+            LOG_DEBUG("[ComponentCollider] No mesh found for MESH collider, creating default box");
+            collisionShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
+        }
+        break;
+    }
+
+    if (!collisionShape)
+    {
+        LOG_DEBUG("[ComponentCollider] Failed to create collision shape");
+        return;
+    }
+
+    offsetPosition = internalOffset + userOffset;
+
+    // Check if there's a rigidbody component
+    ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
+        owner->GetComponent(ComponentType::RIGIDBODY)
+        );
+
+    if (rigidBody && rigidBody->IsActive())
+    {
+        LOG_CONSOLE("[Collider] Found RigidBody, attaching to it");
+
+        if (collisionObject)
+        {
+            ModulePhysics* physics = Application::GetInstance().physics.get();
+            if (physics && physics->GetDynamicsWorld())
+            {
+                physics->GetDynamicsWorld()->removeCollisionObject(collisionObject);
+            }
+
+            delete collisionObject;
+            collisionObject = nullptr;
+        }
+
+        isAttachedToRigidBody = true;
+
+        // Force RigidBody to rebuild and include this collider
+        rigidBody->CreateRigidBody();
+
+        // Remove ghost mode now that there's an explicit collider
+        btRigidBody* btBody = rigidBody->GetBulletRigidBody();
+        if (btBody)
+        {
+			// enable contact response
+            btBody->setCollisionFlags(
+                btBody->getCollisionFlags() &
+                ~btCollisionObject::CF_NO_CONTACT_RESPONSE
+            );
+
+            btBody->setFriction(friction);
+            btBody->setRestitution(restitution);
+
+            LOG_DEBUG("[ComponentCollider] Enabled physical collisions, removed ghost mode");
+        }
+
+        LOG_DEBUG("[ComponentCollider] Created %s shape, triggering RigidBody rebuild",
+            GetColliderTypeName().c_str());
+
+        return;
+    }
+
+    // If there's NO RigidBody, create a standalone collision object
+    LOG_CONSOLE("[Collider] No RigidBody found, creating standalone");
+
+    isAttachedToRigidBody = false;
+
+    glm::mat4 rotationMatrix = glm::mat4_cast(worldRotation);
+    glm::vec3 scaledOffset = offsetPosition * worldScale;
+    glm::vec3 rotatedOffset = glm::vec3(rotationMatrix * glm::vec4(scaledOffset, 0.0f));
+    glm::vec3 finalPosition = worldPosition + rotatedOffset;
+
+    btTransform startTransform;
+    startTransform.setIdentity();
+    startTransform.setOrigin(btVector3(finalPosition.x, finalPosition.y, finalPosition.z));
+    startTransform.setRotation(btQuaternion(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w));
+
+    collisionObject = new btCollisionObject();
+    collisionObject->setCollisionShape(collisionShape);
+    collisionObject->setWorldTransform(startTransform);
+    collisionObject->setFriction(friction);
+    collisionObject->setRestitution(restitution);
+
+    if (isTrigger)
+    {
+        collisionObject->setCollisionFlags(
+            collisionObject->getCollisionFlags() |
+            btCollisionObject::CF_NO_CONTACT_RESPONSE
+        );
+    }
+
+    collisionObject->setUserPointer(owner);
+
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (physics && physics->GetDynamicsWorld())
+    {
+        physics->GetDynamicsWorld()->addCollisionObject(collisionObject);
+    }
+
+    LOG_DEBUG("[ComponentCollider] Created standalone %s collider for '%s'",
+        GetColliderTypeName().c_str(),
+        owner->GetName().c_str());
+}
+
 void ComponentCollider::UpdateShapeInCompound()
 {
     if (!isAttachedToRigidBody)
@@ -583,6 +625,9 @@ void ComponentCollider::UpdateShapeInCompound()
     glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
 
     // Create new collision shape based on type (same logic as CreateCollisionShape)
+    ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
+    bool usePrimitiveOrientation = meshComp && meshComp->HasMesh() && meshComp->owner->isPrimitive;
+
     switch (colliderType)
     {
     case ColliderType::BOX:
@@ -602,9 +647,6 @@ void ComponentCollider::UpdateShapeInCompound()
 
     case ColliderType::CYLINDER:
     {
-        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
-        bool usePrimitiveOrientation = meshComp && meshComp->HasMesh() && meshComp->owner->isPrimitive;
-
         if (usePrimitiveOrientation)
         {
             btVector3 halfExtents(
@@ -628,9 +670,6 @@ void ComponentCollider::UpdateShapeInCompound()
 
     case ColliderType::CAPSULE:
     {
-        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
-        bool usePrimitiveOrientation = meshComp && meshComp->HasMesh() && meshComp->owner->isPrimitive;
-
         if (usePrimitiveOrientation)
         {
             float radialScale = glm::max(worldScale.x, worldScale.z);
@@ -652,8 +691,6 @@ void ComponentCollider::UpdateShapeInCompound()
 
     case ColliderType::PLANE:
     {
-        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
-        bool usePrimitiveOrientation = meshComp && meshComp->HasMesh() && meshComp->owner->isPrimitive;
         float planeThickness = 0.1f;
 
         if (usePrimitiveOrientation)
@@ -677,7 +714,6 @@ void ComponentCollider::UpdateShapeInCompound()
 
     case ColliderType::MESH:
     {
-        ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
         if (meshComp && meshComp->HasMesh())
         {
             const Mesh& mesh = meshComp->GetMesh();

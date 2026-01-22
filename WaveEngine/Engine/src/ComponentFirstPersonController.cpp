@@ -21,6 +21,7 @@ ComponentFirstPersonController::ComponentFirstPersonController(GameObject* owner
     shootForce(20.0f),
     sphereSize(0.5f),
     mouseSensitivity(0.2f),
+    colliderRadius(0.5f),
     yaw(-90.0f),
     pitch(0.0f),
     firstMouse(true),
@@ -30,6 +31,8 @@ ComponentFirstPersonController::ComponentFirstPersonController(GameObject* owner
 {
     name = "FirstPersonController";
     LOG_CONSOLE("[FirstPersonController] Created on '%s'", owner->GetName().c_str());
+    CreatePlayerRigidBody();
+    CreatePlayerCollider();
 }
 
 ComponentFirstPersonController::~ComponentFirstPersonController()
@@ -347,6 +350,39 @@ void ComponentFirstPersonController::ShootSphere()
         sphere->GetName().c_str(), shootForce, spawnDistance);
 }
 
+void ComponentFirstPersonController::CreatePlayerCollider()
+{
+    ComponentCollider* existingCollider = static_cast<ComponentCollider*>(
+        owner->GetComponent(ComponentType::COLLIDER)
+        );
+
+    if (!existingCollider)
+    {
+        ComponentCollider* collider = owner->CreateCollider(ColliderType::SPHERE);
+        if (collider)
+        {
+            collider->SetSphereRadius(colliderRadius);
+            collider->SetFriction(0.3f);
+            collider->SetRestitution(0.0f);
+            LOG_CONSOLE("[FirstPersonController] Created sphere collider with radius %.2f", colliderRadius);
+        }
+    }
+}
+
+void ComponentFirstPersonController::SetColliderRadius(float radius)
+{
+    colliderRadius = radius;
+
+    ComponentCollider* collider = static_cast<ComponentCollider*>(
+        owner->GetComponent(ComponentType::COLLIDER)
+        );
+
+    if (collider && collider->GetColliderType() == ColliderType::SPHERE)
+    {
+        collider->SetSphereRadius(colliderRadius);
+    }
+}
+
 void ComponentFirstPersonController::OnEditor()
 {
     // This will be called from InspectorWindow
@@ -358,6 +394,7 @@ void ComponentFirstPersonController::Serialize(nlohmann::json& componentObj) con
     componentObj["shootForce"] = shootForce;
     componentObj["sphereSize"] = sphereSize;
     componentObj["mouseSensitivity"] = mouseSensitivity;
+    componentObj["colliderRadius"] = colliderRadius;
 }
 
 void ComponentFirstPersonController::Deserialize(const nlohmann::json& componentObj)
@@ -373,4 +410,29 @@ void ComponentFirstPersonController::Deserialize(const nlohmann::json& component
 
     if (componentObj.contains("mouseSensitivity"))
         mouseSensitivity = componentObj["mouseSensitivity"].get<float>();
+
+    if (componentObj.contains("colliderRadius"))
+        colliderRadius = componentObj["colliderRadius"].get<float>();
+}
+
+void ComponentFirstPersonController::CreatePlayerRigidBody()
+{
+    ComponentRigidBody* existingRigidBody = static_cast<ComponentRigidBody*>(
+        owner->GetComponent(ComponentType::RIGIDBODY)
+        );
+
+    if (!existingRigidBody)
+    {
+        ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+            owner->CreateComponent(ComponentType::RIGIDBODY)
+            );
+
+        if (rb)
+        {
+            rb->SetMass(1.0f);
+            rb->SetKinematic(true);
+
+            LOG_CONSOLE("[FirstPersonController] Created RigidBody with mass 1.0 (kinematic)");
+        }
+    }
 }

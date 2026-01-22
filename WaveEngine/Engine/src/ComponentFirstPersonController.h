@@ -23,12 +23,14 @@ public:
     float GetShootForce() const { return shootForce; }
     float GetSphereSize() const { return sphereSize; }
     float GetMouseSensitivity() const { return mouseSensitivity; }
+    float GetColliderRadius() const { return colliderRadius; }
 
     // Setters
     void SetMovementSpeed(float speed) { movementSpeed = speed; }
     void SetShootForce(float force) { shootForce = force; }
     void SetSphereSize(float size) { sphereSize = size; }
     void SetMouseSensitivity(float sensitivity) { mouseSensitivity = sensitivity; }
+    void SetColliderRadius(float radius);
 
 private:
     void HandleMovement();
@@ -36,10 +38,14 @@ private:
     void ShootSphere();
 
     // Configuration
+    void CreatePlayerCollider();
+    void CreatePlayerRigidBody();
+    
     float movementSpeed;
     float shootForce;
     float sphereSize;
     float mouseSensitivity;
+    float colliderRadius;
 
     // Mouse control
     float yaw;

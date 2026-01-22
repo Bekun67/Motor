@@ -944,6 +944,13 @@ void InspectorWindow::DrawRigidBodyComponent(GameObject* selectedObject)
     if (rigidBody == nullptr)
         return;
 
+    ComponentFirstPersonController* fpc = static_cast<ComponentFirstPersonController*>(
+        selectedObject->GetComponent(ComponentType::FIRSTPERSON)
+        );
+
+    if (fpc != nullptr)
+        return;
+
     if (ImGui::CollapsingHeader("RigidBody", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::PushID("RigidBody");
@@ -1039,6 +1046,7 @@ void InspectorWindow::DrawRigidBodyComponent(GameObject* selectedObject)
         ImGui::PopID();
     }
 }
+
 void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
 {
     std::vector<Component*> colliders = selectedObject->GetComponentsOfType(ComponentType::COLLIDER);
@@ -1047,6 +1055,10 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
         return;
 
 	// Verify if in play mode
+    ComponentFirstPersonController* fpc = static_cast<ComponentFirstPersonController*>(
+        selectedObject->GetComponent(ComponentType::FIRSTPERSON)
+        );
+
     Application::PlayState playState = Application::GetInstance().GetPlayState();
     bool isPlaying = (playState == Application::PlayState::PLAYING);
 
@@ -1057,6 +1069,11 @@ void InspectorWindow::DrawColliderComponent(GameObject* selectedObject)
 
         if (collider == nullptr)
             continue;
+
+        if (fpc && collider->GetColliderType() == ColliderType::SPHERE)
+        {
+            continue;
+        }
 
         ImGui::PushID(static_cast<int>(colliderIndex));
 
@@ -1993,6 +2010,103 @@ void InspectorWindow::DrawFirstPersonControllerComponent(GameObject* selectedObj
         ImGui::Separator();
 
         // Projectile Settings
+        ImGui::Text("Player Collider:");
+        ImGui::Spacing();
+
+        ComponentCollider* collider = static_cast<ComponentCollider*>(
+            selectedObject->GetComponent(ComponentType::COLLIDER)
+            );
+
+        if (collider && collider->GetColliderType() == ColliderType::SPHERE)
+        {
+            bool colliderActive = collider->IsActive();
+            if (ImGui::Checkbox("Collider Active", &colliderActive))
+            {
+                collider->SetActive(colliderActive);
+            }
+
+            ImGui::SameLine();
+
+            bool showDebug = collider->GetShowDebug();
+            if (ImGui::Checkbox("Show Debug", &showDebug))
+            {
+                collider->SetShowDebug(showDebug);
+            }
+
+            float colliderRadius = fpc->GetColliderRadius();
+            if (ImGui::DragFloat("Collider Radius", &colliderRadius, 0.05f, 0.1f, 5.0f))
+            {
+                fpc->SetColliderRadius(colliderRadius);
+                LOG_DEBUG("Collider radius changed to: %.2f", colliderRadius);
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Radius of the sphere collider around the player");
+            }
+
+            float friction = collider->GetFriction();
+            if (ImGui::SliderFloat("Friction", &friction, 0.0f, 1.0f))
+            {
+                collider->SetFriction(friction);
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Surface friction (0 = slippery, 1 = rough)");
+            }
+
+            float restitution = collider->GetRestitution();
+            if (ImGui::SliderFloat("Bounciness", &restitution, 0.0f, 1.0f))
+            {
+                collider->SetRestitution(restitution);
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Bounciness (0 = no bounce, 1 = perfect bounce)");
+            }
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "No sphere collider found!");
+            ImGui::Text("Add a sphere collider to enable player collision");
+        }
+
+        ImGui::Separator();
+
+        ImGui::Text("Physics Settings:");
+        ImGui::Spacing();
+
+        ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+            selectedObject->GetComponent(ComponentType::RIGIDBODY)
+            );
+
+        if (rb)
+        {
+            float mass = rb->GetMass();
+            if (ImGui::DragFloat("Mass", &mass, 0.1f, 0.1f, 100.0f))
+            {
+                rb->SetMass(mass);
+                LOG_DEBUG("Player mass changed to: %.2f", mass);
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Mass of the player (affects physics interactions)");
+            }
+
+            glm::vec3 velocity = rb->GetVelocity();
+            ImGui::Text("Current Velocity: (%.2f, %.2f, %.2f)", velocity.x, velocity.y, velocity.z);
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Current movement velocity (read-only)");
+            }
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "No RigidBody found!");
+        }
+
+        ImGui::Separator();
+
         ImGui::Text("Projectile Settings:");
         ImGui::Spacing();
 
@@ -2047,8 +2161,27 @@ void InspectorWindow::DrawFirstPersonControllerComponent(GameObject* selectedObj
 
         if (ImGui::Button("Remove First Person Controller", ImVec2(-1, 0)))
         {
+            ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+                selectedObject->GetComponent(ComponentType::RIGIDBODY)
+                );
+            if (rb)
+            {
+                selectedObject->RemoveComponent(rb);
+                LOG_DEBUG("Removed RigidBody from '%s'", selectedObject->GetName().c_str());
+            }
+
+            ComponentCollider* collider = static_cast<ComponentCollider*>(
+                selectedObject->GetComponent(ComponentType::COLLIDER)
+                );
+            if (collider)
+            {
+                selectedObject->RemoveComponent(collider);
+                LOG_DEBUG("Removed Collider from '%s'", selectedObject->GetName().c_str());
+            }
+
             selectedObject->RemoveComponent(fpc);
-            LOG_CONSOLE("Removed First Person Controller from '%s'", selectedObject->GetName().c_str());
+            LOG_CONSOLE("Removed First Person Controller (with RigidBody and Collider) from '%s'", selectedObject->GetName().c_str());
+
             ImGui::PopStyleColor(3);
             ImGui::PopID();
             return;
