@@ -98,11 +98,10 @@ void ComponentVehicleController::ApplyMovement()
     // Get current rotation
     glm::quat currentRotation = transform->GetRotationQuat();
 
-    // Calculate forward direction using the configured forward axis
-    glm::vec3 forward = glm::rotate(currentRotation, forwardAxis);
-
     if (rigidBody && rigidBody->IsActive())
     {
+		// with RigidBody
+
         // Get current velocity from RigidBody
         glm::vec3 currentVel = rigidBody->GetVelocity();
 
@@ -110,32 +109,50 @@ void ComponentVehicleController::ApplyMovement()
         glm::vec3 horizontalVel = glm::vec3(currentVel.x, 0.0f, currentVel.z);
         currentSpeed = glm::length(horizontalVel);
 
-        // Apply rotation
+		// apply rotation
         if (glm::abs(turnInput) > 0.01f)
         {
             // Calculate turn amount
             float turnAmount = turnInput * turnSpeed * deltaTime;
 
-            // Only turn if we're moving (no turning in place)
-            if (currentSpeed > 0.5f)
+            if (currentSpeed > 0.1f) 
             {
-                // Turn faster when moving faster (but cap it)
-                float speedFactor = glm::min(currentSpeed / maxSpeed, 1.0f);
+                float speedFactor = glm::clamp(currentSpeed / (maxSpeed * 0.3f), 0.3f, 1.5f);
                 turnAmount *= speedFactor;
             }
             else
             {
-                // Allow slower turning even when almost stopped
-                turnAmount *= 0.3f;
+                turnAmount *= 0.5f;
             }
 
             // Apply rotation around Y axis (up)
             glm::quat turnRotation = glm::angleAxis(glm::radians(turnAmount), glm::vec3(0.0f, 1.0f, 0.0f));
             glm::quat newRotation = turnRotation * currentRotation;
-            transform->SetRotationQuat(newRotation);
 
-            // Update forward direction with new rotation
-            forward = glm::rotate(newRotation, forwardAxis);
+			// update transform rotation
+            transform->SetRotationQuat(newRotation);
+            rigidBody->SyncTransformToPhysics();
+
+            currentRotation = newRotation;
+        }
+
+		// calculate rotated forward and right vectors
+        glm::vec3 forward = glm::rotate(currentRotation, forwardAxis);
+        glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        if (currentSpeed > 0.1f)
+        {
+            glm::vec3 forwardVel = forward * glm::dot(horizontalVel, forward);
+            glm::vec3 rightVel = right * glm::dot(horizontalVel, right);
+
+			// reduce lateral velocity
+            float lateralFriction = 0.85f; 
+            glm::vec3 correctedVel = forwardVel + rightVel * lateralFriction;
+
+			// Mantain current vertical velocity
+            correctedVel.y = currentVel.y;
+
+            rigidBody->SetVelocity(correctedVel);
         }
 
         // Calculate target force
@@ -152,39 +169,18 @@ void ComponentVehicleController::ApplyMovement()
         }
         else if (glm::abs(forwardInput) > 0.01f)
         {
-            // Calculate if we're accelerating in the direction we're already moving
-            bool acceleratingForward = (forwardInput > 0.0f);
-            float velocityDotForward = glm::dot(glm::normalize(horizontalVel), forward);
+            targetForce = forward * forwardInput * acceleration;
 
-            // Check if we should apply force
-            bool shouldAccelerate = false;
+            if (currentSpeed > 0.1f)
+            {
+                glm::vec3 velDirection = glm::normalize(horizontalVel);
+                float alignment = glm::dot(velDirection, forward);
 
-            if (currentSpeed < 0.1f)
-            {
-                // Always allow acceleration from standstill
-                shouldAccelerate = true;
-            }
-            else if (acceleratingForward && velocityDotForward > 0.3f && currentSpeed < maxSpeed)
-            {
-                // Accelerating forward and already moving forward
-                shouldAccelerate = true;
-            }
-            else if (!acceleratingForward && velocityDotForward < -0.3f && currentSpeed < maxSpeed * 0.5f)
-            {
-                // Accelerating backward and already moving backward
-                shouldAccelerate = true;
-            }
-            else if ((acceleratingForward && velocityDotForward < 0.0f) ||
-                (!acceleratingForward && velocityDotForward > 0.0f))
-            {
-                // Changing direction - apply braking force first
-                shouldAccelerate = true;
-            }
-
-            if (shouldAccelerate)
-            {
-                // Apply acceleration force in the forward direction
-                targetForce = forward * forwardInput * acceleration;
+                if ((forwardInput > 0.0f && alignment < -0.3f) ||
+                    (forwardInput < 0.0f && alignment > 0.3f))
+                {
+                    targetForce += -velDirection * brakeForce * 0.5f;
+                }
             }
         }
         else
@@ -205,7 +201,9 @@ void ComponentVehicleController::ApplyMovement()
     }
     else
     {
+		// Without RigidBody
         glm::vec3 position = transform->GetPosition();
+        glm::vec3 forward = glm::rotate(currentRotation, forwardAxis);
 
         // Apply rotation 
         if (glm::abs(turnInput) > 0.01f)
