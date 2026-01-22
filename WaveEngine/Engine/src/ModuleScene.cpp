@@ -283,7 +283,8 @@ bool ModuleScene::LoadScene(const std::string& filepath)
 
     try {
         file >> document;
-    } catch (const nlohmann::json::parse_error& e) {
+    }
+    catch (const nlohmann::json::parse_error& e) {
         LOG_CONSOLE("ERROR: Failed to parse JSON file: %s", e.what());
         file.close();
         return false;
@@ -297,7 +298,6 @@ bool ModuleScene::LoadScene(const std::string& filepath)
     // Clear current scene
     ClearScene();
 
-    // Deserialize GameObjects
     if (document.contains("gameObjects") && document["gameObjects"].is_array()) {
         const nlohmann::json& gameObjectsArray = document["gameObjects"];
 
@@ -307,6 +307,26 @@ bool ModuleScene::LoadScene(const std::string& filepath)
                 LOG_CONSOLE("WARNING: Failed to deserialize GameObject at index %zu", i);
             }
         }
+    }
+
+    if (root) {
+        int index = 0;
+        GameObject::AssignSerializationIndices(root, index);
+        LOG_DEBUG("[ModuleScene] Assigned serialization indices to %d GameObjects", index);
+    }
+
+    if (root) {
+        root->CreatePendingConstraints();
+        LOG_DEBUG("[ModuleScene] Created all pending constraints");
+    }
+
+    if (root) {
+        std::vector<GameObject*> allGameObjects;
+        GameObject::CollectAllGameObjects(root, allGameObjects);
+        LOG_DEBUG("[ModuleScene] Collected %zu GameObjects for constraint reference resolution", allGameObjects.size());
+
+        GameObject::ResolveConstraintReferences(allGameObjects);
+        LOG_DEBUG("[ModuleScene] Resolved constraint references after loading scene");
     }
 
     // Relink Scene Camera

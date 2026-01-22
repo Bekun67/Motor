@@ -68,12 +68,16 @@ public:
 	ComponentFirstPersonController* CreateFirstPersonController();
     ComponentVehicleController* CreateVehicleController();
 
+    void CreatePendingConstraints();
+
 public:
     std::string name;
     bool active = true;
     bool isPrimitive = false;
 
     void NotifyConstraintsBeforeDestruction();
+
+    std::vector<nlohmann::json> pendingConstraints;
 
 private:
     GameObject* parent = nullptr;

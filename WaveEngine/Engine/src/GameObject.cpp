@@ -351,6 +351,10 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
 
             ComponentType type = static_cast<ComponentType>(componentObj["type"].get<int>());
 
+            if (type == ComponentType::CONSTRAINT) {
+                continue;
+            }
+
             Component* component = nullptr;
             if (type == ComponentType::TRANSFORM) {
                 component = newObject->GetComponent(ComponentType::TRANSFORM);
@@ -407,6 +411,18 @@ GameObject* GameObject::Deserialize(const nlohmann::json& gameObjectObj, GameObj
                     component->SetActive(componentObj["active"].get<bool>());
                 }
                 component->Deserialize(componentObj);
+            }
+        }
+
+
+        for (const auto& componentObj : componentsArray) {
+            if (!componentObj.contains("type")) continue;
+
+            ComponentType type = static_cast<ComponentType>(componentObj["type"].get<int>());
+
+            if (type == ComponentType::CONSTRAINT) {
+
+                newObject->pendingConstraints.push_back(componentObj);
             }
         }
     }
@@ -535,5 +551,47 @@ void GameObject::NotifyConstraintsRecursive(GameObject* current, GameObject* del
     for (GameObject* child : current->GetChildren())
     {
         NotifyConstraintsRecursive(child, deletedObject);
+    }
+}
+
+void GameObject::CreatePendingConstraints() {
+
+    for (const auto& componentObj : pendingConstraints) {
+        if (!componentObj.contains("constraintType")) continue;
+
+        int constraintTypeInt = componentObj["constraintType"].get<int>();
+        ConstraintType constraintType = static_cast<ConstraintType>(constraintTypeInt);
+
+        Component* component = nullptr;
+        switch (constraintType) {
+        case ConstraintType::HINGE:
+            component = CreateHingeConstraint();
+            break;
+        case ConstraintType::SLIDER:
+            component = CreateSliderConstraint();
+            break;
+        case ConstraintType::DISTANCE:
+            component = CreateDistanceConstraint();
+            break;
+        case ConstraintType::CONE:
+            component = CreateConeConstraint();
+            break;
+        default:
+            component = CreateHingeConstraint();
+            break;
+        }
+
+        if (component) {
+            if (componentObj.contains("active")) {
+                component->SetActive(componentObj["active"].get<bool>());
+            }
+            component->Deserialize(componentObj);
+        }
+    }
+
+    pendingConstraints.clear();
+
+    for (GameObject* child : children) {
+        child->CreatePendingConstraints();
     }
 }
