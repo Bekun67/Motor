@@ -583,6 +583,7 @@ void ComponentCollider::UpdateShapeInCompound()
     glm::decompose(globalMatrix, worldScale, worldRotation, worldPosition, skew, perspective);
 
     // Create new collision shape based on type (same logic as CreateCollisionShape)
+    ComponentMesh* meshComp = static_cast<ComponentMesh*>(owner->GetComponent(ComponentType::MESH));
     switch (colliderType)
     {
     case ColliderType::BOX:

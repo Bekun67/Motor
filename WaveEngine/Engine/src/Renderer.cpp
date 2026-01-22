@@ -994,17 +994,17 @@ void Renderer::DrawGameObjectIterative(GameObject* gameObject,
                     if (showVertex) DrawVertexNormals(mesh, modelMatrix);
                     if (showFace) DrawFaceNormals(mesh, modelMatrix);
                 }
+            }
+        }
 
-                //draw colliders with debug
-                std::vector<Component*> colliders = currentObj->GetComponentsOfType(ComponentType::COLLIDER);
-                for (Component* comp : colliders)
-                {
-                    ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
-                    if (collider && collider->IsActive() && collider->GetShowDebug())
-                    {
-                        DrawCollider(collider, modelMatrix);
-                    }
-                }
+        //draw colliders with debug
+        std::vector<Component*> colliders = currentObj->GetComponentsOfType(ComponentType::COLLIDER);
+        for (Component* comp : colliders)
+        {
+            ComponentCollider* collider = static_cast<ComponentCollider*>(comp);
+            if (collider && collider->IsActive() && collider->GetShowDebug())
+            {
+                DrawCollider(collider, modelMatrix);
             }
         }
 
