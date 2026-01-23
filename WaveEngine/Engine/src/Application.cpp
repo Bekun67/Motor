@@ -89,6 +89,9 @@ bool Application::Start()
     if (result)
     {
         LOG_CONSOLE("Engine ready - All systems initialized");
+		// Load a demo scene to show physics
+		scene->LoadScene("../Scene/SceneDemoFinal.json");
+        LOG_CONSOLE("Demo Scene to show physics loaded");
     }
 
     return true;

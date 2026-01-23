@@ -295,8 +295,50 @@ bool ModuleScene::LoadScene(const std::string& filepath)
     // Clear selection to avoid bugs
     Application::GetInstance().selectionManager->ClearSelection();
 
+    // Clean up ALL physics objects before clearing the scene
+    if (root)
+    {
+        CleanupPhysicsRecursive(root);
+        LOG_CONSOLE("Physics cleanup completed before loading scene");
+    }
+
     // Clear current scene
     ClearScene();
+
+    // Force physics world cleanup of any remaining objects
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (physics && physics->GetDynamicsWorld())
+    {
+        btDynamicsWorld* world = physics->GetDynamicsWorld();
+
+        // Remove all constraints
+        int numConstraints = world->getNumConstraints();
+        for (int i = numConstraints - 1; i >= 0; i--)
+        {
+            btTypedConstraint* constraint = world->getConstraint(i);
+            world->removeConstraint(constraint);
+            delete constraint;
+        }
+        LOG_CONSOLE("  -> Removed %d residual constraints from physics world", numConstraints);
+
+        // Remove all rigid bodies
+        int numBodies = world->getNumCollisionObjects();
+        for (int i = numBodies - 1; i >= 0; i--)
+        {
+            btCollisionObject* obj = world->getCollisionObjectArray()[i];
+            btRigidBody* body = btRigidBody::upcast(obj);
+
+            if (body)
+            {
+                world->removeRigidBody(body);
+            }
+            else
+            {
+                world->removeCollisionObject(obj);
+            }
+        }
+        LOG_CONSOLE("  -> Removed %d residual collision objects from physics world", numBodies);
+    }
 
     if (document.contains("gameObjects") && document["gameObjects"].is_array()) {
         const nlohmann::json& gameObjectsArray = document["gameObjects"];
@@ -356,6 +398,45 @@ void ModuleScene::ClearScene()
     // Scene Camera
     Application::GetInstance().camera->SetSceneCamera(nullptr);
 
+    // Clean up physics before deleting GameObjects
+    CleanupPhysicsRecursive(root);
+
+    // Force physics world cleanup
+    ModulePhysics* physics = Application::GetInstance().physics.get();
+    if (physics && physics->GetDynamicsWorld())
+    {
+        btDynamicsWorld* world = physics->GetDynamicsWorld();
+
+        // Remove all constraints
+        int numConstraints = world->getNumConstraints();
+        for (int i = numConstraints - 1; i >= 0; i--)
+        {
+            btTypedConstraint* constraint = world->getConstraint(i);
+            world->removeConstraint(constraint);
+            delete constraint;
+        }
+
+        // Remove all collision objects
+        int numObjects = world->getNumCollisionObjects();
+        for (int i = numObjects - 1; i >= 0; i--)
+        {
+            btCollisionObject* obj = world->getCollisionObjectArray()[i];
+            btRigidBody* body = btRigidBody::upcast(obj);
+
+            if (body)
+            {
+                world->removeRigidBody(body);
+            }
+            else
+            {
+                world->removeCollisionObject(obj);
+            }
+        }
+
+        LOG_CONSOLE("  -> Cleaned %d constraints and %d collision objects from physics",
+            numConstraints, numObjects);
+    }
+
     // Childrens
     std::vector<GameObject*> children = root->GetChildren();
     for (GameObject* child : children) {
@@ -384,4 +465,44 @@ ComponentCamera* ModuleScene::FindCameraInHierarchy(GameObject* obj)
     }
 
     return nullptr;
+}
+
+void ModuleScene::CleanupPhysicsRecursive(GameObject* obj)
+{
+    if (!obj) return;
+
+    // First, validate and clean constraints
+    std::vector<Component*> constraints = obj->GetComponentsOfType(ComponentType::CONSTRAINT);
+    for (Component* comp : constraints)
+    {
+        if (comp && comp->IsActive())
+        {
+            comp->Disable();
+        }
+    }
+
+    // Then, disable rigid bodies
+    ComponentRigidBody* rb = static_cast<ComponentRigidBody*>(
+        obj->GetComponent(ComponentType::RIGIDBODY)
+        );
+    if (rb && rb->IsActive())
+    {
+        rb->Disable();
+    }
+
+    // Finally, disable colliders
+    std::vector<Component*> colliders = obj->GetComponentsOfType(ComponentType::COLLIDER);
+    for (Component* comp : colliders)
+    {
+        if (comp && comp->IsActive())
+        {
+            comp->Disable();
+        }
+    }
+
+    // Recursively process children
+    for (GameObject* child : obj->GetChildren())
+    {
+        CleanupPhysicsRecursive(child);
+    }
 }
