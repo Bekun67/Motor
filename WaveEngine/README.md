@@ -289,5 +289,5 @@ Includes the following menu options:
 ---
 
 <p align="center">
-<sub>© 2025 Wave Engine Physics Systen — Developed by Xavier Chaparro, Isaac Ramirez & Clara Rodriguez — MIT License</sub>
+<sub>© 2025 Wave Engine Physics System — Developed by Xavier Chaparro, Isaac Ramirez & Clara Rodriguez — MIT License</sub>
 </p>
