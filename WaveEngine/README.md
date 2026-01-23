@@ -1,28 +1,66 @@
 <h1 align="center">🌊 Wave Engine 🌊</h1>
 
 <p align="center">
-This project is a custom 3D game engine developed in C++ using OpenGL as the main graphics API.  
-It integrates several external libraries such as Assimp (for 3D model loading), DevIL (for texture management), and ImGui (for the user interface).
+This college project is a custom 3D game engine developed in C++ using OpenGL as the main graphics API.  
+It integrates several external libraries such as Assimp (for 3D model loading), DevIL (for texture management), ImGui (for the user interface) and now Bullet (for physics management).
 </p>
 
 <p align="center">
-In version 2.0, we've evolved beyond simple FBX dependency, implementing a complete resource management system with custom file formats and significant rendering optimizations. The engine now features an advanced editor interface with scene serialization, resource management, and acceleration structures for optimal performance.
+In version 3.0, a new team developed the entire physics system using Bullet for its logic, incorporating new components like Rigid Body for game objects, options to choose various colliders for game objects, options to select various constraints for game objects, and two components made exclusively to showcase the physics in-game: a component that lets you move the camera in-game that collides with other game objects and allows the player to shoot spheres, and a component that turns any game object into a car that you can control in-game. You can also change base physics options in the settings window
 </p>
 
 <p align="center">
-🔗 <strong>GitHub Repository:</strong> <a href="https://github.com/Audra0000/Engine">https://github.com/Audra0000/Engine</a>
+🔗 <strong>GitHub Repository:</strong> <a href="https://github.com/Bekun67/Motor">https://github.com/Bekun67/Motor</a>
 </p>
 
 ---
 
-## 🎏 Team Members
+## 📸 Physics Preview
+
+![Editor Physics Overview](images/editor_overview.png)
+
+> Main editor view with the base scene loaded showcasing physics.
+
+---
+
+## 🔥 New Physics System Team Members
+
+- **Xavier Chaparro** — [GitHub: XaviFast05](https://github.com/XaviFast05)  
+- **Clara Rodriguez** — [GitHub: Kopeke4](https://github.com/Kopeke4)
+- **Isaac Ramirez** — [GitHub: Bekun67](https://github.com/Bekun67)
+
+---
+
+## 🎏 Original Wave Engine Team Members
 
 - **Haosheng Li** — [GitHub: HaosLii](https://github.com/HaosLii)  
 - **Ana Alcaraz** — [GitHub: Audra0000](https://github.com/Audra0000)
 
 ---
+## 🦀 Controls in Game to showcase physics
 
-## 🦀 Controls
+- Camera actions (PLEASE NOTE: Movement while looking around is not possible, you can just use WASD or Look Around one at the same time)
+
+| Action | Key 1 | Key 2 |
+|------------|------------|------------|
+| Up | Space | |
+| Down | Left Ctrl | |
+| Forward, backwards, left, right | WASD | |
+| Look araund | Right mouse button and move mouse | |
+| Shoot Sphere | Left mouse button | |
+
+- Car actions (PLEASE NOTE: Car is independent from camera, so you can move both when you want)
+
+| Action | Key 1 | Key 2 |
+|------------|------------|------------|
+| Forward | Up arrow | |
+| Backwards | Left Arrow | |
+| Turn left and right | Left and Right arrow | |
+| Brake | Left shift | |
+
+---
+
+## 🦀 Controls in scene
 
 | Action | Key 1 | Key 2 |
 |------------|------------|------------|
@@ -45,6 +83,40 @@ In version 2.0, we've evolved beyond simple FBX dependency, implementing a compl
 | Toggle Coordinate System | T | |
 ---
 
+## ✨🧱 Physics system 
+With the help of Bullet, we implemented a physics system in Wave Engine, and it can do the following:
+
+- Abbility to change gravity and simulation in Settings:
+  ![Physics Settings](images/editor_overview.png)
+- Component Rigid Body that you can attach to a Game Object:
+  ![Select RigidBody](images/editor_overview.png)
+  ![RigidBody Inspector](images/editor_overview.png)
+- Component Collider that you can attach to a Game Object:
+  ![Select Colliders](images/editor_overview.png)
+  ![BoxCollider Inspector](images/editor_overview.png)
+  ![SphereCollider Inspector](images/editor_overview.png)
+  ![CylinderCollider Inspector](images/editor_overview.png)
+  ![CapsuleCollider Inspector](images/editor_overview.png)
+  ![PlaneCollider Inspector](images/editor_overview.png)
+  ![MeshCollider Inspector](images/editor_overview.png)
+- Component Constraint that you can attach to a Game Object:
+  ![Select Constraint](images/editor_overview.png)
+  ![HingeConstraint Inspector](images/editor_overview.png)
+  ![SliderConstraint Inspector](images/editor_overview.png)
+  ![DistanceConstraint Inspector](images/editor_overview.png)
+  ![ConeConstraint Inspector](images/editor_overview.png)
+- Component First Person Controller for Demo purposes that you can attach to a Camera. Allows you to move the game camera freely, collide with other game objects and shoot spheres to interact with the scene:
+  ![Select FirstPersonController](images/editor_overview.png)
+  ![FirstPersonController Inspector](images/editor_overview.png)
+- Component Vehicle for Demo purposes that you can attach to a Game Object . Allows you to move the game object like a car, having realistic physics if you also attach a rigid body and a collider to the same game object:
+  ![Select ComponentVehicle](images/editor_overview.png)
+  ![ComponentVehicle Inspector](images/editor_overview.png)
+
+## 💥 Scene With Physics 
+
+  ![SceneDemo](images/editor_overview.png)
+
+---
 ## 🐠 User Interface
 
 ### **Console**
@@ -75,13 +147,17 @@ This window is divided into **five tabs**:
    - View current **camera position**
    - Displays a summary of **camera controls**
    - Change current active camera
-   - Displays current active camera 
+   - Displays current active camera
 4. **Renderer:**  
    - Enable or disable **face culling** and choose its mode  
    - Toggle **wireframe mode**  
    - Change the **background color** of the scene
-   - Toggle debug visualization for AABBs, octree,raycast, zBuffer  
-5. **Hardware:**  
+   - Toggle debug visualization for AABBs, octree,raycast, zBuffer
+5. **Physics:**
+   - Change gravity and the direction of it
+   - Simulation settings for max substeps and fixed timestep
+   - Quick pressets for Earth gravity, Moon Gravity and Zero gravity
+6. **Hardware:**  
    - Displays detailed information about the system hardware in use  
 
 ---
@@ -144,6 +220,21 @@ Includes the following menu options:
 - **Gameobjects:**
   - Create primitves
   - Add rotate component
+  - Add Rigid Body component
+  - Add Collider component
+    - Box Collider
+    - Sphere Collider
+    - Cylinder Collider
+    - Capsule Collider
+    - Plane Collider
+    - Mesh Collider
+  - Add Constraint
+    - Hinge Constraint
+    - Slider Constraint
+    - Distance Constraint
+    - Cone Constraint
+  - Add First Person Controller (For demo purposes)
+  - Add Vehicle Controller (For demo purposes)
 - **Help:**
   - *GitHub documentation:* Opens the official documentation  
   - *Report a bug:* Opens `[Link to repo]/issues`  
@@ -196,5 +287,5 @@ Includes the following menu options:
 ---
 
 <p align="center">
-<sub>© 2025 Wave Engine — Developed by Haosheng Li & Ana Alcaraz — MIT License</sub>
+<sub>© 2025 Wave Engine Physics Systen — Developed by Xavier Chaparro, Isaac Ramirez & Clara Rodriguez — MIT License</sub>
 </p>
