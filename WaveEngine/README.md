@@ -28,7 +28,7 @@ In version 3.0, a new team developed the entire physics system using Bullet for 
 - **Xavier Chaparro** — [GitHub: XaviFast05](https://github.com/XaviFast05)  
 - **Clara Rodriguez** — [GitHub: Kopeke4](https://github.com/Kopeke4)
 - **Isaac Ramirez** — [GitHub: Bekun67](https://github.com/Bekun67)
-
+![TheMainCharacters](images/group.PNG)
 ---
 
 ## 🎏 Original Wave Engine Team Members
@@ -86,35 +86,36 @@ In version 3.0, a new team developed the entire physics system using Bullet for 
 ## ✨🧱 Physics system 
 With the help of Bullet, we implemented a physics system in Wave Engine, and it can do the following:
 
-- Abbility to change gravity and simulation in Settings:
-  ![Physics Settings](images/editor_overview.png)
-- Component Rigid Body that you can attach to a Game Object:
-  ![Select RigidBody](images/editor_overview.png)
-  ![RigidBody Inspector](images/editor_overview.png)
-- Component Collider that you can attach to a Game Object:
-  ![Select Colliders](images/editor_overview.png)
-  ![BoxCollider Inspector](images/editor_overview.png)
-  ![SphereCollider Inspector](images/editor_overview.png)
-  ![CylinderCollider Inspector](images/editor_overview.png)
-  ![CapsuleCollider Inspector](images/editor_overview.png)
-  ![PlaneCollider Inspector](images/editor_overview.png)
-  ![MeshCollider Inspector](images/editor_overview.png)
-- Component Constraint that you can attach to a Game Object:
-  ![Select Constraint](images/editor_overview.png)
-  ![HingeConstraint Inspector](images/editor_overview.png)
-  ![SliderConstraint Inspector](images/editor_overview.png)
-  ![DistanceConstraint Inspector](images/editor_overview.png)
-  ![ConeConstraint Inspector](images/editor_overview.png)
-- Component First Person Controller for Demo purposes that you can attach to a Camera. Allows you to move the game camera freely, collide with other game objects and shoot spheres to interact with the scene:
-  ![Select FirstPersonController](images/editor_overview.png)
-  ![FirstPersonController Inspector](images/editor_overview.png)
-- Component Vehicle for Demo purposes that you can attach to a Game Object . Allows you to move the game object like a car, having realistic physics if you also attach a rigid body and a collider to the same game object:
-  ![Select ComponentVehicle](images/editor_overview.png)
-  ![ComponentVehicle Inspector](images/editor_overview.png)
+- Abbility to change gravity and simulation in Settings:  
+  ![Physics Settings](images/physics_settings.png)
+- Component Rigid Body that you can attach to a Game Object:  
+  ![Select RigidBody](images/select_rigidbody.png)
+  ![RigidBody Inspector](images/rigidbody_inspector.png)
+- Component Collider that you can attach to a Game Object:  
+  ![Select Colliders](images/select_collider.png)
+  ![BoxCollider Inspector](images/boxcollider_inspector.png)
+  ![SphereCollider Inspector](images/sphere_collider.png)
+  ![CylinderCollider Inspector](images/cylinder_collider.png)
+  ![CapsuleCollider Inspector](images/capsule_collider.png)
+  ![PlaneCollider Inspector](images/plane_collider.png)
+  ![MeshCollider Inspector](images/mesh_collider.png)
+- Component Constraint that you can attach to a Game Object:  
+  ![Select Constraint](images/select_constraint.png)
+  ![HingeConstraint Inspector](images/hinge_constraint.png)
+  ![SliderConstraint Inspector](images/slider_constraint.png)
+  ![DistanceConstraint Inspector](images/distance_constraint.png)
+  ![ConeConstraint Inspector](images/cone_constraint.png)
+- Component First Person Controller for Demo purposes that you can attach to a Camera. Allows you to move the game camera freely, collide with other game objects and shoot spheres to interact with the scene:  
+  ![Select FirstPersonController](images/select_firstpersoncontroller.png)
+  ![FirstPersonController Inspector](images/firstperson_inspector.png)
+- Component Vehicle for Demo purposes that you can attach to a Game Object . Allows you to move the game object like a car, having realistic physics if you also attach a rigid body and a collider to the same game object:  
+  ![Select ComponentVehicle](images/select_vehicle.png)
+  ![ComponentVehicle Inspector](images/vehicle_inspector.png)
 
 ## 💥 Scene With Physics 
 
-  ![SceneDemo](images/editor_overview.png)
+  ![Camera](images/gif1.gif)
+  ![Vehicle](images/gif2.gif)
 
 ---
 ## 🐠 User Interface
