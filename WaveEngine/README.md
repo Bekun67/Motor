@@ -6,7 +6,7 @@ It integrates several external libraries such as Assimp (for 3D model loading), 
 </p>
 
 <p align="center">
-In version 3.0, a new team developed the entire physics system using Bullet for its logic, incorporating new components like Rigid Body for game objects, options to choose various colliders for game objects, options to select various constraints for game objects, and two components made exclusively to showcase the physics in-game: a component that lets you move the camera in-game that collides with other game objects and allows the player to shoot spheres, and a component that turns any game object into a car that you can control in-game. You can also change base physics options in the settings window
+In version 3.0, a new team developed the entire physics system using Bullet for its logic, incorporating new components like Rigid Body for game objects, options to choose various colliders for game objects, options to select various constraints for game objects, and two components made exclusively to showcase the physics in-game: a component that lets you move the camera in-game that collides with other game objects and allows the player to shoot spheres, and a component that turns any game object into a car that you can control in-game. There are also two primitives connected by a distance constraint. Furthermore, you change base physics options in the settings window
 </p>
 
 <p align="center">
