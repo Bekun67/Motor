@@ -99,64 +99,72 @@ void ComponentFirstPersonController::HandleMovement()
 
     if (rigidBody && rigidBody->IsActive())
     {
-		// with rigidbody
+        // With RigidBody - Physics-based movement
 
-        // Make the RigidBody kinematic so it doesn't fall due to gravity
-        if (!rigidBody->IsKinematic())
-        {
-            rigidBody->SetKinematic(true);
-            LOG_DEBUG("[FirstPersonController] Set RigidBody to kinematic mode");
-        }
-
-        glm::vec3 moveDirection(0.0f);
-
-        // WASD movement on the horizontal plane
-        if (keys[SDL_SCANCODE_W])
-            moveDirection += horizontalForward;
-        if (keys[SDL_SCANCODE_S])
-            moveDirection -= horizontalForward;
-        if (keys[SDL_SCANCODE_A])
-            moveDirection -= horizontalRight;
-        if (keys[SDL_SCANCODE_D])
-            moveDirection += horizontalRight;
-
-        // Normalize if moving diagonally
-        if (glm::length(moveDirection) > 0.01f)
-        {
-            moveDirection = glm::normalize(moveDirection);
-        }
-
-        // Vertical movement (up/down)
-        if (keys[SDL_SCANCODE_SPACE])
-            moveDirection.y += 1.0f;
-        if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL])
-            moveDirection.y -= 1.0f;
-
-        // Apply movement directly to position (kinematic mode)
-        if (glm::length(moveDirection) > 0.01f)
-        {
-            glm::vec3 position = transform->GetPosition();
-            glm::vec3 movement = moveDirection * movementSpeed * deltaTime;
-            position += movement;
-            transform->SetPosition(position);
-
-            // Sync with physics
-            rigidBody->SyncTransformToPhysics();
-        }
-
-        // Cancel any residual linear velocity
-        rigidBody->SetVelocity(glm::vec3(0.0f));
-
-        // Cancel angular velocity
         btRigidBody* btBody = rigidBody->GetBulletRigidBody();
         if (btBody)
         {
-            btBody->setAngularVelocity(btVector3(0.0f, 0.0f, 0.0f));
+            // Ensure gravity is disabled
+            btBody->setGravity(btVector3(0, 0, 0));
+
+            // Prevent any rotation
+            btBody->setAngularFactor(btVector3(0, 0, 0));
+            btBody->setAngularVelocity(btVector3(0, 0, 0));
+
+            // Calculate desired movement direction
+            glm::vec3 moveDirection(0.0f);
+
+            // WASD movement on the horizontal plane
+            if (keys[SDL_SCANCODE_W])
+                moveDirection += horizontalForward;
+            if (keys[SDL_SCANCODE_S])
+                moveDirection -= horizontalForward;
+            if (keys[SDL_SCANCODE_A])
+                moveDirection -= horizontalRight;
+            if (keys[SDL_SCANCODE_D])
+                moveDirection += horizontalRight;
+
+            // Normalize if moving diagonally
+            if (glm::length(moveDirection) > 0.01f)
+            {
+                moveDirection = glm::normalize(moveDirection);
+            }
+
+            // Vertical movement (up/down)
+            if (keys[SDL_SCANCODE_SPACE])
+                moveDirection.y += 1.0f;
+            if (keys[SDL_SCANCODE_LCTRL] || keys[SDL_SCANCODE_RCTRL])
+                moveDirection.y -= 1.0f;
+
+            // Apply velocity directly
+            if (glm::length(moveDirection) > 0.01f)
+            {
+                // Target velocity
+                glm::vec3 targetVelocity = moveDirection * movementSpeed;
+
+                // Apply velocity directly for precise control
+                btBody->setLinearVelocity(btVector3(
+                    targetVelocity.x,
+                    targetVelocity.y,
+                    targetVelocity.z
+                ));
+
+                // Keep active
+                btBody->activate(true);
+
+                LOG_DEBUG("[FirstPersonController] Applied velocity: (%.2f, %.2f, %.2f)",
+                    targetVelocity.x, targetVelocity.y, targetVelocity.z);
+            }
+            else
+            {
+                // Stop immediately when no input
+                btBody->setLinearVelocity(btVector3(0, 0, 0));
+            }
         }
     }
     else
     {
-		// without rigidbody
+        // Without RigidBody - Kinematic movement
 
         float velocity = movementSpeed * deltaTime;
         glm::vec3 position = transform->GetPosition();
@@ -249,7 +257,7 @@ void ComponentFirstPersonController::HandleMouseLook()
     {
         transform->SetRotationQuat(rotation);
 
-        // Sync with physics if it has a RigidBody
+        // Sync rotation to physics (but rotation won't affect physics due to setAngularFactor(0,0,0))
         ComponentRigidBody* rigidBody = static_cast<ComponentRigidBody*>(
             owner->GetComponent(ComponentType::RIGIDBODY)
             );
@@ -430,9 +438,44 @@ void ComponentFirstPersonController::CreatePlayerRigidBody()
         if (rb)
         {
             rb->SetMass(1.0f);
-            rb->SetKinematic(true);
+            rb->SetKinematic(false);  
 
-            LOG_CONSOLE("[FirstPersonController] Created RigidBody with mass 1.0 (kinematic)");
+            // Configure RigidBody to behave like a character controller
+            btRigidBody* btBody = rb->GetBulletRigidBody();
+            if (btBody)
+            {
+                // Disable gravity (we control movement manually)
+                btBody->setGravity(btVector3(0, 0, 0));
+
+                // Prevent rotation of the RigidBody (only want translation)
+                btBody->setAngularFactor(btVector3(0, 0, 0));
+
+                // High damping to stop movement quickly when no input
+                btBody->setDamping(0.9f, 0.9f);  
+
+                // Keep always active for immediate response
+                btBody->setActivationState(DISABLE_DEACTIVATION);
+
+                LOG_CONSOLE("[FirstPersonController] Created dynamic RigidBody with custom physics settings");
+            }
+        }
+    }
+    else
+    {
+        // If already exists, apply the settings
+        btRigidBody* btBody = existingRigidBody->GetBulletRigidBody();
+        if (btBody)
+        {
+            btBody->setGravity(btVector3(0, 0, 0));
+            btBody->setAngularFactor(btVector3(0, 0, 0));
+            btBody->setDamping(0.9f, 0.9f);
+            btBody->setActivationState(DISABLE_DEACTIVATION);
+
+            // Make sure it's not kinematic
+            if (existingRigidBody->IsKinematic())
+            {
+                existingRigidBody->SetKinematic(false);
+            }
         }
     }
 }
