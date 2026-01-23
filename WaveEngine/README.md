@@ -99,6 +99,7 @@ With the help of Bullet, we implemented a physics system in Wave Engine, and it 
   ![CapsuleCollider Inspector](images/capsule_collider.png)
   ![PlaneCollider Inspector](images/plane_collider.png)
   ![MeshCollider Inspector](images/mesh_collider.png)
+  ![Showcase](images/showcase.png)
 - Component Constraint that you can attach to a Game Object:  
   ![Select Constraint](images/select_constraint.png)
   ![HingeConstraint Inspector](images/hinge_constraint.png)
