@@ -46,7 +46,7 @@ In version 3.0, a new team developed the entire physics system using Bullet for 
 | Up | Space | |
 | Down | Left Ctrl | |
 | Forward, backwards, left, right | WASD | |
-| Look araund | Right mouse button and move mouse | |
+| Look around | Right mouse button and move mouse | |
 | Shoot Sphere | Left mouse button | |
 
 - Car actions (PLEASE NOTE: Car is independent from camera, so you can move both when you want)
