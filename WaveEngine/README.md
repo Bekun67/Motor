@@ -86,7 +86,7 @@ In version 3.0, a new team developed the entire physics system using Bullet for 
 ## ✨🧱 Physics system 
 With the help of Bullet, we implemented a physics system in Wave Engine, and it can do the following:
 
-- Abbility to change gravity and simulation in Settings:  
+- Ability to change gravity and simulation in Settings:  
   ![Physics Settings](images/physics_settings.png)
 - Component Rigid Body that you can attach to a Game Object:  
   ![Select RigidBody](images/select_rigidbody.png)
@@ -245,7 +245,7 @@ Includes the following menu options:
 ---
 
 ## ✨ Extra features 
-- **Transparente textures**
+- **Transparent textures**
 - **zBuffer**
 - **Assets icons**
 - **Asset Deletion:** Delete assets directly from the explorer with automatic cleanup of associated Library files
