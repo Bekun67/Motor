@@ -22,7 +22,6 @@ ComponentFirstPersonController::ComponentFirstPersonController(GameObject* owner
     sphereSize(0.5f),
     mouseSensitivity(0.2f),
     colliderRadius(0.5f),
-    projectileLifetime(5.0f),
     yaw(-90.0f),
     pitch(0.0f),
     firstMouse(true),
@@ -62,47 +61,12 @@ void ComponentFirstPersonController::Update()
 
     HandleMovement();
     HandleMouseLook();
-    UpdateProjectiles();
 
     // Shoot sphere on left mouse click
     Input* input = Application::GetInstance().input.get();
     if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_DOWN)
     {
         ShootSphere();
-    }
-}
-
-void ComponentFirstPersonController::UpdateProjectiles()
-{
-    Time* time = Application::GetInstance().time.get();
-    float deltaTime = time->GetDeltaTime();
-
-    for (int i = static_cast<int>(activeProjectiles.size()) - 1; i >= 0; --i)
-    {
-        ProjectileInfo& projectile = activeProjectiles[i];
-        projectile.timeAlive += deltaTime;
-
-        if (projectile.timeAlive >= projectileLifetime)
-        {
-            if (projectile.gameObject)
-            {
-                LOG_DEBUG("[FirstPersonController] Destroying projectile '%s' after %.2f seconds",
-                    projectile.gameObject->GetName().c_str(), projectile.timeAlive);
-
-                GameObject* parent = projectile.gameObject->GetParent();
-                if (parent)
-                {
-                    parent->RemoveChild(projectile.gameObject);
-                }
-
-                delete projectile.gameObject;
-                projectile.gameObject = nullptr;
-            }
-
-            activeProjectiles.erase(activeProjectiles.begin() + i);
-
-            Application::GetInstance().scene->MarkOctreeForRebuild();
-        }
     }
 }
 
@@ -387,13 +351,11 @@ void ComponentFirstPersonController::ShootSphere()
             shootDirection.z * shootForce);
     }
 
-    activeProjectiles.push_back(ProjectileInfo(sphere));
-
     // Mark octree for rebuild
     Application::GetInstance().scene->MarkOctreeForRebuild();
 
-    LOG_DEBUG("[FirstPersonController] Fired sphere '%s' with force %.2f at distance %.2f (will despawn after %.2f seconds)",
-        sphere->GetName().c_str(), shootForce, spawnDistance, projectileLifetime);
+    LOG_DEBUG("[FirstPersonController] Fired sphere '%s' with force %.2f at distance %.2f",
+        sphere->GetName().c_str(), shootForce, spawnDistance);
 }
 
 void ComponentFirstPersonController::CreatePlayerCollider()
@@ -441,7 +403,6 @@ void ComponentFirstPersonController::Serialize(nlohmann::json& componentObj) con
     componentObj["sphereSize"] = sphereSize;
     componentObj["mouseSensitivity"] = mouseSensitivity;
     componentObj["colliderRadius"] = colliderRadius;
-    componentObj["projectileLifetime"] = projectileLifetime;
 }
 
 void ComponentFirstPersonController::Deserialize(const nlohmann::json& componentObj)
@@ -460,9 +421,6 @@ void ComponentFirstPersonController::Deserialize(const nlohmann::json& component
 
     if (componentObj.contains("colliderRadius"))
         colliderRadius = componentObj["colliderRadius"].get<float>();
-
-    if (componentObj.contains("projectileLifetime"))
-        projectileLifetime = componentObj["projectileLifetime"].get<float>();
 }
 
 void ComponentFirstPersonController::CreatePlayerRigidBody()
@@ -480,7 +438,7 @@ void ComponentFirstPersonController::CreatePlayerRigidBody()
         if (rb)
         {
             rb->SetMass(1.0f);
-            rb->SetKinematic(false);
+            rb->SetKinematic(false);  
 
             // Configure RigidBody to behave like a character controller
             btRigidBody* btBody = rb->GetBulletRigidBody();
@@ -493,7 +451,7 @@ void ComponentFirstPersonController::CreatePlayerRigidBody()
                 btBody->setAngularFactor(btVector3(0, 0, 0));
 
                 // High damping to stop movement quickly when no input
-                btBody->setDamping(0.9f, 0.9f);
+                btBody->setDamping(0.9f, 0.9f);  
 
                 // Keep always active for immediate response
                 btBody->setActivationState(DISABLE_DEACTIVATION);
