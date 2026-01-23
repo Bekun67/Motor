@@ -12,6 +12,9 @@ In version 3.0, a new team developed the entire physics system using Bullet for 
 <p align="center">
 🔗 <strong>GitHub Repository:</strong> <a href="https://github.com/Bekun67/Motor">https://github.com/Bekun67/Motor</a>
 </p>
+<p align="center">
+🔗 <strong>GitHub Release:</strong> <a href="https://github.com/Bekun67/Motor/releases">https://github.com/Bekun67/Motor/releases</a>
+</p>
 
 ---
 
